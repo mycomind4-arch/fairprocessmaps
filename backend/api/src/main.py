@@ -9,9 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
 from src.database import get_db, init_db
-from src.routes import properties, evidence, timeline, search, upload, due_process
+from src.routes import properties, evidence, timeline, search, upload, due_process, auth
 from src.logging_config import setup_logging
 from src.middleware import ErrorHandlerMiddleware, RequestLoggingMiddleware
+from src.auth import AuthMiddleware
 
 
 @asynccontextmanager
@@ -39,6 +40,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(AuthMiddleware)
 app.add_middleware(ErrorHandlerMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
 
@@ -48,6 +50,7 @@ app.include_router(timeline.router, prefix="/api/v1/timeline", tags=["timeline"]
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(upload.router, prefix="/api/v1/upload", tags=["upload"])
 app.include_router(due_process.router, prefix="/api/v1/due-process", tags=["due-process"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 
 
 @app.get("/health")
