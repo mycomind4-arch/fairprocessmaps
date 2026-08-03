@@ -1,42 +1,57 @@
 """Temporal activities for the ingestion pipeline."""
 from temporalio import activity
-from uuid import UUID
+import structlog
 
-from ai.src.extractors.document_extractor import DocumentExtractor
-from ai.src.graphs.evidence_graph import evidence_graph
-from ai.src.agents.due_process_agent import EntityExtractionAgent
+logger = structlog.get_logger("fairprocess.worker.ingestion")
 
 
 @activity.defn
 async def ingest_document(evidence_id: str, property_id: str, storage_key: str) -> dict:
-    """Run full ingestion pipeline on a document."""
-    # Step 1: Fetch from MinIO
-    # Step 2: OCR / extract text
-    extractor = DocumentExtractor()
-    # text = await extractor.extract_from_storage(storage_key)
+    """Run full ingestion pipeline on a document via the API service.
 
-    # Step 3: Run LangGraph workflow
-    initial_state = {
-        "evidence_id": evidence_id,
-        "property_id": property_id,
-        "raw_text": "",  # populated from OCR
-        "ocr_text": "",
-        "extracted_entities": [],
-        "extracted_dates": [],
-        "extracted_parties": [],
-        "extracted_violations": [],
-        "extracted_fines": [],
-        "normalized": {},
-        "timeline_events": [],
-        "due_process_flags": [],
-        "due_process_score": 0,
-        "errors": [],
-    }
+    This activity delegates to the API ingestion pipeline, which handles:
+    OCR → AI extraction → normalization → graph linking → timeline → indexing
+    """
+    logger.info(
+        "ingest_activity_started",
+        evidence_id=evidence_id,
+        property_id=property_id,
+        storage_key=storage_key,
+    )
 
-    # result = evidence_graph.invoke(initial_state)
+    try:
+        # Import here to avoid circular deps at module load
+        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+        from api.src.services.ingestion_pipeline import IngestionPipeline
+        from api.src.services.storage import StorageService
+        from workers.src.config import settings
 
-    return {
-        "evidence_id": evidence_id,
-        "status": "completed",
-        "extracted_entities_count": 0,
-    }
+        engine = create_async_engine(settings.DATABASE_URL)
+        session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+        storage = StorageService()
+        pipeline = IngestionPipeline(storage=storage)
+
+        async with session_maker() as session:
+            result = await pipeline.process_upload(
+                property_id=property_id,
+                storage_key=storage_key,
+                file_name=storage_key.split("/")[-1] if storage_key else "document",
+                mime_type="application/octet-stream",
+                evidence_type="other",
+                db=session,
+            )
+
+        await engine.dispose()
+
+        logger.info(
+            "ingest_activity_complete",
+            evidence_id=evidence_id,
+            result=result,
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error("ingest_activity_failed", evidence_id=evidence_id, error=str(e))
+        return {"evidence_id": evidence_id, "status": "failed", "error": str(e)}

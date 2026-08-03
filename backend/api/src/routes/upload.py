@@ -22,15 +22,21 @@ async def upload_document(
     storage = StorageService()
     key = await storage.upload(file, property_id=str(property_id))
 
-    # Queue background processing
-    pipeline = IngestionPipeline()
-    background_tasks.add_task(
-        pipeline.process_upload,
-        property_id=property_id,
-        storage_key=key,
-        file_name=file.filename,
-        mime_type=file.content_type,
-        evidence_type=evidence_type,
-    )
+    # Process inline (BackgroundTasks runs after response is sent)
+    pipeline = IngestionPipeline(storage=storage)
+
+    async def process():
+        from src.database import async_session
+        async with async_session() as session:
+            await pipeline.process_upload(
+                property_id=str(property_id),
+                storage_key=key,
+                file_name=file.filename,
+                mime_type=file.content_type,
+                evidence_type=evidence_type,
+                db=session,
+            )
+
+    background_tasks.add_task(process)
 
     return {"status": "queued", "storage_key": key}

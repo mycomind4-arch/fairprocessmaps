@@ -2,36 +2,43 @@
 
 import { useEffect, useState } from "react";
 import { Shield, ShieldAlert, ShieldCheck } from "lucide-react";
+import { api } from "@/lib/api";
+import type { DueProcessReport } from "@/lib/types";
 
 interface DueProcessBadgeProps {
   propertyId: string | null;
 }
 
 export default function DueProcessBadge({ propertyId }: DueProcessBadgeProps) {
-  const [report, setReport] = useState<any>(null);
+  const [report, setReport] = useState<DueProcessReport | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!propertyId) {
       setReport(null);
       return;
     }
-    fetch(`/api/v1/due-process/property/${propertyId}`)
-      .then((r) => r.json())
+    setLoading(true);
+    api.dueProcess
+      .analyze(propertyId)
       .then(setReport)
-      .catch(() => {});
+      .catch(() => setReport(null))
+      .finally(() => setLoading(false));
   }, [propertyId]);
 
-  if (!propertyId || !report) {
+  if (!propertyId || loading) {
     return (
       <div className="flex items-center gap-1.5 text-xs text-fp-gray-400">
         <Shield className="w-4 h-4" />
-        <span>No property selected</span>
+        <span>{loading ? "Analyzing..." : "No property selected"}</span>
       </div>
     );
   }
 
-  const critical = report.flags?.filter((f: any) => f.severity === "critical").length || 0;
-  const warning = report.flags?.filter((f: any) => f.severity === "warning").length || 0;
+  if (!report) return null;
+
+  const critical = report.flags?.filter((f) => f.severity === "critical").length || 0;
+  const warning = report.flags?.filter((f) => f.severity === "warning").length || 0;
 
   let Icon = ShieldCheck;
   let colorClass = "text-fp-green";

@@ -1,25 +1,26 @@
 """FairProcess 2.0 API Gateway
 
-REST + GraphQL gateway for property-centric evidence platform.
+REST gateway for property-centric evidence platform.
 """
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
 from src.database import get_db, init_db
-from src.models import property as property_models
-from src.models import evidence as evidence_models
 from src.routes import properties, evidence, timeline, search, upload, due_process
-from src.services.search_index import SearchIndexService
+from src.logging_config import setup_logging
+from src.middleware import ErrorHandlerMiddleware, RequestLoggingMiddleware
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log = setup_logging(level=settings.LOG_LEVEL)
+    log.info("startup", service="api", version="2.0.0")
     await init_db()
     yield
+    log.info("shutdown", service="api")
 
 
 app = FastAPI(
@@ -27,6 +28,8 @@ app = FastAPI(
     description="Evidence-first platform for property due-process analysis",
     version="2.0.0",
     lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 app.add_middleware(
@@ -36,6 +39,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ErrorHandlerMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(properties.router, prefix="/api/v1/properties", tags=["properties"])
 app.include_router(evidence.router, prefix="/api/v1/evidence", tags=["evidence"])
@@ -47,4 +52,4 @@ app.include_router(due_process.router, prefix="/api/v1/due-process", tags=["due-
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "2.0.0"}
+    return {"status": "ok", "version": "2.0.0", "service": "fairprocess-api"}

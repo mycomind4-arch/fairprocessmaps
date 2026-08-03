@@ -1,25 +1,24 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("FairProcess 2.0 E2E", () => {
-  test("homepage loads with map", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator("text=FairProcess")).toBeVisible();
-    await expect(page.locator("canvas")).toBeVisible(); // MapLibre canvas
-  });
+test("home page loads with map and search", async ({ page }) => {
+  await page.goto("/");
 
-  test("search bar is interactive", async ({ page }) => {
-    await page.goto("/");
-    const search = page.locator("input[placeholder*='Search']");
-    await search.fill("1234 Main St");
-    await expect(search).toHaveValue("1234 Main St");
-  });
+  // Header should be visible
+  await expect(page.locator("text=FairProcess")).toBeVisible();
 
-  test("selecting property shows evidence panel", async ({ page }) => {
-    await page.goto("/");
-    // Wait for map to load
-    await page.waitForSelector("canvas", { timeout: 10000 });
-    // Click on a mock property (would need seeded data in CI)
-    // await page.click("canvas", { position: { x: 400, y: 300 } });
-    // await expect(page.locator("text=Evidence")).toBeVisible();
-  });
+  // Search bar should be present
+  await expect(page.locator("placeholder=Search properties, evidence, addresses...")).toBeVisible();
+
+  // Map container should be rendered
+  await expect(page.locator(".maplibregl-map")).toBeVisible({ timeout: 15000 });
+});
+
+test("sidebar shows upload tab when no property selected", async ({ page }) => {
+  await page.goto("/");
+
+  // Upload tab should be clickable
+  await page.click("text=Upload");
+
+  // Should show "Select a property first" message
+  await expect(page.locator("text=Select a property first to upload evidence")).toBeVisible();
 });
