@@ -1,0 +1,49 @@
+[project]
+name = "fairprocess-api"
+version = "2.0.0"
+description = "FairProcess 2.0 API Gateway"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.30",
+    "geoalchemy2>=0.17",
+    "pydantic>=2.11",
+    "pydantic-settings>=2.8",
+    "python-multipart>=0.0.20",
+    "minio>=7.2",
+    "meilisearch>=0.34",
+    "neo4j>=5.28",
+    "python-jose[cryptography]>=3.4",
+    "passlib[bcrypt]>=1.7",
+    "httpx>=0.28",
+    "structlog>=25.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "pytest-cov>=6.0",
+    "ruff>=0.11",
+    "mypy>=1.15",
+    "factory-boy>=3.3",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

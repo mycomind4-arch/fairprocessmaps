@@ -1,0 +1,30 @@
+[project]
+name = "fairprocess-ai"
+version = "2.0.0"
+description = "FairProcess 2.0 AI Framework"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=0.3",
+    "langchain-openai>=0.3",
+    "langgraph>=0.3",
+    "openai>=1.75",
+    "pydantic>=2.11",
+    "pydantic-ai>=0.1",
+    "docling>=2.30",
+    "marker-pdf>=1.5",
+    "pytesseract>=0.3",
+    "pillow>=11.1",
+    "structlog>=25.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "ruff>=0.11",
+    "mypy>=1.15",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

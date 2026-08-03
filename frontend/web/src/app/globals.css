@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --color-fp-blue: #2563eb;
+  --color-fp-red: #dc2626;
+  --color-fp-green: #16a34a;
+  --color-fp-amber: #d97706;
+  --color-fp-gray-50: #f9fafb;
+  --color-fp-gray-100: #f3f4f6;
+  --color-fp-gray-200: #e5e7eb;
+  --color-fp-gray-300: #d1d5db;
+  --color-fp-gray-400: #9ca3af;
+  --color-fp-gray-500: #6b7280;
+  --color-fp-gray-600: #4b5563;
+  --color-fp-gray-700: #374151;
+  --color-fp-gray-800: #1f2937;
+  --color-fp-gray-900: #111827;
+}
+
+html, body, #__next {
+  height: 100%;
+}
+
+.maplibregl-map {
+  font-family: var(--font-sans);
+}
