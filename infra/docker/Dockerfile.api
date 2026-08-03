@@ -13,8 +13,9 @@ RUN apt-get update && apt-get install -y \
 # UV for fast Python package management
 COPY --from=ghcr.io/astral-sh/uv:0.6 /uv /uvx /bin/
 
-COPY api/pyproject.toml api/uv.lock ./
-RUN uv sync --frozen
+COPY api/pyproject.toml ./
+COPY api/uv.lock* ./
+RUN if [ -f uv.lock ]; then uv sync --frozen; else uv sync; fi
 
 COPY api/src ./src
 COPY shared ./shared
@@ -24,4 +25,4 @@ ENV PORT=8000
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

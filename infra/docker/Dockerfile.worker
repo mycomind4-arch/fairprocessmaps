@@ -11,8 +11,9 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=ghcr.io/astral-sh/uv:0.6 /uv /uvx /bin/
 
-COPY workers/pyproject.toml workers/uv.lock ./
-RUN uv sync --frozen
+COPY workers/pyproject.toml ./
+COPY workers/uv.lock* ./
+RUN if [ -f uv.lock ]; then uv sync --frozen; else uv sync; fi
 
 COPY workers/src ./src
 COPY ai/src ./ai

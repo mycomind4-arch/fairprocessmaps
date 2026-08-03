@@ -79,6 +79,11 @@ services:
       - meilisearch_data:/meili_data
     ports:
       - "7700:7700"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # ───────────────────────────────────────────────
   # Layer 9 — Workflow Engine
@@ -194,6 +199,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:-fp_dev_jwt}
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - ../../backend:/app
     depends_on:
@@ -221,7 +231,8 @@ services:
       - ../../frontend/web:/app
       - /app/node_modules
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   postgis_data:
