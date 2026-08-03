@@ -1,0 +1,10 @@
+# Terraform variables for FairProcess 2.0
+# Copy to terraform.tfvars and adjust
+
+aws_region   = "us-west-1"
+project_name = "fairprocess"
+environment  = "production"
+domain_name  = ""  # e.g. "fairprocess.example.com"
+
+# RDS password — generate one: openssl rand -base64 24
+db_password = ""
