@@ -2,18 +2,12 @@
 
 import { useEffect, useState } from "react";
 import {
-  MapPin,
-  Building2,
-  User,
-  DollarSign,
-  Ruler,
-  Calendar,
-  FileText,
-  AlertTriangle,
-  ChevronRight,
+  MapPin, Building2, User, DollarSign, Ruler, Calendar,
+  FileText, AlertTriangle, ChevronRight, Upload,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import type { Property, DueProcessReport, Evidence, TimelineEvent } from "@/lib/types";
+import ScoreRing from "@/components/ScoreRing";
+import type { Property, DueProcessReport } from "@/lib/types";
 
 interface PropertyDetailProps {
   propertyId: string;
@@ -46,217 +40,165 @@ export default function PropertyDetail({ propertyId, onShowPanel }: PropertyDeta
 
   if (loading) {
     return (
-      <div className="p-4 animate-pulse space-y-3">
-        <div className="h-6 bg-fp-gray-100 rounded w-3/4" />
-        <div className="h-4 bg-fp-gray-100 rounded w-1/2" />
-        <div className="h-20 bg-fp-gray-100 rounded" />
+      <div className="p-4 space-y-3">
+        <div className="shimmer h-6 rounded w-3/4" />
+        <div className="shimmer h-4 rounded w-1/2" />
+        <div className="shimmer h-24 rounded-xl" />
       </div>
     );
   }
 
   if (!property) {
-    return (
-      <div className="p-4 text-sm text-fp-gray-400">
-        Property not found.
-      </div>
-    );
+    return <div className="p-4 text-sm text-fp-text-dim">Property not found.</div>;
   }
 
   const criticalCount = report?.flags.filter((f) => f.severity === "critical").length ?? 0;
   const warningCount = report?.flags.filter((f) => f.severity === "warning").length ?? 0;
 
-  const scoreColor =
-    !report ? "text-fp-gray-400" :
-    report.overall_score >= 80 ? "text-fp-green" :
-    report.overall_score >= 50 ? "text-fp-amber" :
-    "text-fp-red";
-
-  const scoreBg =
-    !report ? "bg-fp-gray-50" :
-    report.overall_score >= 80 ? "bg-green-50" :
-    report.overall_score >= 50 ? "bg-amber-50" :
-    "bg-red-50";
-
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 animate-[fade-in_0.3s_ease-out]">
       {/* Address header */}
       <div>
-        <div className="flex items-start gap-2">
-          <MapPin className="w-5 h-5 text-fp-gray-400 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2.5">
+          <div className="w-9 h-9 rounded-xl glass flex items-center justify-center shrink-0">
+            <MapPin className="w-4.5 h-4.5 text-fp-cyan" />
+          </div>
           <div>
-            <h2 className="text-base font-semibold text-fp-gray-800 leading-tight">
-              {property.address}
-            </h2>
-            <p className="text-sm text-fp-gray-500 mt-0.5">
-              {property.city}, {property.state} {property.zip_code}
-            </p>
-            <p className="text-xs text-fp-gray-400 mt-1 font-mono">
-              Parcel: {property.parcel_id}
-            </p>
+            <h2 className="text-base font-semibold text-fp-text leading-tight">{property.address}</h2>
+            <p className="text-sm text-fp-text-muted mt-0.5">{property.city}, {property.state} {property.zip_code}</p>
+            <p className="text-xs text-fp-text-dim mt-1 font-mono">Parcel: {property.parcel_id}</p>
           </div>
         </div>
       </div>
 
-      {/* Due-process score */}
+      {/* Due-process score card */}
       {report && (
-        <div className={`rounded-lg p-3 ${scoreBg}`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-fp-gray-500 uppercase tracking-wide">
-                Due-Process Score
+        <div className="glass rounded-2xl p-4 flex items-center gap-4 animate-[scale-in_0.25s_ease-out]">
+          <ScoreRing score={report.overall_score} size="md" label="Score" />
+          <div className="flex-1 space-y-1.5">
+            <div className="text-xs text-fp-text-dim uppercase tracking-wider">Due-Process Analysis</div>
+            {criticalCount > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-fp-red">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                {criticalCount} critical flag{criticalCount !== 1 ? "s" : ""}
               </div>
-              <div className={`text-2xl font-bold ${scoreColor}`}>
-                {report.overall_score}
-                <span className="text-sm font-normal text-fp-gray-400">/100</span>
+            )}
+            {warningCount > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-fp-amber">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                {warningCount} warning{warningCount !== 1 ? "s" : ""}
               </div>
-            </div>
-            <div className="text-right space-y-1">
-              {criticalCount > 0 && (
-                <div className="flex items-center gap-1 text-xs text-fp-red">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  {criticalCount} critical
-                </div>
-              )}
-              {warningCount > 0 && (
-                <div className="flex items-center gap-1 text-xs text-fp-amber">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  {warningCount} warning
-                </div>
-              )}
-              {criticalCount === 0 && warningCount === 0 && (
-                <div className="text-xs text-fp-green">
-                  No discrepancies
-                </div>
-              )}
-            </div>
+            )}
+            {criticalCount === 0 && warningCount === 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-fp-green">
+                <span className="w-1.5 h-1.5 rounded-full bg-fp-green" />
+                No discrepancies detected
+              </div>
+            )}
+            {report.summary && <p className="text-xs text-fp-text-muted mt-1">{report.summary}</p>}
           </div>
-          {report.summary && (
-            <p className="text-xs text-fp-gray-500 mt-2">{report.summary}</p>
-          )}
         </div>
       )}
 
       {/* Property attributes */}
-      <div className="space-y-2">
+      <div className="glass rounded-xl p-4 space-y-2.5">
         {property.property_type && (
-          <div className="flex items-center gap-2 text-sm">
-            <Building2 className="w-4 h-4 text-fp-gray-400" />
-            <span className="text-fp-gray-500">Type:</span>
-            <span className="text-fp-gray-700 capitalize">{property.property_type}</span>
+          <div className="flex items-center gap-2.5 text-sm">
+            <Building2 className="w-4 h-4 text-fp-text-dim shrink-0" />
+            <span className="text-fp-text-dim">Type</span>
+            <span className="text-fp-text ml-auto capitalize">{property.property_type}</span>
           </div>
         )}
         {property.owner_name && (
-          <div className="flex items-center gap-2 text-sm">
-            <User className="w-4 h-4 text-fp-gray-400" />
-            <span className="text-fp-gray-500">Owner:</span>
-            <span className="text-fp-gray-700">{property.owner_name}</span>
+          <div className="flex items-center gap-2.5 text-sm">
+            <User className="w-4 h-4 text-fp-text-dim shrink-0" />
+            <span className="text-fp-text-dim">Owner</span>
+            <span className="text-fp-text ml-auto truncate">{property.owner_name}</span>
           </div>
         )}
         {property.assessed_value != null && (
-          <div className="flex items-center gap-2 text-sm">
-            <DollarSign className="w-4 h-4 text-fp-gray-400" />
-            <span className="text-fp-gray-500">Assessed:</span>
-            <span className="text-fp-gray-700">
-              ${property.assessed_value.toLocaleString()}
-            </span>
+          <div className="flex items-center gap-2.5 text-sm">
+            <DollarSign className="w-4 h-4 text-fp-text-dim shrink-0" />
+            <span className="text-fp-text-dim">Assessed</span>
+            <span className="text-fp-text ml-auto tabular-nums">${property.assessed_value.toLocaleString()}</span>
           </div>
         )}
         {property.lot_size_sqft != null && (
-          <div className="flex items-center gap-2 text-sm">
-            <Ruler className="w-4 h-4 text-fp-gray-400" />
-            <span className="text-fp-gray-500">Lot:</span>
-            <span className="text-fp-gray-700">
-              {property.lot_size_sqft.toLocaleString()} sqft
-            </span>
+          <div className="flex items-center gap-2.5 text-sm">
+            <Ruler className="w-4 h-4 text-fp-text-dim shrink-0" />
+            <span className="text-fp-text-dim">Lot</span>
+            <span className="text-fp-text ml-auto tabular-nums">{property.lot_size_sqft.toLocaleString()} sqft</span>
           </div>
         )}
         {property.year_built != null && (
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-fp-gray-400" />
-            <span className="text-fp-gray-500">Built:</span>
-            <span className="text-fp-gray-700">{property.year_built}</span>
+          <div className="flex items-center gap-2.5 text-sm">
+            <Calendar className="w-4 h-4 text-fp-text-dim shrink-0" />
+            <span className="text-fp-text-dim">Built</span>
+            <span className="text-fp-text ml-auto">{property.year_built}</span>
           </div>
         )}
         {property.zoning && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-fp-gray-500">Zoning:</span>
-            <span className="text-fp-gray-700">{property.zoning}</span>
+          <div className="flex items-center gap-2.5 text-sm">
+            <span className="text-fp-text-dim w-4 shrink-0" />
+            <span className="text-fp-text-dim">Zoning</span>
+            <span className="text-fp-text ml-auto">{property.zoning}</span>
           </div>
         )}
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          onClick={() => onShowPanel("evidence")}
-          className="flex items-center gap-2 bg-fp-gray-50 rounded-lg p-3 hover:bg-fp-gray-100 transition-colors text-left"
-        >
-          <FileText className="w-5 h-5 text-fp-gray-400" />
-          <div>
-            <div className="text-lg font-semibold text-fp-gray-700">
-              {evidenceCount}
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => onShowPanel("evidence")} className="glass glass-hover rounded-xl p-3.5 transition-all text-left group animate-[slide-up_0.3s_ease-out]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-fp-purple/15 flex items-center justify-center">
+              <FileText className="w-4.5 h-4.5 text-fp-purple" />
             </div>
-            <div className="text-xs text-fp-gray-400">Evidence</div>
+            <div>
+              <div className="text-lg font-bold text-fp-text tabular-nums">{evidenceCount}</div>
+              <div className="text-[10px] text-fp-text-dim uppercase tracking-wider">Evidence</div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-fp-text-dim ml-auto group-hover:text-fp-text transition-colors" />
           </div>
-          <ChevronRight className="w-4 h-4 text-fp-gray-300 ml-auto" />
         </button>
-        <button
-          onClick={() => onShowPanel("timeline")}
-          className="flex items-center gap-2 bg-fp-gray-50 rounded-lg p-3 hover:bg-fp-gray-100 transition-colors text-left"
-        >
-          <Calendar className="w-5 h-5 text-fp-gray-400" />
-          <div>
-            <div className="text-lg font-semibold text-fp-gray-700">
-              {timelineCount}
+        <button onClick={() => onShowPanel("timeline")} className="glass glass-hover rounded-xl p-3.5 transition-all text-left group animate-[slide-up_0.3s_ease-out]" style={{ animationDelay: "50ms" }}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-fp-amber/15 flex items-center justify-center">
+              <Calendar className="w-4.5 h-4.5 text-fp-amber" />
             </div>
-            <div className="text-xs text-fp-gray-400">Events</div>
+            <div>
+              <div className="text-lg font-bold text-fp-text tabular-nums">{timelineCount}</div>
+              <div className="text-[10px] text-fp-text-dim uppercase tracking-wider">Events</div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-fp-text-dim ml-auto group-hover:text-fp-text transition-colors" />
           </div>
-          <ChevronRight className="w-4 h-4 text-fp-gray-300 ml-auto" />
         </button>
       </div>
 
       {/* Upload shortcut */}
-      <button
-        onClick={() => onShowPanel("upload")}
-        className="w-full flex items-center justify-center gap-2 text-sm text-fp-blue border border-fp-blue/30 rounded-lg py-2 hover:bg-fp-blue/5 transition-colors"
-      >
-        <FileText className="w-4 h-4" />
+      <button onClick={() => onShowPanel("upload")} className="w-full flex items-center justify-center gap-2 text-sm text-fp-cyan border border-fp-cyan/20 rounded-xl py-2.5 hover:bg-fp-cyan/10 transition-all glass">
+        <Upload className="w-4 h-4" />
         Upload new evidence
       </button>
 
-      {/* Due-process flags list */}
+      {/* Due-process flags */}
       {report && report.flags.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-fp-gray-500 uppercase tracking-wide">
-            Due-Process Flags
-          </h3>
+          <h3 className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider">Due-Process Flags</h3>
           {report.flags.map((flag, idx) => (
-            <div
-              key={idx}
-              className={`rounded-md border p-2 ${
-                flag.severity === "critical"
-                  ? "border-red-200 bg-red-50"
-                  : flag.severity === "warning"
-                  ? "border-amber-200 bg-amber-50"
-                  : "border-fp-gray-200 bg-fp-gray-50"
-              }`}
-            >
-              <div className="flex items-start gap-2">
-                <AlertTriangle
-                  className={`w-4 h-4 shrink-0 mt-0.5 ${
-                    flag.severity === "critical" ? "text-fp-red" : "text-fp-amber"
-                  }`}
-                />
+            <div key={idx} className={`rounded-xl border p-3 glass animate-[slide-up_0.3s_ease-out]`} style={{ animationDelay: `${idx * 50}ms` }}>
+              <div className="flex items-start gap-2.5">
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                  flag.severity === "critical" ? "bg-fp-red/15" : flag.severity === "warning" ? "bg-fp-amber/15" : "bg-fp-surface-2"
+                }`}>
+                  <AlertTriangle className={`w-3.5 h-3.5 ${flag.severity === "critical" ? "text-fp-red" : "text-fp-amber"}`} />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-fp-gray-700">
-                    {flag.rule_name}
-                  </div>
-                  <div className="text-xs text-fp-gray-500 mt-0.5">
-                    {flag.description}
-                  </div>
+                  <div className="text-sm font-medium text-fp-text">{flag.rule_name}</div>
+                  <div className="text-xs text-fp-text-muted mt-0.5">{flag.description}</div>
                   {flag.suggested_action && (
-                    <div className="text-xs text-fp-gray-400 mt-1 italic">
-                      → {flag.suggested_action}
+                    <div className="text-xs text-fp-cyan mt-1.5 flex items-start gap-1">
+                      <span>→</span>
+                      <span>{flag.suggested_action}</span>
                     </div>
                   )}
                 </div>
@@ -267,17 +209,17 @@ export default function PropertyDetail({ propertyId, onShowPanel }: PropertyDeta
       )}
 
       {/* Recommendations */}
-      {report && report.recommendations.length > 0 && (
-        <div className="space-y-1">
-          <h3 className="text-xs font-semibold text-fp-gray-500 uppercase tracking-wide">
-            Recommendations
-          </h3>
-          {report.recommendations.map((rec, idx) => (
-            <div key={idx} className="text-xs text-fp-gray-600 flex items-start gap-1.5">
-              <span className="text-fp-gray-400">•</span>
-              <span>{rec}</span>
-            </div>
-          ))}
+      {report && report.recommendations && report.recommendations.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider">Recommendations</h3>
+          <div className="glass rounded-xl p-3 space-y-1.5">
+            {report.recommendations.map((rec, idx) => (
+              <div key={idx} className="text-xs text-fp-text-muted flex items-start gap-2">
+                <span className="text-fp-cyan shrink-0">→</span>
+                <span>{rec}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

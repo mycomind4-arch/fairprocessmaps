@@ -1,26 +1,227 @@
 @import "tailwindcss";
 
 @theme {
-  --color-fp-blue: #2563eb;
-  --color-fp-red: #dc2626;
-  --color-fp-green: #16a34a;
-  --color-fp-amber: #d97706;
-  --color-fp-gray-50: #f9fafb;
-  --color-fp-gray-100: #f3f4f6;
-  --color-fp-gray-200: #e5e7eb;
-  --color-fp-gray-300: #d1d5db;
-  --color-fp-gray-400: #9ca3af;
-  --color-fp-gray-500: #6b7280;
-  --color-fp-gray-600: #4b5563;
-  --color-fp-gray-700: #374151;
-  --color-fp-gray-800: #1f2937;
-  --color-fp-gray-900: #111827;
+  /* ── Dark glassmorphism palette ── */
+  --color-fp-bg: #070b14;
+  --color-fp-surface: #0d1424;
+  --color-fp-surface-2: #131c30;
+  --color-fp-glass: rgba(19, 28, 48, 0.6);
+  --color-fp-border: rgba(56, 78, 122, 0.25);
+  --color-fp-border-hover: rgba(56, 78, 122, 0.45);
+
+  --color-fp-blue: #3b82f6;
+  --color-fp-cyan: #06b6d4;
+  --color-fp-teal: #14b8a6;
+  --color-fp-red: #ef4444;
+  --color-fp-amber: #f59e0b;
+  --color-fp-green: #10b981;
+  --color-fp-purple: #a78bfa;
+
+  --color-fp-text: #e2e8f0;
+  --color-fp-text-muted: #94a3b8;
+  --color-fp-text-dim: #64748b;
+
+  --radius-glass: 14px;
+
+  /* ── Animations ── */
+  --animate-fade-in: fade-in 0.4s ease-out forwards;
+  --animate-slide-up: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-down: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-right: slide-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-scale-in: scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
 }
 
-html, body, #__next {
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
+  50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.35); }
+}
+
+/* ── Base styles ── */
+html, body {
   height: 100%;
+  background: var(--color-fp-bg);
+  color: var(--color-fp-text);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
+*, *::before, *::after {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-fp-border) transparent;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-fp-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-fp-border-hover);
+}
+
+/* ── Glass card utility ── */
+.glass {
+  background: var(--color-fp-glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--color-fp-border);
+}
+
+.glass-hover:hover {
+  background: rgba(19, 28, 48, 0.8);
+  border-color: var(--color-fp-border-hover);
+}
+
+/* ── Gradient text ── */
+.gradient-text {
+  background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 50%, #14b8a6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── Shimmer skeleton ── */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-fp-surface) 25%,
+    var(--color-fp-surface-2) 50%,
+    var(--color-fp-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* ── Map overrides ── */
 .maplibregl-map {
-  font-family: var(--font-sans);
+  font-family: inherit;
+  background: var(--color-fp-bg);
+}
+
+.maplibregl-ctrl-group {
+  background: var(--color-fp-glass) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-fp-border) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+
+.maplibregl-ctrl-group button {
+  background: transparent !important;
+  border-bottom: 1px solid var(--color-fp-border) !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background: rgba(59, 130, 246, 0.15) !important;
+}
+
+.maplibregl-ctrl-group button+button {
+  border-top: 0;
+}
+
+.maplibregl-ctrl button .maplibregl-ctrl-icon {
+  filter: invert(0.8);
+}
+
+/* ── vis-timeline dark overrides ── */
+.vis-timeline {
+  border: none !important;
+  color: var(--color-fp-text-muted);
+}
+
+.vis-item {
+  background: var(--color-fp-surface-2) !important;
+  border-color: var(--color-fp-border) !important;
+  color: var(--color-fp-text) !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+}
+
+.vis-item.vis-dot {
+  border-color: var(--color-fp-cyan) !important;
+  background: var(--color-fp-cyan) !important;
+  border-radius: 50% !important;
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.vis-item.vis-item-critical {
+  border-color: var(--color-fp-red) !important;
+  background: var(--color-fp-red) !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+.vis-item.vis-selected {
+  background: rgba(59, 130, 246, 0.25) !important;
+  border-color: var(--color-fp-blue) !important;
+}
+
+.vis-time-axis .vis-text {
+  color: var(--color-fp-text-dim) !important;
+}
+
+.vis-time-axis .vis-grid.vis-minor {
+  border-color: rgba(56, 78, 122, 0.1) !important;
+}
+
+.vis-time-axis .vis-grid.vis-major {
+  border-color: rgba(56, 78, 122, 0.2) !important;
+}
+
+.vis-panel.vis-center, .vis-panel.vis-left, .vis-panel.vis-right {
+  border-color: var(--color-fp-border) !important;
+}
+
+/* ── Selection ── */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: white;
+}
+
+/* ── Focus ring ── */
+*:focus-visible {
+  outline: 2px solid var(--color-fp-blue);
+  outline-offset: 2px;
+}
+
+input, select, textarea {
+  background: var(--color-fp-surface);
+  color: var(--color-fp-text);
+}
+
+select option {
+  background: var(--color-fp-surface);
+  color: var(--color-fp-text);
 }

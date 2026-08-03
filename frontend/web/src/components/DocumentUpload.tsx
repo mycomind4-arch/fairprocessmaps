@@ -35,29 +35,21 @@ export default function DocumentUpload({ propertyId, onUploaded }: DocumentUploa
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const dropped = Array.from(e.dataTransfer.files);
-    setFiles((prev) => [...prev, ...dropped]);
+    setFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
   }, []);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
-    }
+    if (e.target.files) setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
   };
 
-  const removeFile = (idx: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== idx));
-  };
+  const removeFile = (idx: number) => setFiles((prev) => prev.filter((_, i) => i !== idx));
 
   const upload = async () => {
     if (files.length === 0) return;
     setStatus("uploading");
     setErrorMsg("");
-
     try {
-      for (const file of files) {
-        await api.upload(propertyId, file, evidenceType);
-      }
+      for (const file of files) await api.upload(propertyId, file, evidenceType);
       setStatus("success");
       setFiles([]);
       setTimeout(() => setStatus("idle"), 3000);
@@ -75,70 +67,47 @@ export default function DocumentUpload({ propertyId, onUploaded }: DocumentUploa
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <h2 className="text-sm font-semibold text-fp-gray-700 uppercase tracking-wide">
-        Upload Evidence
-      </h2>
+    <div className="p-4 space-y-4 animate-[fade-in_0.3s_ease-out]">
+      <h2 className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider">Upload Evidence</h2>
 
-      {/* Evidence type selector */}
       <div>
-        <label className="text-xs text-fp-gray-500 block mb-1">Evidence Type</label>
+        <label className="text-xs text-fp-text-dim block mb-1.5">Evidence Type</label>
         <select
           value={evidenceType}
           onChange={(e) => setEvidenceType(e.target.value as EvidenceType)}
-          className="w-full text-sm border border-fp-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-fp-blue/20 focus:border-fp-blue"
+          className="w-full text-sm rounded-xl bg-fp-surface border border-fp-border px-3 py-2 focus:outline-none focus:border-fp-blue/50 focus:ring-2 focus:ring-fp-blue/10 transition-all"
         >
-          {EVIDENCE_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
+          {EVIDENCE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </div>
 
-      {/* Drop zone */}
       <div
         onDrop={handleDrop}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
-        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
-          dragOver ? "border-fp-blue bg-fp-blue/5" : "border-fp-gray-300 hover:border-fp-gray-400"
+        className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
+          dragOver ? "border-fp-blue bg-fp-blue/10 scale-[1.02]" : "border-fp-border hover:border-fp-border-hover glass"
         }`}
         onClick={() => document.getElementById("file-input")?.click()}
       >
-        <Upload className="w-6 h-6 text-fp-gray-400 mx-auto mb-2" />
-        <p className="text-sm text-fp-gray-500">
-          Drag & drop files here, or click to browse
-        </p>
-        <p className="text-xs text-fp-gray-400 mt-1">
-          PDF, images, documents — up to 50MB each
-        </p>
-        <input
-          id="file-input"
-          type="file"
-          multiple
-          className="hidden"
-          onChange={handleFileInput}
-        />
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 transition-all ${dragOver ? "bg-fp-blue/20 scale-110" : "bg-fp-surface-2"}`}>
+          <Upload className={`w-6 h-6 transition-colors ${dragOver ? "text-fp-blue" : "text-fp-text-dim"}`} />
+        </div>
+        <p className="text-sm text-fp-text-muted">Drag & drop files here, or click to browse</p>
+        <p className="text-xs text-fp-text-dim mt-1">PDF, images, documents — up to 50MB each</p>
+        <input id="file-input" type="file" multiple className="hidden" onChange={handleFileInput} />
       </div>
 
-      {/* File list */}
       {files.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-2 animate-[slide-down_0.2s_ease-out]">
           {files.map((file, idx) => (
-            <div
-              key={idx}
-              className="flex items-center gap-2 bg-fp-gray-50 rounded-md px-2 py-1.5"
-            >
-              <FileText className="w-4 h-4 text-fp-gray-400 shrink-0" />
-              <span className="text-sm flex-1 truncate">{file.name}</span>
-              <span className="text-xs text-fp-gray-400 shrink-0">
-                {formatSize(file.size)}
-              </span>
-              <button
-                onClick={() => removeFile(idx)}
-                className="text-fp-gray-400 hover:text-fp-red transition-colors"
-              >
+            <div key={idx} className="flex items-center gap-2.5 glass rounded-lg px-3 py-2">
+              <div className="w-8 h-8 rounded-lg bg-fp-surface-2 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-fp-text-muted" />
+              </div>
+              <span className="text-sm flex-1 truncate text-fp-text">{file.name}</span>
+              <span className="text-xs text-fp-text-dim shrink-0 tabular-nums">{formatSize(file.size)}</span>
+              <button onClick={() => removeFile(idx)} className="text-fp-text-dim hover:text-fp-red transition-colors p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -146,34 +115,29 @@ export default function DocumentUpload({ propertyId, onUploaded }: DocumentUploa
         </div>
       )}
 
-      {/* Upload button */}
       {files.length > 0 && status !== "uploading" && (
-        <button
-          onClick={upload}
-          className="w-full bg-fp-blue text-white text-sm font-medium py-2 rounded-lg hover:bg-fp-blue/90 transition-colors"
-        >
+        <button onClick={upload} className="w-full bg-gradient-to-r from-fp-blue to-fp-cyan text-white text-sm font-medium py-2.5 rounded-xl hover:shadow-lg hover:shadow-fp-blue/25 transition-all hover:scale-[1.01] active:scale-[0.99]">
           Upload {files.length} file{files.length > 1 ? "s" : ""}
         </button>
       )}
 
-      {/* Status indicators */}
       {status === "uploading" && (
-        <div className="flex items-center justify-center gap-2 text-sm text-fp-gray-500">
+        <div className="flex items-center justify-center gap-2 text-sm text-fp-text-muted glass rounded-xl px-3 py-3">
           <Loader2 className="w-4 h-4 animate-spin" />
           Uploading & queuing for processing...
         </div>
       )}
 
       {status === "success" && (
-        <div className="flex items-center gap-2 text-sm text-fp-green bg-green-50 rounded-md px-3 py-2">
-          <CheckCircle className="w-4 h-4" />
+        <div className="flex items-center gap-2 text-sm text-fp-green bg-fp-green/10 border border-fp-green/20 rounded-xl px-3 py-2.5 animate-[scale-in_0.25s_ease-out]">
+          <CheckCircle className="w-4 h-4 shrink-0" />
           Upload complete — processing queued
         </div>
       )}
 
       {status === "error" && (
-        <div className="flex items-center gap-2 text-sm text-fp-red bg-red-50 rounded-md px-3 py-2">
-          <AlertCircle className="w-4 h-4" />
+        <div className="flex items-center gap-2 text-sm text-fp-red bg-fp-red/10 border border-fp-red/20 rounded-xl px-3 py-2.5">
+          <AlertCircle className="w-4 h-4 shrink-0" />
           {errorMsg}
         </div>
       )}

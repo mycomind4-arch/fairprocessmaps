@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "cf:build": "npx @opennextjs/cloudflare build",
+    "cf:deploy": "npx @opennextjs/cloudflare deploy",
+    "cf:preview": "npx @opennextjs/cloudflare preview"
   },
   "dependencies": {
     "next": "^15.3.0",
@@ -29,6 +32,8 @@
     "@supabase/supabase-js": "^2.49.0"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.0.0",
+    "wrangler": "^3.90.0",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

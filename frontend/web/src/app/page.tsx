@@ -8,7 +8,8 @@ import SearchBar from "@/components/SearchBar";
 import DueProcessBadge from "@/components/DueProcessBadge";
 import DocumentUpload from "@/components/DocumentUpload";
 import PropertyDetail from "@/components/PropertyDetail";
-import { FileText, Calendar, Upload, Info, PanelRightOpen, PanelRight } from "lucide-react";
+import ScoreRing from "@/components/ScoreRing";
+import { FileText, Calendar, Upload, Info, PanelRightOpen, PanelRight, Shield } from "lucide-react";
 import type { SearchResult } from "@/lib/types";
 
 type PanelTab = "detail" | "evidence" | "timeline" | "upload";
@@ -42,26 +43,43 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Header */}
-      <header className="h-14 border-b border-fp-gray-200 flex items-center px-4 gap-4 bg-white shrink-0 z-10">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-fp-gray-400 hover:text-fp-gray-600 transition-colors"
-            title={sidebarOpen ? "Hide panel" : "Show panel"}
-          >
-            {sidebarOpen ? <PanelRight className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />}
-          </button>
-          <div className="font-semibold text-lg tracking-tight">FairProcess</div>
+    <div className="h-screen flex flex-col bg-fp-bg overflow-hidden">
+      {/* ── Header ── */}
+      <header className="h-16 flex items-center px-4 gap-4 glass shrink-0 z-20 border-b border-fp-border">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-lg shadow-fp-blue/20">
+            <Shield className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <div className="font-bold text-base tracking-tight text-fp-text leading-none">
+              FairProcess
+            </div>
+            <div className="text-[10px] text-fp-text-dim uppercase tracking-widest mt-0.5">
+              Evidence-First
+            </div>
+          </div>
         </div>
+
+        {/* Toggle */}
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all"
+          title={sidebarOpen ? "Hide panel" : "Show panel"}
+        >
+          {sidebarOpen ? <PanelRight className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+        </button>
+
+        {/* Search */}
         <div className="flex-1 max-w-xl">
           <SearchBar onSelectResult={handleSelectResult} />
         </div>
+
+        {/* Score badge */}
         <DueProcessBadge propertyId={selectedProperty} />
       </header>
 
-      {/* Main */}
+      {/* ── Main ── */}
       <div className="flex-1 flex overflow-hidden">
         {/* Map */}
         <div className="flex-1 relative">
@@ -72,28 +90,35 @@ export default function Home() {
             }}
             selectedProperty={selectedProperty}
           />
+          {/* Subtle vignette overlay for depth */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-fp-bg/20 via-transparent to-fp-bg/40" />
         </div>
 
         {/* Sidebar */}
         {sidebarOpen && (
-          <aside className="w-96 border-l border-fp-gray-200 bg-fp-gray-50 flex flex-col overflow-hidden shrink-0">
+          <aside className="w-[400px] border-l border-fp-border bg-fp-surface/80 backdrop-blur-xl flex flex-col overflow-hidden shrink-0 animate-[slide-right_0.3s_cubic-bezier(0.16,1,0.3,1)_forwards]">
             {/* Tabs */}
-            <nav className="flex border-b border-fp-gray-200 bg-white">
+            <nav className="flex border-b border-fp-border shrink-0">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
+                const active = activeTab === tab.id;
+                const disabled = !selectedProperty && tab.id !== "upload";
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    disabled={!selectedProperty && tab.id !== "upload"}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors border-b-2 ${
-                      activeTab === tab.id
-                        ? "border-fp-blue text-fp-blue"
-                        : "border-transparent text-fp-gray-400 hover:text-fp-gray-600"
-                    } ${!selectedProperty && tab.id !== "upload" ? "opacity-40 cursor-not-allowed" : ""}`}
+                    disabled={disabled}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-medium transition-all relative border-b-2 ${
+                      active
+                        ? "border-fp-blue text-fp-text"
+                        : "border-transparent text-fp-text-dim hover:text-fp-text-muted"
+                    } ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
                   >
                     <Icon className="w-3.5 h-3.5" />
                     {tab.label}
+                    {active && (
+                      <div className="absolute inset-x-0 -bottom-px h-0.5 bg-gradient-to-r from-fp-blue to-fp-cyan" />
+                    )}
                   </button>
                 );
               })}
@@ -102,7 +127,7 @@ export default function Home() {
             {/* Panel content */}
             <div className="flex-1 flex flex-col overflow-hidden">
               {activeTab === "detail" && selectedProperty && (
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto animate-[fade-in_0.3s_ease-out]">
                   <PropertyDetail
                     propertyId={selectedProperty}
                     onShowPanel={(panel) => setActiveTab(panel as PanelTab)}
@@ -116,7 +141,7 @@ export default function Home() {
                 <TimelinePanel propertyId={selectedProperty} refreshKey={evidenceRefresh} />
               )}
               {activeTab === "upload" && selectedProperty && (
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto animate-[fade-in_0.3s_ease-out]">
                   <DocumentUpload
                     propertyId={selectedProperty}
                     onUploaded={handleUploaded}
@@ -124,10 +149,20 @@ export default function Home() {
                 </div>
               )}
               {activeTab === "upload" && !selectedProperty && (
-                <div className="flex-1 flex items-center justify-center p-4 text-center text-fp-gray-400">
+                <div className="flex-1 flex items-center justify-center p-8 text-center">
                   <div>
-                    <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Select a property first to upload evidence</p>
+                    <div className="w-16 h-16 rounded-2xl glass flex items-center justify-center mx-auto mb-3">
+                      <Upload className="w-7 h-7 text-fp-text-dim" />
+                    </div>
+                    <p className="text-sm text-fp-text-muted">Select a property to upload evidence</p>
+                  </div>
+                </div>
+              )}
+              {activeTab === "detail" && !selectedProperty && (
+                <div className="flex-1 flex items-center justify-center p-8 text-center">
+                  <div>
+                    <ScoreRing score={null} size="lg" />
+                    <p className="text-sm text-fp-text-muted mt-4">Select a property to begin analysis</p>
                   </div>
                 </div>
               )}
