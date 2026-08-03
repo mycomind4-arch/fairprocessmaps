@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import PropertyMap from "@/components/PropertyMap";
+import dynamic from "next/dynamic";
 import EvidencePanel from "@/components/EvidencePanel";
 import TimelinePanel from "@/components/TimelinePanel";
 import SearchBar from "@/components/SearchBar";
@@ -11,6 +11,16 @@ import PropertyDetail from "@/components/PropertyDetail";
 import ScoreRing from "@/components/ScoreRing";
 import { FileText, Calendar, Upload, Info, PanelRightOpen, PanelRight, Shield } from "lucide-react";
 import type { SearchResult } from "@/lib/types";
+
+// Dynamic import — maplibre-gl requires browser APIs (WebGL/canvas)
+const PropertyMap = dynamic(() => import("@/components/PropertyMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-fp-bg">
+      <div className="shimmer w-full h-full rounded-lg" />
+    </div>
+  ),
+});
 
 type PanelTab = "detail" | "evidence" | "timeline" | "upload";
 
@@ -46,22 +56,16 @@ export default function Home() {
     <div className="h-screen flex flex-col bg-fp-bg overflow-hidden">
       {/* ── Header ── */}
       <header className="h-16 flex items-center px-4 gap-4 glass shrink-0 z-20 border-b border-fp-border">
-        {/* Logo */}
         <div className="flex items-center gap-2.5 shrink-0">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-lg shadow-fp-blue/20">
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <div className="font-bold text-base tracking-tight text-fp-text leading-none">
-              FairProcess
-            </div>
-            <div className="text-[10px] text-fp-text-dim uppercase tracking-widest mt-0.5">
-              Evidence-First
-            </div>
+            <div className="font-bold text-base tracking-tight text-fp-text leading-none">FairProcess</div>
+            <div className="text-[10px] text-fp-text-dim uppercase tracking-widest mt-0.5">Evidence-First</div>
           </div>
         </div>
 
-        {/* Toggle */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all"
@@ -70,18 +74,15 @@ export default function Home() {
           {sidebarOpen ? <PanelRight className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
         </button>
 
-        {/* Search */}
         <div className="flex-1 max-w-xl">
           <SearchBar onSelectResult={handleSelectResult} />
         </div>
 
-        {/* Score badge */}
         <DueProcessBadge propertyId={selectedProperty} />
       </header>
 
       {/* ── Main ── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Map */}
         <div className="flex-1 relative">
           <PropertyMap
             onSelectProperty={(id) => {
@@ -90,14 +91,11 @@ export default function Home() {
             }}
             selectedProperty={selectedProperty}
           />
-          {/* Subtle vignette overlay for depth */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-fp-bg/20 via-transparent to-fp-bg/40" />
         </div>
 
-        {/* Sidebar */}
         {sidebarOpen && (
           <aside className="w-[400px] border-l border-fp-border bg-fp-surface/80 backdrop-blur-xl flex flex-col overflow-hidden shrink-0 animate-[slide-right_0.3s_cubic-bezier(0.16,1,0.3,1)_forwards]">
-            {/* Tabs */}
             <nav className="flex border-b border-fp-border shrink-0">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
@@ -124,7 +122,6 @@ export default function Home() {
               })}
             </nav>
 
-            {/* Panel content */}
             <div className="flex-1 flex flex-col overflow-hidden">
               {activeTab === "detail" && selectedProperty && (
                 <div className="flex-1 overflow-y-auto animate-[fade-in_0.3s_ease-out]">

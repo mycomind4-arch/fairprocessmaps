@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import maplibregl from "maplibre-gl";
+import { Map as MaplibreMap, NavigationControl, GeolocateControl, type Map as MaplibreMapType, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 interface PropertyMapProps {
@@ -10,7 +10,7 @@ interface PropertyMapProps {
 }
 
 // Custom dark map style for the FairProcess theme
-const DARK_MAP_STYLE = {
+const DARK_MAP_STYLE: StyleSpecification = {
   version: 8,
   glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   sources: {
@@ -47,24 +47,22 @@ const DARK_MAP_STYLE = {
 
 export default function PropertyMap({ onSelectProperty, selectedProperty }: PropertyMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
+  const mapRef = useRef<MaplibreMapType | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
 
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
-    const map = new maplibregl.Map({
+    const map = new MaplibreMap({
       container: mapContainer.current,
-      style: (process.env.NEXT_PUBLIC_MAPLIBRE_STYLE
-        ? JSON.parse(process.env.NEXT_PUBLIC_MAPLIBRE_STYLE)
-        : DARK_MAP_STYLE) as maplibregl.StyleSpecification,
+      style: DARK_MAP_STYLE,
       center: [-122.27, 37.8],
       zoom: 12,
       attributionControl: false,
     });
 
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
-    map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }));
+    map.addControl(new NavigationControl(), "top-right");
+    map.addControl(new GeolocateControl({ positionOptions: { enableHighAccuracy: true } }));
 
     map.on("load", () => {
       map.addSource("properties", {
@@ -72,23 +70,16 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
         data: { type: "FeatureCollection", features: [] },
       });
 
-      // Fill layer with glow
       map.addLayer({
         id: "property-fill",
         type: "fill",
         source: "properties",
         paint: {
-          "fill-color": [
-            "match",
-            ["get", "score"],
-            [null], "#3b82f6",
-            "#3b82f6",
-          ],
+          "fill-color": "#3b82f6",
           "fill-opacity": 0.25,
         },
       });
 
-      // Glow outline
       map.addLayer({
         id: "property-glow",
         type: "line",
@@ -102,7 +93,6 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
         layout: { "line-cap": "round" },
       });
 
-      // Crisp outline
       map.addLayer({
         id: "property-outline",
         type: "line",
@@ -142,7 +132,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
             properties: { id: p.id, address: p.address, score: p.due_process_score ?? null },
             geometry: p.geom,
           }));
-        const source = map.getSource("properties") as maplibregl.GeoJSONSource;
+        const source = map.getSource("properties") as GeoJSONSource;
         source?.setData({ type: "FeatureCollection", features });
       })
       .catch(() => {});
