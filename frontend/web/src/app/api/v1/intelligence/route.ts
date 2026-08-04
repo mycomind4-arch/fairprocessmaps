@@ -16,12 +16,28 @@ function uuid(): string {
   return crypto.randomUUID();
 }
 
+// ── Normalize APN to dashed format (Humboldt County stores APN_12 as XXX-XXX-XXX-XXX) ──
+
+function toDashedAPN(apn: string): string {
+  const clean = apn.replace(/[-\s]/g, "");
+  // Humboldt uses XXX-XXX-XXX-XXX (12 digits)
+  if (clean.length === 12) {
+    return `${clean.slice(0, 3)}-${clean.slice(3, 6)}-${clean.slice(6, 9)}-${clean.slice(9, 12)}`;
+  }
+  // 9-digit: XXX-XXX-XXX
+  if (clean.length === 9) {
+    return `${clean.slice(0, 3)}-${clean.slice(3, 6)}-${clean.slice(6, 9)}`;
+  }
+  return apn;
+}
+
 // ── Query Humboldt County GIS by APN ──
 
 async function fetchParcelByAPN(apn: string): Promise<any | null> {
-  // Normalize APN: try both 12-digit and 9-digit formats
   const cleanAPN = apn.replace(/[-\s]/g, "");
-  const where = `APN_12='${cleanAPN}' OR APN='${cleanAPN}'`;
+  const dashedAPN = toDashedAPN(apn);
+  // Try both clean and dashed formats — county stores APN_12 with dashes
+  const where = `APN_12='${dashedAPN}' OR APN_12='${cleanAPN}' OR APN='${cleanAPN}' OR APN='${dashedAPN}'`;
 
   const params = new URLSearchParams({
     where,
