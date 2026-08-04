@@ -12,6 +12,7 @@ import DiscrepanciesPanel from "@/components/panels/DiscrepanciesPanel";
 import TimelinePanel from "@/components/panels/TimelinePanel";
 import PlaceholderPanel from "@/components/panels/PlaceholderPanel";
 import LegalLibraryPanel from "@/components/panels/LegalLibraryPanel";
+import CodeEnforcementPanel from "@/components/panels/CodeEnforcementPanel";
 import { ArrowLeft, Shield, Building2, ShieldAlert, BookOpen, Plug, Settings } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
@@ -65,7 +66,7 @@ export default function ProjectDashboard() {
 
         <main className="flex-1 relative overflow-y-auto p-6">
           {/* MiniMap floats in top-right for sections that need spatial context */}
-          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && (
+          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && section !== "code-enforcement" && (
             <MiniMap
               centroid={toLngLat(project.property.centroid)!}
               geomGeoJSON={(project.property.geom as GeoJSON.Geometry) ?? undefined}
@@ -82,13 +83,7 @@ export default function ProjectDashboard() {
               description="Permit applications, inspections, and certificates of occupancy"
             />
           )}
-          {section === "code-enforcement" && (
-            <PlaceholderPanel
-              icon={ShieldAlert}
-              title="Code Enforcement"
-              description="Notices, abatement orders, and enforcement actions"
-            />
-          )}
+          {section === "code-enforcement" && <CodeEnforcementPanel projectId={id} />}
           {section === "discrepancies" && <DiscrepanciesPanel projectId={id} />}
           {section === "vault" && <EvidenceVaultPanel projectId={id} />}
           {section === "legal" && <LegalLibraryPanel />}
