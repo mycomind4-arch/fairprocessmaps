@@ -13,6 +13,7 @@ import TimelinePanel from "@/components/panels/TimelinePanel";
 import PlaceholderPanel from "@/components/panels/PlaceholderPanel";
 import LegalLibraryPanel from "@/components/panels/LegalLibraryPanel";
 import CodeEnforcementPanel from "@/components/panels/CodeEnforcementPanel";
+import BuildingDeptPanel from "@/components/panels/BuildingDeptPanel";
 import { ArrowLeft, Shield, Building2, ShieldAlert, BookOpen, Plug, Settings } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
@@ -66,7 +67,7 @@ export default function ProjectDashboard() {
 
         <main className="flex-1 relative overflow-y-auto p-6">
           {/* MiniMap floats in top-right for sections that need spatial context */}
-          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && section !== "code-enforcement" && (
+          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && section !== "code-enforcement" && section !== "building" && (
             <MiniMap
               centroid={toLngLat(project.property.centroid)!}
               geomGeoJSON={(project.property.geom as GeoJSON.Geometry) ?? undefined}
@@ -76,13 +77,7 @@ export default function ProjectDashboard() {
 
           {section === "overview" && <OverviewPanel projectId={id} onNavigate={setSection} />}
           {section === "intelligence" && <PropertyIntelligence propertyId={project?.property_id ?? ""} />}
-          {section === "building" && (
-            <PlaceholderPanel
-              icon={Building2}
-              title="Building Dept"
-              description="Permit applications, inspections, and certificates of occupancy"
-            />
-          )}
+          {section === "building" && <BuildingDeptPanel projectId={id} />}
           {section === "code-enforcement" && <CodeEnforcementPanel projectId={id} />}
           {section === "discrepancies" && <DiscrepanciesPanel projectId={id} />}
           {section === "vault" && <EvidenceVaultPanel projectId={id} />}
