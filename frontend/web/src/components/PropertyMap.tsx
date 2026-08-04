@@ -39,29 +39,87 @@ const DARK_TILES = [
   "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
 ];
 
+// Regrid nationwide parcel boundaries (free Esri tile layer, zoom 15-17)
+const PARCEL_TILES = [
+  "https://tiles.arcgis.com/tiles/KzeiCaQsMoeCfoCq/arcgis/rest/services/Regrid_Nationwide_Parcel_Boundaries_v1/MapServer/tile/{z}/{y}/{x}",
+];
+
+// ── Layer definitions for property GeoJSON overlay ──
+const PROPERTY_LAYERS = [
+  {
+    id: "property-fill",
+    type: "fill" as const,
+    source: "properties",
+    paint: {
+      "fill-color": [
+        "case",
+        ["==", ["get", "score"], null], "#3b82f6",
+        [">=", ["get", "score"], 80], "#22c55e",
+        [">=", ["get", "score"], 60], "#eab308",
+        [">=", ["get", "score"], 40], "#f97316",
+        "#ef4444",
+      ],
+      "fill-opacity": 0.35,
+    },
+  },
+  {
+    id: "property-glow",
+    type: "line" as const,
+    source: "properties",
+    paint: { "line-color": "#3b82f6", "line-width": 3, "line-blur": 6, "line-opacity": 0.5 },
+    layout: { "line-cap": "round" },
+  },
+  {
+    id: "property-outline",
+    type: "line" as const,
+    source: "properties",
+    paint: { "line-color": "#06b6d4", "line-width": 1.5, "line-opacity": 0.9 },
+  },
+  {
+    id: "property-selected",
+    type: "line" as const,
+    source: "properties",
+    filter: ["==", ["get", "id"], ""],
+    paint: { "line-color": "#fbbf24", "line-width": 3, "line-opacity": 1 },
+    layout: { "line-cap": "round" },
+  },
+];
+
 function buildStyle(layer: BaseLayer): StyleSpecification {
+  // All styles include the parcel overlay source
+  const parcelSource = {
+    type: "raster" as const,
+    tiles: PARCEL_TILES,
+    tileSize: 256,
+    minzoom: 15,
+    maxzoom: 18,
+    attribution: "© Regrid",
+  };
+
   if (layer === "satellite") {
     return {
       version: 8,
       glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
       sources: {
-        "satellite": {
+        satellite: {
           type: "raster",
           tiles: SATELLITE_TILES,
           tileSize: 256,
           attribution: "© Esri, Maxar, Earthstar Geographics",
         },
-        "reference": {
+        reference: {
           type: "raster",
           tiles: REFERENCE_TILES,
           tileSize: 256,
           attribution: "© Esri",
         },
+        parcels: parcelSource,
       },
       layers: [
         { id: "background", type: "background", paint: { "background-color": "#070b14" } },
         { id: "satellite-tiles", type: "raster", source: "satellite" },
         { id: "reference-tiles", type: "raster", source: "reference", paint: { "raster-opacity": 0.9 } },
+        { id: "parcel-tiles", type: "raster", source: "parcels", paint: { "raster-opacity": 0.8 } },
       ],
     };
   }
@@ -71,16 +129,18 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
       version: 8,
       glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
       sources: {
-        "street": {
+        street: {
           type: "raster",
           tiles: STREET_TILES,
           tileSize: 256,
           attribution: "© OpenStreetMap contributors © CARTO",
         },
+        parcels: parcelSource,
       },
       layers: [
         { id: "background", type: "background", paint: { "background-color": "#f8f9fa" } },
         { id: "street-tiles", type: "raster", source: "street" },
+        { id: "parcel-tiles", type: "raster", source: "parcels", paint: { "raster-opacity": 0.8 } },
       ],
     };
   }
@@ -90,18 +150,51 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
     version: 8,
     glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
     sources: {
-      "dark": {
+      dark: {
         type: "raster",
         tiles: DARK_TILES,
         tileSize: 256,
         attribution: "© OpenStreetMap contributors © CARTO",
       },
+      parcels: parcelSource,
     },
     layers: [
       { id: "background", type: "background", paint: { "background-color": "#070b14" } },
       { id: "dark-tiles", type: "raster", source: "dark", paint: { "raster-opacity": 0.9 } },
+      { id: "parcel-tiles", type: "raster", source: "parcels", paint: { "raster-opacity": 0.6 } },
     ],
   };
+}
+
+// Helper: add all property GeoJSON layers to current map
+function addPropertyLayers(map: MaplibreMapType, selectedId: string | null) {
+  if (!map.getSource("properties")) {
+    map.addSource("properties", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+  }
+  for (const layerDef of PROPERTY_LAYERS) {
+    if (map.getLayer(layerDef.id)) continue;
+    const config: any = { ...layerDef };
+    if (layerDef.id === "property-selected") {
+      config.filter = ["==", ["get", "id"], selectedId ?? ""];
+    }
+    map.addLayer(config);
+  }
+}
+
+// Helper: load property GeoJSON data into the source
+function loadPropertyData(map: MaplibreMapType, properties: any[]) {
+  const features = properties
+    .filter((p: any) => p.geom)
+    .map((p: any) => ({
+      type: "Feature",
+      properties: { id: p.id, address: p.address, score: p.due_process_score ?? null },
+      geometry: p.geom,
+    }));
+  const source = map.getSource("properties") as GeoJSONSource;
+  source?.setData({ type: "FeatureCollection", features });
 }
 
 export default function PropertyMap({ onSelectProperty, selectedProperty }: PropertyMapProps) {
@@ -109,6 +202,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
   const mapRef = useRef<MaplibreMapType | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
   const [baseLayer, setBaseLayer] = useState<BaseLayer>("satellite");
+  const [showParcels, setShowParcels] = useState(true);
 
   // ── Init map ──
   useEffect(() => {
@@ -130,68 +224,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
     );
 
     map.on("load", () => {
-      map.addSource("properties", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-
-      // Parcel fill
-      map.addLayer({
-        id: "property-fill",
-        type: "fill",
-        source: "properties",
-        paint: {
-          "fill-color": [
-            "case",
-            ["==", ["get", "score"], null], "#3b82f6",
-            [">=", ["get", "score"], 80], "#22c55e",
-            [">=", ["get", "score"], 60], "#eab308",
-            [">=", ["get", "score"], 40], "#f97316",
-            "#ef4444",
-          ],
-          "fill-opacity": 0.35,
-        },
-      });
-
-      // Glow
-      map.addLayer({
-        id: "property-glow",
-        type: "line",
-        source: "properties",
-        paint: {
-          "line-color": "#3b82f6",
-          "line-width": 3,
-          "line-blur": 6,
-          "line-opacity": 0.5,
-        },
-        layout: { "line-cap": "round" },
-      });
-
-      // Outline
-      map.addLayer({
-        id: "property-outline",
-        type: "line",
-        source: "properties",
-        paint: {
-          "line-color": "#06b6d4",
-          "line-width": 1.5,
-          "line-opacity": 0.9,
-        },
-      });
-
-      // Selected parcel highlight
-      map.addLayer({
-        id: "property-selected",
-        type: "line",
-        source: "properties",
-        filter: ["==", ["get", "id"], selectedProperty ?? ""],
-        paint: {
-          "line-color": "#fbbf24",
-          "line-width": 3,
-          "line-opacity": 1,
-        },
-        layout: { "line-cap": "round" },
-      });
+      addPropertyLayers(map, selectedProperty);
 
       map.on("click", "property-fill", (e) => {
         const feature = e.features?.[0];
@@ -215,15 +248,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
       .then((r) => r.json())
       .then((data) => {
         setProperties(data);
-        const features = data
-          .filter((p: any) => p.geom)
-          .map((p: any) => ({
-            type: "Feature",
-            properties: { id: p.id, address: p.address, score: p.due_process_score ?? null },
-            geometry: p.geom,
-          }));
-        const source = map.getSource("properties") as GeoJSONSource;
-        source?.setData({ type: "FeatureCollection", features });
+        loadPropertyData(map, data);
       })
       .catch(() => {});
 
@@ -239,73 +264,22 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
     const map = mapRef.current;
     if (!map) return;
     map.setStyle(buildStyle(baseLayer));
-    // Re-add property layers after style change
     map.once("style.load", () => {
-      if (!map.getSource("properties")) {
-        map.addSource("properties", {
-          type: "geojson",
-          data: { type: "FeatureCollection", features: [] },
-        });
-      }
-      // Re-fetch property data into the new style
-      const features = properties
-        .filter((p: any) => p.geom)
-        .map((p: any) => ({
-          type: "Feature",
-          properties: { id: p.id, address: p.address, score: p.due_process_score ?? null },
-          geometry: p.geom,
-        }));
-      const source = map.getSource("properties") as GeoJSONSource;
-      source?.setData({ type: "FeatureCollection", features });
-
-      // Re-add layers
-      if (!map.getLayer("property-fill")) {
-        map.addLayer({
-          id: "property-fill",
-          type: "fill",
-          source: "properties",
-          paint: {
-            "fill-color": [
-              "case",
-              ["==", ["get", "score"], null], "#3b82f6",
-              [">=", ["get", "score"], 80], "#22c55e",
-              [">=", ["get", "score"], 60], "#eab308",
-              [">=", ["get", "score"], 40], "#f97316",
-              "#ef4444",
-            ],
-            "fill-opacity": 0.35,
-          },
-        });
-      }
-      if (!map.getLayer("property-glow")) {
-        map.addLayer({
-          id: "property-glow",
-          type: "line",
-          source: "properties",
-          paint: { "line-color": "#3b82f6", "line-width": 3, "line-blur": 6, "line-opacity": 0.5 },
-          layout: { "line-cap": "round" },
-        });
-      }
-      if (!map.getLayer("property-outline")) {
-        map.addLayer({
-          id: "property-outline",
-          type: "line",
-          source: "properties",
-          paint: { "line-color": "#06b6d4", "line-width": 1.5, "line-opacity": 0.9 },
-        });
-      }
-      if (!map.getLayer("property-selected")) {
-        map.addLayer({
-          id: "property-selected",
-          type: "line",
-          source: "properties",
-          filter: ["==", ["get", "id"], selectedProperty ?? ""],
-          paint: { "line-color": "#fbbf24", "line-width": 3, "line-opacity": 1 },
-          layout: { "line-cap": "round" },
-        });
-      }
+      addPropertyLayers(map, selectedProperty);
+      loadPropertyData(map, properties);
     });
-  }, [baseLayer, properties, selectedProperty]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseLayer]);
+
+  // ── Toggle parcel overlay ──
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const layer = map.getLayer("parcel-tiles");
+    if (layer) {
+      map.setLayoutProperty("parcel-tiles", "visibility", showParcels ? "visible" : "none");
+    }
+  }, [showParcels, baseLayer]);
 
   // ── Fly to selected property ──
   useEffect(() => {
@@ -326,8 +300,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const layer = map.getLayer("property-selected");
-    if (layer) {
+    if (map.getLayer("property-selected")) {
       map.setFilter("property-selected", ["==", ["get", "id"], selectedProperty ?? ""]);
     }
   }, [selectedProperty]);
@@ -337,20 +310,37 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
       <div ref={mapContainer} className="w-full h-full" />
 
       {/* Layer switcher */}
-      <div className="absolute top-3 left-3 z-10 flex gap-1 bg-fp-surface/90 backdrop-blur-md rounded-lg border border-fp-border p-1 shadow-lg">
-        {(["satellite", "street", "dark"] as BaseLayer[]).map((layer) => (
-          <button
-            key={layer}
-            onClick={() => setBaseLayer(layer)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
-              baseLayer === layer
-                ? "bg-fp-blue text-white shadow-sm"
-                : "text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
-            }`}
-          >
-            {layer}
-          </button>
-        ))}
+      <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+        <div className="flex gap-1 bg-fp-surface/90 backdrop-blur-md rounded-lg border border-fp-border p-1 shadow-lg">
+          {(["satellite", "street", "dark"] as BaseLayer[]).map((layer) => (
+            <button
+              key={layer}
+              onClick={() => setBaseLayer(layer)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
+                baseLayer === layer
+                  ? "bg-fp-blue text-white shadow-sm"
+                  : "text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
+              }`}
+            >
+              {layer}
+            </button>
+          ))}
+        </div>
+
+        {/* Parcel toggle */}
+        <button
+          onClick={() => setShowParcels(!showParcels)}
+          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border shadow-lg transition-all backdrop-blur-md ${
+            showParcels
+              ? "bg-fp-surface/90 border-fp-blue/50 text-fp-text"
+              : "bg-fp-surface/90 border-fp-border text-fp-text-muted hover:text-fp-text"
+          }`}
+        >
+          <span
+            className={`w-2 h-2 rounded-full ${showParcels ? "bg-fp-blue" : "bg-fp-text-dim"}`}
+          />
+          Parcel Lines
+        </button>
       </div>
     </div>
   );
