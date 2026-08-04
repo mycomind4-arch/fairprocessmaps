@@ -10,11 +10,13 @@ import {
   BookOpen,
   Plug,
   Settings,
+  Calendar,
 } from "lucide-react";
 
 export type ProjectSection =
   | "overview"
   | "intelligence"
+  | "timeline"
   | "building"
   | "code-enforcement"
   | "discrepancies"
@@ -26,6 +28,7 @@ export type ProjectSection =
 const SECTIONS: { id: ProjectSection; label: string; icon: typeof LayoutDashboard; badgeKey?: "findings" }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "intelligence", label: "Property Intelligence", icon: Search },
+  { id: "timeline", label: "Timeline", icon: Calendar },
   { id: "building", label: "Building Dept", icon: Building2 },
   { id: "code-enforcement", label: "Code Enforcement", icon: ShieldAlert },
   { id: "discrepancies", label: "Due Process Discrepancies", icon: ScaleIcon, badgeKey: "findings" },

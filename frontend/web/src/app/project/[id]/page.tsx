@@ -10,13 +10,12 @@ import PropertyIntelligence from "@/components/panels/PropertyIntelligence";
 import EvidenceVaultPanel from "@/components/panels/EvidenceVaultPanel";
 import DiscrepanciesPanel from "@/components/panels/DiscrepanciesPanel";
 import TimelinePanel from "@/components/panels/TimelinePanel";
-import PlaceholderPanel from "@/components/panels/PlaceholderPanel";
 import LegalLibraryPanel from "@/components/panels/LegalLibraryPanel";
 import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
 import CodeEnforcementPanel from "@/components/panels/CodeEnforcementPanel";
 import BuildingDeptPanel from "@/components/panels/BuildingDeptPanel";
-import { ArrowLeft, Shield, Building2, ShieldAlert, BookOpen, Plug, Settings } from "lucide-react";
+import { ArrowLeft, Shield } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
   return point ? { lng: point.coordinates[0], lat: point.coordinates[1] } : null;
@@ -69,7 +68,7 @@ export default function ProjectDashboard() {
 
         <main className="flex-1 relative overflow-y-auto p-6">
           {/* MiniMap floats in top-right for sections that need spatial context */}
-          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && section !== "code-enforcement" && section !== "building" && (
+          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && section !== "code-enforcement" && section !== "building" && section !== "timeline" && (
             <MiniMap
               centroid={toLngLat(project.property.centroid)!}
               geomGeoJSON={(project.property.geom as any) ?? undefined}
@@ -79,6 +78,7 @@ export default function ProjectDashboard() {
 
           {section === "overview" && <OverviewPanel projectId={id} onNavigate={setSection} />}
           {section === "intelligence" && <PropertyIntelligence propertyId={project?.property_id ?? ""} />}
+          {section === "timeline" && <TimelinePanel projectId={id} />}
           {section === "building" && <BuildingDeptPanel projectId={id} />}
           {section === "code-enforcement" && <CodeEnforcementPanel projectId={id} />}
           {section === "discrepancies" && <DiscrepanciesPanel projectId={id} />}
