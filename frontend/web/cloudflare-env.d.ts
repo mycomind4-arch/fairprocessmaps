@@ -5,6 +5,7 @@ interface __BaseEnv_CloudflareEnv {
 	DB: D1Database;
 	ASSETS: Fetcher;
 	NEXT_PUBLIC_API_URL: "https://api.fairprocess.pages.dev";
+	R2_BUCKET: R2Bucket | undefined;
 }
 declare namespace Cloudflare {
 	interface Env extends __BaseEnv_CloudflareEnv {}
