@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Map as MaplibreMap, NavigationControl, GeolocateControl, ScaleControl, type Map as MaplibreMapType, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Map as MaplibreMap, NavigationControl, GeolocateControl, ScaleControl, Popup, type Map as MaplibreMapType, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 interface PropertyMapProps {
@@ -11,27 +11,24 @@ interface PropertyMapProps {
 
 type BaseLayer = "satellite" | "street" | "dark";
 
+// ── Humboldt County center ──
+const HUMBOLDT_CENTER: [number, number] = [-124.15, 40.81];
+const HUMBOLDT_ZOOM = 11;
+
 // ── Tile sources ──
-// Esri World Imagery (free, no API key) — high-res satellite worldwide
 const SATELLITE_TILES = [
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
 ];
-
-// Esri reference overlay (boundaries, place names, roads on top of satellite)
 const REFERENCE_TILES = [
   "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
   "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
 ];
-
-// CARTO Voyager — clean street map with labels
 const STREET_TILES = [
   "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
   "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
   "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
   "https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
 ];
-
-// CARTO Dark Matter — dark theme street map
 const DARK_TILES = [
   "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
   "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
@@ -39,12 +36,46 @@ const DARK_TILES = [
   "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
 ];
 
-// Regrid nationwide parcel boundaries (free Esri tile layer, zoom 15-17)
+// Regrid nationwide parcel boundaries (zoom 15-17)
 const PARCEL_TILES = [
   "https://tiles.arcgis.com/tiles/KzeiCaQsMoeCfoCq/arcgis/rest/services/Regrid_Nationwide_Parcel_Boundaries_v1/MapServer/tile/{z}/{y}/{x}",
 ];
 
-// ── Layer definitions for property GeoJSON overlay ──
+// Humboldt County GIS — parcel feature layer for click-to-identify
+const HUMBOLDT_PARCEL_URL =
+  "https://cty-gis-web.co.humboldt.ca.us/server/rest/services/Parcels/MapServer/0";
+
+interface ParcelInfo {
+  apn: string;
+  address: string;
+  acres: number;
+  zoning: string;
+  city: string;
+  legal: string;
+}
+
+async function fetchParcelAt(lng: number, lat: number): Promise<ParcelInfo | null> {
+  try {
+    const r = 0.001;
+    const url = `${HUMBOLDT_PARCEL_URL}/query?where=1%3D1&geometry=${lng - r}%2C${lat - r}%2C${lng + r}%2C${lat + r}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=APN,SITUS_ADDR,SITUS_CITY,ACRES,ZONING,LEGAL_DESC&returnGeometry=false&f=json`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.features?.length) return null;
+    const attrs = data.features[0].attributes;
+    return {
+      apn: attrs.APN || "",
+      address: attrs.SITUS_ADDR || "",
+      acres: parseFloat(attrs.ACRES) || 0,
+      zoning: attrs.ZONING || "",
+      city: attrs.SITUS_CITY || "",
+      legal: attrs.LEGAL_DESC || "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Property overlay layer definitions ──
 const PROPERTY_LAYERS = [
   {
     id: "property-fill",
@@ -67,7 +98,7 @@ const PROPERTY_LAYERS = [
     type: "line" as const,
     source: "properties",
     paint: { "line-color": "#3b82f6", "line-width": 3, "line-blur": 6, "line-opacity": 0.5 },
-    layout: { "line-cap": "round" },
+    layout: { "line-cap": "round" as const },
   },
   {
     id: "property-outline",
@@ -81,12 +112,11 @@ const PROPERTY_LAYERS = [
     source: "properties",
     filter: ["==", ["get", "id"], ""],
     paint: { "line-color": "#fbbf24", "line-width": 3, "line-opacity": 1 },
-    layout: { "line-cap": "round" },
+    layout: { "line-cap": "round" as const },
   },
 ];
 
 function buildStyle(layer: BaseLayer): StyleSpecification {
-  // All styles include the parcel overlay source
   const parcelSource = {
     type: "raster" as const,
     tiles: PARCEL_TILES,
@@ -101,18 +131,8 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
       version: 8,
       glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
       sources: {
-        satellite: {
-          type: "raster",
-          tiles: SATELLITE_TILES,
-          tileSize: 256,
-          attribution: "© Esri, Maxar, Earthstar Geographics",
-        },
-        reference: {
-          type: "raster",
-          tiles: REFERENCE_TILES,
-          tileSize: 256,
-          attribution: "© Esri",
-        },
+        satellite: { type: "raster", tiles: SATELLITE_TILES, tileSize: 256, attribution: "© Esri, Maxar, Earthstar Geographics" },
+        reference: { type: "raster", tiles: REFERENCE_TILES, tileSize: 256, attribution: "© Esri" },
         parcels: parcelSource,
       },
       layers: [
@@ -129,12 +149,7 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
       version: 8,
       glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
       sources: {
-        street: {
-          type: "raster",
-          tiles: STREET_TILES,
-          tileSize: 256,
-          attribution: "© OpenStreetMap contributors © CARTO",
-        },
+        street: { type: "raster", tiles: STREET_TILES, tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" },
         parcels: parcelSource,
       },
       layers: [
@@ -145,17 +160,11 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
     };
   }
 
-  // dark
   return {
     version: 8,
     glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
     sources: {
-      dark: {
-        type: "raster",
-        tiles: DARK_TILES,
-        tileSize: 256,
-        attribution: "© OpenStreetMap contributors © CARTO",
-      },
+      dark: { type: "raster", tiles: DARK_TILES, tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" },
       parcels: parcelSource,
     },
     layers: [
@@ -166,7 +175,6 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
   };
 }
 
-// Helper: add all property GeoJSON layers to current map
 function addPropertyLayers(map: MaplibreMapType, selectedId: string | null) {
   if (!map.getSource("properties")) {
     map.addSource("properties", {
@@ -184,7 +192,6 @@ function addPropertyLayers(map: MaplibreMapType, selectedId: string | null) {
   }
 }
 
-// Helper: load property GeoJSON data into the source
 function loadPropertyData(map: MaplibreMapType, properties: any[]) {
   const features = properties
     .filter((p: any) => p.geom)
@@ -200,9 +207,12 @@ function loadPropertyData(map: MaplibreMapType, properties: any[]) {
 export default function PropertyMap({ onSelectProperty, selectedProperty }: PropertyMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMapType | null>(null);
+  const popupRef = useRef<Popup | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
   const [baseLayer, setBaseLayer] = useState<BaseLayer>("satellite");
   const [showParcels, setShowParcels] = useState(true);
+  const [parcelInfo, setParcelInfo] = useState<ParcelInfo | null>(null);
+  const [loadingParcel, setLoadingParcel] = useState(false);
 
   // ── Init map ──
   useEffect(() => {
@@ -211,8 +221,8 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
     const map = new MaplibreMap({
       container: mapContainer.current,
       style: buildStyle("satellite"),
-      center: [-122.27, 37.8],
-      zoom: 12,
+      center: HUMBOLDT_CENTER,
+      zoom: HUMBOLDT_ZOOM,
       attributionControl: { compact: true },
     });
 
@@ -226,6 +236,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
     map.on("load", () => {
       addPropertyLayers(map, selectedProperty);
 
+      // Click on a tracked property
       map.on("click", "property-fill", (e) => {
         const feature = e.features?.[0];
         if (feature?.properties?.id) {
@@ -238,6 +249,42 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
       });
       map.on("mouseleave", "property-fill", () => {
         map.getCanvas().style.cursor = "";
+      });
+
+      // Click anywhere on the map → identify Humboldt County parcel
+      map.on("click", async (e) => {
+        const features = map.queryRenderedFeatures(e.point, { layers: ["property-fill"] });
+        if (features.length > 0) return; // let the property-fill handler take it
+
+        setLoadingParcel(true);
+        setParcelInfo(null);
+
+        const { lng, lat } = e.lngLat;
+        const info = await fetchParcelAt(lng, lat);
+
+        setLoadingParcel(false);
+
+        if (info) {
+          setParcelInfo(info);
+          // Show popup with parcel details
+          const html = `
+            <div style="padding:8px 4px;font-family:inherit;min-width:180px">
+              <div style="font-size:13px;font-weight:600;color:#06b6d4;margin-bottom:4px">${info.address || "No address"}</div>
+              <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">${info.city || "Humboldt County"}, CA</div>
+              <div style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:#cbd5e1">
+                <div><span style="color:#64748b">APN:</span> ${info.apn || "—"}</div>
+                <div><span style="color:#64748b">Zoning:</span> ${info.zoning || "—"}</div>
+                <div><span style="color:#64748b">Acres:</span> ${info.acres ? info.acres.toFixed(2) : "—"}</div>
+                <div><span style="color:#64748b">Legal:</span> ${info.legal ? info.legal.substring(0, 60) : "—"}</div>
+              </div>
+            </div>
+          `;
+          if (popupRef.current) popupRef.current.remove();
+          popupRef.current = new Popup({ closeButton: true, closeOnClick: true, maxWidth: "280px" })
+            .setLngLat([lng, lat])
+            .setHTML(html)
+            .addTo(map);
+        }
       });
     });
 
@@ -253,6 +300,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
       .catch(() => {});
 
     return () => {
+      if (popupRef.current) popupRef.current.remove();
       map.remove();
       mapRef.current = null;
     };
@@ -311,37 +359,37 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
 
       {/* Layer switcher */}
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
-        <div className="flex gap-1 bg-fp-surface/90 backdrop-blur-md rounded-lg border border-fp-border p-1 shadow-lg">
-          {(["satellite", "street", "dark"] as BaseLayer[]).map((layer) => (
-            <button
-              key={layer}
-              onClick={() => setBaseLayer(layer)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
-                baseLayer === layer
-                  ? "bg-fp-blue text-white shadow-sm"
-                  : "text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
-              }`}
-            >
-              {layer}
-            </button>
-          ))}
-        </div>
-
-        {/* Parcel toggle */}
+        {(["satellite", "street", "dark"] as BaseLayer[]).map((layer) => (
+          <button
+            key={layer}
+            onClick={() => setBaseLayer(layer)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg backdrop-blur-md border transition-all capitalize ${
+              baseLayer === layer
+                ? "bg-cyan-500/30 border-cyan-400/50 text-cyan-100 shadow-[0_0_12px_rgba(34,211,238,0.3)]"
+                : "bg-slate-900/60 border-slate-700/50 text-slate-300 hover:bg-slate-800/60"
+            }`}
+          >
+            {layer}
+          </button>
+        ))}
         <button
           onClick={() => setShowParcels(!showParcels)}
-          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border shadow-lg transition-all backdrop-blur-md ${
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg backdrop-blur-md border transition-all mt-1 ${
             showParcels
-              ? "bg-fp-surface/90 border-fp-blue/50 text-fp-text"
-              : "bg-fp-surface/90 border-fp-border text-fp-text-muted hover:text-fp-text"
+              ? "bg-blue-500/30 border-blue-400/50 text-blue-100 shadow-[0_0_12px_rgba(59,130,246,0.3)]"
+              : "bg-slate-900/60 border-slate-700/50 text-slate-300 hover:bg-slate-800/60"
           }`}
         >
-          <span
-            className={`w-2 h-2 rounded-full ${showParcels ? "bg-fp-blue" : "bg-fp-text-dim"}`}
-          />
           Parcel Lines
         </button>
       </div>
+
+      {/* Loading indicator for parcel lookup */}
+      {loadingParcel && (
+        <div className="absolute top-3 right-16 z-10 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-lg px-3 py-1.5 text-xs text-slate-300 animate-pulse">
+          Looking up parcel…
+        </div>
+      )}
     </div>
   );
 }
