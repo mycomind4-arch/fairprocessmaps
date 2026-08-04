@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { runIntelligence, runAnalysis } from "@/lib/auto-triggers";
 
 export const runtime = "nodejs";
 
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "name and case_type are required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
-    const { env } = getCloudflareContext();
+    const { env, ctx } = getCloudflareContext();
     const projectId = crypto.randomUUID();
 
     await env.DB.prepare(
@@ -51,6 +52,22 @@ export async function POST(req: NextRequest) {
       .run();
 
     const created = await env.DB.prepare("SELECT * FROM projects WHERE id = ?").bind(projectId).first();
+
+    // ── Auto-trigger intelligence + analysis ──
+    // Run both in the background via waitUntil so the response returns immediately.
+    // If waitUntil isn't available, run inline (adds ~2s latency).
+    const autoTrigger = Promise.allSettled([
+      runIntelligence(projectId),
+      runAnalysis(projectId),
+    ]);
+
+    if (ctx?.waitUntil) {
+      ctx.waitUntil(autoTrigger);
+      return NextResponse.json(created, { status: 201, headers: { "Cache-Control": "no-store" } });
+    }
+
+    // Fallback: run inline if no ctx.waitUntil
+    await autoTrigger;
     return NextResponse.json(created, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     return NextResponse.json({ error: String(err), stack: (err as Error)?.stack }, { status: 500, headers: { "Cache-Control": "no-store" } });

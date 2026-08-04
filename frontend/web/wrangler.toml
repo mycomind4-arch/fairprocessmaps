@@ -13,5 +13,9 @@ binding = "DB"
 database_name = "fairprocess"
 database_id = "8b5ed716-77c3-48d2-81c1-009cb01b206f"
 
+[[r2_buckets]]
+binding = "EVIDENCE_BUCKET"
+bucket_name = "fairprocess-evidence"
+
 [vars]
 NEXT_PUBLIC_API_URL = "https://api.fairprocess.pages.dev"

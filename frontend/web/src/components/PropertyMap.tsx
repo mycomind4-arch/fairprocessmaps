@@ -14,7 +14,7 @@ type BaseLayer = "satellite" | "street" | "dark";
 
 // ── Humboldt County center ──
 const HUMBOLDT_CENTER: [number, number] = [-124.15, 40.81];
-const HUMBOLDT_ZOOM = 11;
+const HUMBOLDT_ZOOM = 13;
 
 // ── Tile sources ──
 const SATELLITE_TILES = [
@@ -37,7 +37,7 @@ const DARK_TILES = [
   "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
 ];
 
-// Regrid nationwide parcel boundaries (zoom 15-17)
+// Regrid nationwide parcel boundaries (zoom 15+)
 const PARCEL_TILES = [
   "https://tiles.arcgis.com/tiles/KzeiCaQsMoeCfoCq/arcgis/rest/services/Regrid_Nationwide_Parcel_Boundaries_v1/MapServer/tile/{z}/{y}/{x}",
 ];
@@ -121,7 +121,7 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
     type: "raster" as const,
     tiles: PARCEL_TILES,
     tileSize: 256,
-    minzoom: 15,
+    minzoom: 14,
     maxzoom: 18,
     attribution: "© Regrid",
   };
@@ -136,7 +136,7 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
         parcels: parcelSource,
       },
       layers: [
-        { id: "background", type: "background", paint: { "background-color": "#070b14" } },
+        { id: "background", type: "background", paint: { "background-color": "#1a2332" } },
         { id: "satellite-tiles", type: "raster", source: "satellite" },
         { id: "reference-tiles", type: "raster", source: "reference", paint: { "raster-opacity": 0.9 } },
         { id: "parcel-tiles", type: "raster", source: "parcels", paint: { "raster-opacity": 0.8 } },
@@ -153,7 +153,7 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
         parcels: parcelSource,
       },
       layers: [
-        { id: "background", type: "background", paint: { "background-color": "#f8f9fa" } },
+        { id: "background", type: "background", paint: { "background-color": "#e8eaed" } },
         { id: "street-tiles", type: "raster", source: "street" },
         { id: "parcel-tiles", type: "raster", source: "parcels", paint: { "raster-opacity": 0.8 } },
       ],
@@ -168,7 +168,7 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
       parcels: parcelSource,
     },
     layers: [
-      { id: "background", type: "background", paint: { "background-color": "#070b14" } },
+      { id: "background", type: "background", paint: { "background-color": "#0f1620" } },
       { id: "dark-tiles", type: "raster", source: "dark", paint: { "raster-opacity": 0.9 } },
       { id: "parcel-tiles", type: "raster", source: "parcels", paint: { "raster-opacity": 0.6 } },
     ],
@@ -213,6 +213,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
   const [showParcels, setShowParcels] = useState(true);
   const [parcelInfo, setParcelInfo] = useState<ParcelInfo | null>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
+  const [mapLoading, setMapLoading] = useState(true);
   const isFirstRender = useRef(true);
   const onOpenAsProjectRef = useRef(onOpenAsProject);
   onOpenAsProjectRef.current = onOpenAsProject;
@@ -236,7 +237,9 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
       "top-right"
     );
 
+    // Hide loading indicator once tiles start rendering
     map.on("load", () => {
+      setMapLoading(false);
       addPropertyLayers(map, selectedProperty);
 
       // Click on a tracked property
@@ -272,36 +275,56 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
           // Show popup with parcel details
           const html = `
             <div style="padding:8px 4px;font-family:inherit;min-width:180px">
-              <div style="font-size:13px;font-weight:600;color:#06b6d4;margin-bottom:4px">${info.address || "No address"}</div>
-              <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">${info.city || "Humboldt County"}, CA</div>
-              <div style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:#cbd5e1">
-                <div><span style="color:#64748b">APN:</span> ${info.apn || "—"}</div>
-                <div><span style="color:#64748b">Zoning:</span> ${info.zoning || "—"}</div>
-                <div><span style="color:#64748b">Acres:</span> ${info.acres ? info.acres.toFixed(2) : "—"}</div>
-                <div><span style="color:#64748b">Legal:</span> ${info.legal ? info.legal.substring(0, 60) : "—"}</div>
+              <div style="font-weight:600;font-size:13px;color:#0f172a;margin-bottom:4px">
+                Parcel ${info.apn}
               </div>
-              <button id="open-project-btn" style="margin-top:8px;width:100%;padding:6px;background:#3b82f6;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">
-                Open as project
+              ${info.address && info.address.trim() ? `<div style="font-size:12px;color:#475569;margin-bottom:2px">${info.address}</div>` : ""}
+              ${info.city ? `<div style="font-size:12px;color:#475569;margin-bottom:4px">${info.city}, CA</div>` : ""}
+              <div style="font-size:11px;color:#64748b;margin-top:4px;padding-top:4px;border-top:1px solid #e2e8f0">
+                ${info.acres ? `${info.acres.toFixed(2)} acres · ` : ""}${info.zoning || "Zoning unknown"}
+              </div>
+              <button id="open-as-project-btn" style="margin-top:8px;width:100%;padding:6px 12px;background:#06b6d4;color:white;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer">
+                Open as Project →
               </button>
             </div>
           `;
+
           if (popupRef.current) popupRef.current.remove();
-          popupRef.current = new Popup({ closeButton: true, closeOnClick: true, maxWidth: "280px" })
-            .setLngLat([lng, lat])
+          popupRef.current = new Popup({ closeButton: true, closeOnClick: false, maxWidth: "280px" })
+            .setLngLat([e.lngLat.lng, e.lngLat.lat])
             .setHTML(html)
             .addTo(map);
 
-          // Wire the button after it's in the DOM — setHTML() replaces the
-          // popup's content each time, so this listener is attached fresh
-          // per popup rather than relying on delegation.
-          const btn = popupRef.current.getElement()?.querySelector("#open-project-btn");
-          btn?.addEventListener("click", () => {
-            onOpenAsProjectRef.current?.(info, [lng, lat]);
-            popupRef.current?.remove();
-          });
+          // Wait for the popup to render, then attach button click handler
+          setTimeout(() => {
+            const btn = document.getElementById("open-as-project-btn");
+            if (btn) {
+              btn.addEventListener("click", () => {
+                if (onOpenAsProjectRef.current) {
+                  onOpenAsProjectRef.current(info, [e.lngLat.lng, e.lngLat.lat]);
+                }
+                popupRef.current?.remove();
+              });
+            }
+          }, 50);
+        } else {
+          // Show "no parcel" popup
+          if (popupRef.current) popupRef.current.remove();
+          popupRef.current = new Popup({ closeButton: true, closeOnClick: true, maxWidth: "240px" })
+            .setLngLat([e.lngLat.lng, e.lngLat.lat])
+            .setHTML(`<div style="padding:8px 4px;font-size:12px;color:#64748b">No parcel found at this location</div>`)
+            .addTo(map);
         }
       });
+
+      // Update cursor on hover
+      map.on("mousemove", () => {
+        map.getCanvas().style.cursor = "crosshair";
+      });
     });
+
+    // Fallback: hide loading after 3s even if 'load' doesn't fire
+    setTimeout(() => setMapLoading(false), 3000);
 
     mapRef.current = map;
 
@@ -331,11 +354,15 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
     }
     const map = mapRef.current;
     if (!map) return;
+    setMapLoading(true);
     map.setStyle(buildStyle(baseLayer));
     map.once("style.load", () => {
+      setMapLoading(false);
       addPropertyLayers(map, selectedProperty);
       loadPropertyData(map, properties);
     });
+    // Fallback: hide loading after 3s
+    setTimeout(() => setMapLoading(false), 3000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseLayer]);
 
@@ -377,6 +404,16 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="w-full h-full" />
 
+      {/* Map loading overlay */}
+      {mapLoading && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+            <span className="text-sm text-slate-400">Loading map…</span>
+          </div>
+        </div>
+      )}
+
       {/* Layer switcher */}
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
         {(["satellite", "street", "dark"] as BaseLayer[]).map((layer) => (
@@ -403,6 +440,15 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
           Parcel Lines
         </button>
       </div>
+
+      {/* Zoom hint for parcel lines */}
+      {showParcels && (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+          <div className="px-3 py-1.5 text-xs text-slate-400 bg-slate-900/70 backdrop-blur-md border border-slate-700/40 rounded-lg">
+            Zoom in to see parcel boundaries
+          </div>
+        </div>
+      )}
 
       {/* Loading indicator for parcel lookup */}
       {loadingParcel && (
