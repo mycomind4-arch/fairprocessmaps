@@ -19,7 +19,7 @@ export default function ProjectDashboard() {
   const [mapExpanded, setMapExpanded] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/v1/projects?id=${id}`)
+    fetch(`/api/v1/projects?id=${id}`, { headers: { "Cache-Control": "no-cache" } })
       .then((r) => r.json())
       .then((d) => setProject(d as ProjectSummary))
       .catch(() => setProject(null));

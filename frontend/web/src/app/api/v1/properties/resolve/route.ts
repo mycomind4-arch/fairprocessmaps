@@ -17,7 +17,7 @@ interface ResolveBody {
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as ResolveBody;
   if (!body.apn) {
-    return NextResponse.json({ error: "apn is required" }, { status: 400 });
+    return NextResponse.json({ error: "apn is required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
 
   const { env } = getCloudflareContext();
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     .first();
 
   if (existing) {
-    return NextResponse.json(existing);
+    return NextResponse.json(existing, { headers: { "Cache-Control": "no-store" } });
   }
 
   const id = crypto.randomUUID();
@@ -52,5 +52,5 @@ export async function POST(req: NextRequest) {
     .run();
 
   const created = await db.prepare("SELECT * FROM properties WHERE id = ?").bind(id).first();
-  return NextResponse.json(created, { status: 201 });
+  return NextResponse.json(created, { status: 201, headers: { "Cache-Control": "no-store" } });
 }

@@ -6,7 +6,7 @@ import type { CaseType, Project } from "@/lib/types";
 
 interface NewProjectModalProps {
   propertyId: string;
-  propertyLabel: string; // e.g. "1234 Main St · APN 501-121-003"
+  propertyLabel: string;
   onClose: () => void;
   onOpenProject: (projectId: string) => void;
 }
@@ -22,12 +22,18 @@ export default function NewProjectModal({ propertyId, propertyLabel, onClose, on
   const [existing, setExisting] = useState<Project[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [caseType, setCaseType] = useState<CaseType>("code_enforcement");
 
   useEffect(() => {
-    fetch(`/api/v1/property-projects?propertyId=${propertyId}`)
-      .then((r) => r.json())
+    fetch(`/api/v1/property-projects?propertyId=${propertyId}`, {
+      headers: { "Cache-Control": "no-cache" },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => setExisting(data as Project[]))
       .catch(() => setExisting([]))
       .finally(() => setLoading(false));
@@ -36,14 +42,22 @@ export default function NewProjectModal({ propertyId, propertyLabel, onClose, on
   const handleCreate = async () => {
     if (!name.trim()) return;
     setCreating(true);
+    setError(null);
     try {
       const res = await fetch(`/api/v1/property-projects?propertyId=${propertyId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
         body: JSON.stringify({ name, case_type: caseType }),
       });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Server returned ${res.status}: ${txt.slice(0, 200)}`);
+      }
       const project = await res.json() as Project;
+      if (!project?.id) throw new Error("Server did not return a project id");
       onOpenProject(project.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create project");
     } finally {
       setCreating(false);
     }
@@ -103,6 +117,11 @@ export default function NewProjectModal({ propertyId, propertyLabel, onClose, on
                 </option>
               ))}
             </select>
+            {error && (
+              <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400">
+                {error}
+              </div>
+            )}
             <button
               onClick={handleCreate}
               disabled={!name.trim() || creating}

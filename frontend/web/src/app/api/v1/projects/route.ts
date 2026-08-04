@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
     if (!id) {
-      return NextResponse.json({ error: "id is required" }, { status: 400 });
+      return NextResponse.json({ error: "id is required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
     const { env } = getCloudflareContext();
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     const project = await db.prepare("SELECT * FROM projects WHERE id = ?").bind(id).first();
     if (!project) {
-      return NextResponse.json({ error: "not found" }, { status: 404 });
+      return NextResponse.json({ error: "not found" }, { status: 404, headers: { "Cache-Control": "no-store" } });
     }
 
     const property = await db
@@ -57,6 +57,6 @@ export async function GET(req: NextRequest) {
       evidenceCount: evidenceCount?.n ?? 0,
     });
   } catch (err) {
-    return NextResponse.json({ error: String(err), stack: (err as Error)?.stack }, { status: 500 });
+    return NextResponse.json({ error: String(err), stack: (err as Error)?.stack }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }

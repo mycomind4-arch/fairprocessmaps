@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   try {
     const propertyId = req.nextUrl.searchParams.get("propertyId");
     if (!propertyId) {
-      return NextResponse.json({ error: "propertyId is required" }, { status: 400 });
+      return NextResponse.json({ error: "propertyId is required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
     const { env } = getCloudflareContext();
@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
     )
       .bind(propertyId)
       .all();
-    return NextResponse.json(results);
+    return NextResponse.json(results, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    return NextResponse.json({ error: String(err), stack: (err as Error)?.stack }, { status: 500 });
+    return NextResponse.json({ error: String(err), stack: (err as Error)?.stack }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
 
@@ -32,12 +32,12 @@ export async function POST(req: NextRequest) {
   try {
     const propertyId = req.nextUrl.searchParams.get("propertyId");
     if (!propertyId) {
-      return NextResponse.json({ error: "propertyId is required" }, { status: 400 });
+      return NextResponse.json({ error: "propertyId is required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
     const body = (await req.json()) as CreateProjectBody;
     if (!body.name?.trim() || !body.case_type) {
-      return NextResponse.json({ error: "name and case_type are required" }, { status: 400 });
+      return NextResponse.json({ error: "name and case_type are required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
     const { env } = getCloudflareContext();
@@ -51,8 +51,8 @@ export async function POST(req: NextRequest) {
       .run();
 
     const created = await env.DB.prepare("SELECT * FROM projects WHERE id = ?").bind(projectId).first();
-    return NextResponse.json(created, { status: 201 });
+    return NextResponse.json(created, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    return NextResponse.json({ error: String(err), stack: (err as Error)?.stack }, { status: 500 });
+    return NextResponse.json({ error: String(err), stack: (err as Error)?.stack }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
