@@ -80,6 +80,7 @@ CREATE TABLE due_process_findings (
   id            TEXT PRIMARY KEY,
   project_id    TEXT NOT NULL REFERENCES projects(id),
   rule          TEXT NOT NULL,             -- 'adequate_notice_period' | 'right_to_hearing' | ...
+  rule_name      TEXT,                      -- human-readable rule name
   severity      TEXT NOT NULL,             -- 'critical' | 'warning' | 'info'
   status        TEXT NOT NULL DEFAULT 'open', -- 'open' | 'resolved' | 'dismissed'
   detail        TEXT,
