@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
         findingsCount: result.findingsCount,
         criticalCount: result.criticalCount,
         warningCount: result.warningCount,
+        infoCount: result.infoCount,
         findings: result.findings.map((f) => ({
           ...f,
           ruleName: RULES[f.rule]?.name ?? f.rule,

@@ -156,3 +156,22 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: String(err) }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
+
+// DELETE /api/v1/enforcement?id=xxx
+export async function DELETE(req: NextRequest) {
+  try {
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    }
+
+    const { env } = getCloudflareContext();
+    const db = env.DB;
+
+    await db.prepare("DELETE FROM code_enforcement_cases WHERE id = ?").bind(id).run();
+
+    return NextResponse.json({ success: true, id }, { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500, headers: { "Cache-Control": "no-store" } });
+  }
+}

@@ -120,6 +120,10 @@ Three rules, scored from 100 (−25 per critical, −10 per warning):
 |------|----------|---------|
 | `notice_timing` | Warning | Action (fine/penalty/lien) taken < 10 days after notice |
 | `hearing_right` | Critical | Adverse action without a recorded hearing |
+| `appeal_pathway` | Warning | Decision doesn't mention appeal/review rights |
+| `abatement_without_notice` | Critical | Property abated without notice or before compliance period |
+| `permit_review_right` | Warning | Permit denied/expired without review opportunity |
+| `ce_outcome_review` | Info | CE case closed without hearing or appeal on record |
 | `appeal_pathway` | Warning | Decision without mention of appeal rights in linked evidence |
 
 Analysis runs automatically when timeline events are added/removed and when
@@ -139,7 +143,7 @@ fairprocessmaps/
 │   │   │   ├── panels/     # Project dashboard panels
 │   │   │   └── *.tsx       # Map, search, modals, etc.
 │   │   └── lib/            # Shared logic
-│   │       ├── auto-triggers.ts # Due-process analyzer + intelligence
+│   │       ├── auto-triggers.ts # Due-process analyzer (timeline + CE + permits) + intelligence
 │   │       ├── api.ts      # Legacy API client (home page sidebar)
 │   │       └── types.ts    # TypeScript types
 │   ├── wrangler.toml      # Cloudflare config (D1, R2, vars)

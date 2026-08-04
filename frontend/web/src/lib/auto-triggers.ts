@@ -221,6 +221,24 @@ export const RULES: Record<string, RuleDef> = {
     description: "Decision must include information on how to appeal",
     severity: "warning",
   },
+  abatement_without_notice: {
+    id: "abatement_without_notice",
+    name: "Abatement Without Notice",
+    description: "Property was abated without proper notice or before the compliance period expired",
+    severity: "critical",
+  },
+  permit_review_right: {
+    id: "permit_review_right",
+    name: "Permit Review Rights",
+    description: "Permit was denied or expired without opportunity for review or appeal",
+    severity: "warning",
+  },
+  ce_outcome_review: {
+    id: "ce_outcome_review",
+    name: "Code Enforcement Outcome Review",
+    description: "Code enforcement case closed without recorded appeal opportunity",
+    severity: "info",
+  },
 };
 
 const NOTICE_MIN_DAYS = 10;
@@ -234,7 +252,9 @@ interface Finding {
 
 function analyzeProject(
   evidence: any[],
-  timeline: any[]
+  timeline: any[],
+  ceCases: any[] = [],
+  permits: any[] = []
 ): { findings: Finding[]; score: number; summary: string } {
   const findings: Finding[] = [];
 
@@ -321,12 +341,86 @@ function analyzeProject(
     }
   }
 
+  // Rule 4: Abatement without notice (from CE cases)
+  for (const ce of ceCases) {
+    if (ce.abatement_date) {
+      // Check if notice was served before abatement
+      if (!ce.notice_served_date) {
+        findings.push({
+          rule: "abatement_without_notice",
+          severity: "critical",
+          detail: `Property abated on ${ce.abatement_date} without recorded notice of violation`,
+          evidence_id: null,
+        });
+      } else {
+        const noticeDate = new Date(ce.notice_served_date);
+        const abateDate = new Date(ce.abatement_date);
+        if (!isNaN(noticeDate.getTime()) && !isNaN(abateDate.getTime())) {
+          const daysDiff = Math.floor((abateDate.getTime() - noticeDate.getTime()) / 86400000);
+          const minDays = ce.notice_period_days || 10;
+          if (daysDiff < minDays) {
+            findings.push({
+              rule: "abatement_without_notice",
+              severity: "critical",
+              detail: `Abatement occurred ${daysDiff} days after notice (compliance period: ${minDays} days) \u2014 ${ce.case_number || ""}`,
+              evidence_id: null,
+            });
+          }
+        }
+      }
+      // Check if hearing was held before abatement
+      if (!ce.hearing_date) {
+        findings.push({
+          rule: "hearing_right",
+          severity: "critical",
+          detail: `Abatement on ${ce.abatement_date} without a recorded hearing \u2014 ${ce.case_number || ""}`,
+          evidence_id: null,
+        });
+      }
+    }
+
+    // Check if case was closed without appeal opportunity
+    if (ce.status === "closed" || ce.status === "abated") {
+      if (!ce.appeal_filed && !ce.appeal_date && !ce.hearing_date) {
+        findings.push({
+          rule: "ce_outcome_review",
+          severity: "info",
+          detail: `Case ${ce.case_number || ""} closed without hearing or appeal on record`,
+          evidence_id: null,
+        });
+      }
+    }
+  }
+
+  // Rule 5: Permit review rights (from building permits)
+  for (const permit of permits) {
+    // Denied permit without hearing
+    if (permit.permit_status === "denied" && !permit.finalized_date) {
+      findings.push({
+        rule: "permit_review_right",
+        severity: "warning",
+        detail: `Permit ${permit.permit_number || ""} denied without recorded review or appeal opportunity`,
+        evidence_id: null,
+      });
+    }
+    // Expired permit that was never issued
+    if (permit.permit_status === "expired" && !permit.issued_date) {
+      findings.push({
+        rule: "permit_review_right",
+        severity: "warning",
+        detail: `Permit ${permit.permit_number || ""} expired without being issued \u2014 no review opportunity recorded`,
+        evidence_id: null,
+      });
+    }
+  }
+
   // Calculate score
   const critical = findings.filter((f) => f.severity === "critical").length;
   const warning = findings.filter((f) => f.severity === "warning").length;
-  const score = Math.max(0, 100 - critical * 25 - warning * 10);
+  const info = findings.filter((f) => f.severity === "info").length;
+  const score = Math.max(0, 100 - critical * 25 - warning * 10 - info * 3);
 
-  const summary = `Analysis complete: ${findings.length} finding(s) — ${critical} critical, ${warning} warning.`;
+  const summary = `Analysis complete: ${findings.length} finding(s) \u2014 ${critical} critical, ${warning} warning, ${info} info.`;
 
   return { findings, score, summary };
 }
@@ -341,6 +435,7 @@ export async function runAnalysis(projectId: string): Promise<{
   findingsCount: number;
   criticalCount: number;
   warningCount: number;
+  infoCount: number;
   findings: Finding[];
 }> {
   const { env } = getCloudflareContext();
@@ -356,10 +451,22 @@ export async function runAnalysis(projectId: string): Promise<{
     .bind(projectId)
     .all();
 
+  const ceResult = await db
+    .prepare("SELECT * FROM code_enforcement_cases WHERE project_id = ?")
+    .bind(projectId)
+    .all();
+
+  const permitsResult = await db
+    .prepare("SELECT * FROM building_permits WHERE project_id = ?")
+    .bind(projectId)
+    .all();
+
   const evidence = evidenceResult.results ?? [];
   const timeline = timelineResult.results ?? [];
+  const ceCases = ceResult.results ?? [];
+  const permits = permitsResult.results ?? [];
 
-  const { findings, score, summary } = analyzeProject(evidence, timeline);
+  const { findings, score, summary } = analyzeProject(evidence, timeline, ceCases, permits);
 
   // Clear old findings
   await db.prepare("DELETE FROM due_process_findings WHERE project_id = ?").bind(projectId).run();
@@ -395,6 +502,7 @@ export async function runAnalysis(projectId: string): Promise<{
     findingsCount: findings.length,
     criticalCount: findings.filter((f) => f.severity === "critical").length,
     warningCount: findings.filter((f) => f.severity === "warning").length,
+    infoCount: findings.filter((f) => f.severity === "info").length,
     findings,
   };
 }
