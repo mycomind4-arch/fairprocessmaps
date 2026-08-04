@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import EvidencePanel from "@/components/EvidencePanel";
 import TimelinePanel from "@/components/TimelinePanel";
@@ -9,8 +10,20 @@ import DueProcessBadge from "@/components/DueProcessBadge";
 import DocumentUpload from "@/components/DocumentUpload";
 import PropertyDetail from "@/components/PropertyDetail";
 import ScoreRing from "@/components/ScoreRing";
+import NewProjectModal from "@/components/NewProjectModal";
 import { FileText, Calendar, Upload, Info, PanelRightOpen, PanelRight, Shield } from "lucide-react";
 import type { SearchResult } from "@/lib/types";
+
+// Mirrors the ParcelInfo interface in PropertyMap.tsx — what the popup's
+// "Open as project" button hands back.
+interface PendingParcel {
+  apn: string;
+  address: string;
+  city: string;
+  acres: number;
+  zoning: string;
+  legal: string;
+}
 
 // Dynamic import — maplibre-gl requires browser APIs (WebGL/canvas)
 const PropertyMap = dynamic(() => import("@/components/PropertyMap"), {
@@ -32,10 +45,27 @@ const TABS: { id: PanelTab; label: string; icon: typeof FileText }[] = [
 ];
 
 export default function Home() {
+  const router = useRouter();
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PanelTab>("detail");
   const [evidenceRefresh, setEvidenceRefresh] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [pendingParcel, setPendingParcel] = useState<PendingParcel | null>(null);
+  const [pendingPropertyId, setPendingPropertyId] = useState<string | null>(null);
+
+  // Popup's "Open as project" button lands here. We first resolve/create the
+  // underlying Property record for this APN (properties are looked up by
+  // APN, created on first contact), then show the new/existing project modal.
+  const handleOpenAsProject = useCallback(async (info: PendingParcel, lngLat: [number, number]) => {
+    const res = await fetch("/api/v1/properties/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...info, lng: lngLat[0], lat: lngLat[1] }),
+    });
+    const property = await res.json() as { id: string };
+    setPendingPropertyId(property.id);
+    setPendingParcel(info);
+  }, []);
 
   const handleSelectResult = useCallback((result: SearchResult) => {
     if (result.type === "property" && result.id) {
@@ -90,6 +120,7 @@ export default function Home() {
               setActiveTab("detail");
             }}
             selectedProperty={selectedProperty}
+            onOpenAsProject={handleOpenAsProject}
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-fp-bg/20 via-transparent to-fp-bg/40" />
         </div>
@@ -167,6 +198,18 @@ export default function Home() {
           </aside>
         )}
       </div>
+
+      {pendingParcel && pendingPropertyId && (
+        <NewProjectModal
+          propertyId={pendingPropertyId}
+          propertyLabel={`${pendingParcel.address || "No address"} · APN ${pendingParcel.apn}`}
+          onClose={() => {
+            setPendingParcel(null);
+            setPendingPropertyId(null);
+          }}
+          onOpenProject={(projectId) => router.push(`/project/${projectId}`)}
+        />
+      )}
     </div>
   );
 }

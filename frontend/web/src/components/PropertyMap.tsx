@@ -7,6 +7,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 interface PropertyMapProps {
   onSelectProperty: (id: string | null) => void;
   selectedProperty: string | null;
+  onOpenAsProject?: (info: ParcelInfo, lngLat: [number, number]) => void;
 }
 
 type BaseLayer = "satellite" | "street" | "dark";
@@ -58,9 +59,9 @@ async function fetchParcelAt(lng: number, lat: number): Promise<ParcelInfo | nul
   try {
     const url = `${HUMBOLDT_PARCEL_URL}/query?where=&geometry=${lng}%2C${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=APN_12,FULLADDR,SITCITY,ACRES,ZONING,GEN_PLAN&returnGeometry=false&f=json`;
     const res = await fetch(url);
-    const data = await res.json();
+    const data = await res.json() as { features?: Array<{ attributes: Record<string, string | number | null> }> };
     if (!data.features?.length) return null;
-    const attrs = data.features[0].attributes;
+    const attrs = data.features[0].attributes as Record<string, string>;
     return {
       apn: attrs.APN_12 || "",
       address: attrs.FULLADDR || "",
@@ -195,7 +196,7 @@ function loadPropertyData(map: MaplibreMapType, properties: any[]) {
   const features = properties
     .filter((p: any) => p.geom)
     .map((p: any) => ({
-      type: "Feature",
+      type: "Feature" as const,
       properties: { id: p.id, address: p.address, score: p.due_process_score ?? null },
       geometry: p.geom,
     }));
@@ -203,7 +204,7 @@ function loadPropertyData(map: MaplibreMapType, properties: any[]) {
   source?.setData({ type: "FeatureCollection", features });
 }
 
-export default function PropertyMap({ onSelectProperty, selectedProperty }: PropertyMapProps) {
+export default function PropertyMap({ onSelectProperty, selectedProperty, onOpenAsProject }: PropertyMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMapType | null>(null);
   const popupRef = useRef<Popup | null>(null);
@@ -213,6 +214,8 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
   const [parcelInfo, setParcelInfo] = useState<ParcelInfo | null>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
   const isFirstRender = useRef(true);
+  const onOpenAsProjectRef = useRef(onOpenAsProject);
+  onOpenAsProjectRef.current = onOpenAsProject;
 
   // ── Init map ──
   useEffect(() => {
@@ -277,6 +280,9 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
                 <div><span style="color:#64748b">Acres:</span> ${info.acres ? info.acres.toFixed(2) : "—"}</div>
                 <div><span style="color:#64748b">Legal:</span> ${info.legal ? info.legal.substring(0, 60) : "—"}</div>
               </div>
+              <button id="open-project-btn" style="margin-top:8px;width:100%;padding:6px;background:#3b82f6;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">
+                Open as project
+              </button>
             </div>
           `;
           if (popupRef.current) popupRef.current.remove();
@@ -284,6 +290,15 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
             .setLngLat([lng, lat])
             .setHTML(html)
             .addTo(map);
+
+          // Wire the button after it's in the DOM — setHTML() replaces the
+          // popup's content each time, so this listener is attached fresh
+          // per popup rather than relying on delegation.
+          const btn = popupRef.current.getElement()?.querySelector("#open-project-btn");
+          btn?.addEventListener("click", () => {
+            onOpenAsProjectRef.current?.(info, [lng, lat]);
+            popupRef.current?.remove();
+          });
         }
       });
     });
@@ -294,8 +309,9 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
     fetch("/api/v1/properties?limit=100")
       .then((r) => r.json())
       .then((data) => {
-        setProperties(data);
-        loadPropertyData(map, data);
+        const arr = data as any[];
+        setProperties(arr);
+        loadPropertyData(map, arr);
       })
       .catch(() => {});
 

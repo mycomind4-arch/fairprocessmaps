@@ -59,6 +59,31 @@ export interface GeoJSONPoint {
   coordinates: [number, number];
 }
 
+// ── Project (an enforcement/permitting matter on a Property) ──
+// A Property can have zero, one, or many Projects over time.
+
+export type CaseType = "code_enforcement" | "building" | "adu_permit" | "other";
+export type ProjectStatus = "open" | "closed" | "archived";
+
+export interface Project {
+  id: string;
+  property_id: string;
+  name: string;
+  case_type: CaseType;
+  department: string | null;
+  status: ProjectStatus;
+  due_process_score: number | null;
+  opened_at: string;
+  closed_at: string | null;
+}
+
+export interface ProjectSummary extends Project {
+  property: Pick<Property, "address" | "city"> & { apn: string; centroid: GeoJSONPoint | null; geom: GeoJSONGeometry | null };
+  openFindingsCount: number;
+  criticalFindingsCount: number;
+  evidenceCount: number;
+}
+
 export interface PropertyCreate {
   parcel_id: string;
   address: string;

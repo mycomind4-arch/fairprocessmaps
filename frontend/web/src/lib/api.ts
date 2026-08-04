@@ -31,7 +31,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
     try {
-      const body = await res.json();
+      const body = (await res.json()) as { detail?: string };
       detail = body.detail || detail;
     } catch {
       // not JSON
@@ -156,7 +156,7 @@ export const api = {
       if (!res.ok) {
         let detail = res.statusText;
         try {
-          const body = await res.json();
+          const body = (await res.json()) as { detail?: string };
           detail = body.detail || detail;
         } catch {
           // not JSON

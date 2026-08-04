@@ -1,0 +1,62 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
+export const runtime = "nodejs";
+
+export async function GET(req: NextRequest) {
+  try {
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    const { env } = getCloudflareContext();
+    const db = env.DB;
+
+    const project = await db.prepare("SELECT * FROM projects WHERE id = ?").bind(id).first();
+    if (!project) {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
+    }
+
+    const property = await db
+      .prepare("SELECT apn, address, city, centroid_lng, centroid_lat, geom_geojson FROM properties WHERE id = ?")
+      .bind(project.property_id)
+      .first();
+
+    const counts = await db
+      .prepare(
+        `SELECT
+           SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open_findings,
+           SUM(CASE WHEN status = 'open' AND severity = 'critical' THEN 1 ELSE 0 END) AS critical_findings
+         FROM due_process_findings WHERE project_id = ?`
+      )
+      .bind(id)
+      .first();
+
+    const evidenceCount = await db
+      .prepare("SELECT COUNT(*) AS n FROM evidence WHERE project_id = ?")
+      .bind(id)
+      .first();
+
+    const shapedProperty = property && {
+      apn: property.apn,
+      address: property.address,
+      city: property.city,
+      centroid:
+        property.centroid_lng != null && property.centroid_lat != null
+          ? { type: "Point" as const, coordinates: [property.centroid_lng, property.centroid_lat] as [number, number] }
+          : null,
+      geom: property.geom_geojson ? JSON.parse(property.geom_geojson as string) : null,
+    };
+
+    return NextResponse.json({
+      ...project,
+      property: shapedProperty,
+      openFindingsCount: counts?.open_findings ?? 0,
+      criticalFindingsCount: counts?.critical_findings ?? 0,
+      evidenceCount: evidenceCount?.n ?? 0,
+    });
+  } catch (err) {
+    return NextResponse.json({ error: String(err), stack: (err as Error)?.stack }, { status: 500 });
+  }
+}

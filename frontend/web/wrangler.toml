@@ -8,5 +8,10 @@ compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+[[d1_databases]]
+binding = "DB"
+database_name = "fairprocess"
+database_id = "8b5ed716-77c3-48d2-81c1-009cb01b206f"
+
 [vars]
 NEXT_PUBLIC_API_URL = "https://api.fairprocess.pages.dev"
