@@ -18,4 +18,4 @@ binding = "EVIDENCE_BUCKET"
 bucket_name = "fairprocess-evidence"
 
 [vars]
-NEXT_PUBLIC_API_URL = "https://api.fairprocess.pages.dev"
+NEXT_PUBLIC_API_URL = ""

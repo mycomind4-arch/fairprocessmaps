@@ -2,170 +2,179 @@
 
 > Evidence-first platform for property due-process analysis.
 
-FairProcess combines property-centric GIS, continuous public-record ingestion, a persistent evidence vault, automatic timeline generation, AI extraction from notices and public records, and automated detection of potential due-process discrepancies.
+FairProcess combines property-centric GIS, an evidence vault, automatic timeline
+generation, and automated detection of due-process discrepancies — all running
+on Cloudflare's edge network.
 
 ## Architecture
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| 1. Maps & GIS | MapLibre GL JS, React-Map-GL | Interactive property map |
-| 2. Parcel Data | OpenAddresses, Overpass API | Parcel boundaries & addresses |
-| 3. Spatial Database | PostGIS 3.7, pgvector | Permanent evidence store + spatial indexing |
-| 4. Public Data Harvesting | CKAN, Socrata, Playwright | County record ingestion |
-| 5. OCR & Documents | Tesseract, Docling, Marker | Notice → structured evidence |
-| 6. Knowledge Graph | Neo4j 2026.06 | Evidence relationships |
-| 7. Search | Meilisearch | Fast document search |
-| 8. AI Framework | LangGraph, OpenAI | Long-running AI workflows |
-| 9. Workflow Engine | Temporal | Durable process orchestration |
-| 10. Evidence Storage | MinIO | S3-compatible object storage |
-| 11. Timeline | vis-timeline | Interactive chronology |
-| 12. Authentication | Supabase | Auth, DB, storage (planned) |
-| 13. Edge Runtime | Cloudflare Workers | Global low-latency access (planned) |
+| Maps & GIS | MapLibre GL JS | Interactive parcel map with click-to-identify |
+| Parcel Data | Humboldt County ArcGIS REST API | APN, zoning, acreage, legal description lookup |
+| Edge Runtime | Cloudflare Workers (OpenNext) | Global low-latency API + SSR |
+| Database | Cloudflare D1 (SQLite at edge) | Properties, projects, evidence, timeline, findings |
+| Object Storage | Cloudflare R2 | Evidence documents (PDFs, images, notices) |
+| Frontend | Next.js 15, Tailwind CSS, shadcn-style | Dark-mode dashboard UI |
+| Analysis | TypeScript rule engine | Due-process analysis (notice timing, hearing rights, appeal pathway) |
+
+### Why Cloudflare (not the original microservices stack)
+
+The original design called for PostGIS, Neo4j, Temporal, Meilisearch, MinIO, and
+a FastAPI backend. ADR-006 documents the pivot: for a single-county pilot, the
+operational overhead of 7+ services wasn't justified. Cloudflare Workers + D1 + R2
+gives us a globally distributed, zero-ops stack that scales to production without
+managing containers. The Python code in `backend/` is frozen reference.
+
+See `docs/architecture/adr.md` → ADR-006 for the full rationale.
 
 ## Quick Start
 
-### Using Docker (recommended)
+### Prerequisites
+
+- Node.js 20+
+- A Cloudflare account (free tier works)
+- `npx wrangler login` (for D1 + R2 access)
+
+### Local Development
 
 ```bash
-# 1. Clone
-git clone https://github.com/mycomind4-arch/fairprocessmaps.git
-cd fairprocessmaps
-
-# 2. Copy env file and adjust API keys
-cp .env.example .env
-
-# 3. Start the full stack (PostGIS, Neo4j, Meilisearch, MinIO, Temporal, API, Web)
-make dev
-
-# 4. Open the app
-open http://localhost:3000
-#    API docs: http://localhost:8000/docs
-#    Temporal UI: http://localhost:8233
-#    Neo4j Browser: http://localhost:7474
-#    MinIO Console: http://localhost:9001
-```
-
-### Manual setup
-
-```bash
-# Start infrastructure services only
-docker compose -f infra/docker/docker-compose.yml up -d postgis neo4j meilisearch minio temporal
-
-# Backend API
-cd backend/api
-uv sync
-uv run uvicorn src.main:app --reload --port 8000
-
-# Backend Worker
-cd backend/workers
-uv sync
-uv run python -m src.main
-
-# Frontend
 cd frontend/web
-pnpm install
-pnpm dev
+npm install
+
+# Create local D1 database + apply schema
+npx wrangler d1 create fairprocess
+npx wrangler d1 execute fairprocess --local --file=../../database/d1/schema.sql
+
+# Create R2 bucket (skip if already done)
+npx wrangler r2 bucket create fairprocess-evidence
+
+# Run the dev server (wrangler, not next — needs D1/R2 bindings)
+npx wrangler dev
 ```
+
+> **Important:** Use `npx wrangler dev`, not `npx next dev`. The API routes
+> depend on Cloudflare D1 and R2 bindings which only work through wrangler.
+> Plain `next dev` won't have `env.DB` or `env.EVIDENCE_BUCKET`.
+
+### Production Deploy
+
+```bash
+cd frontend/web
+npm install
+
+# Generate Cloudflare types from wrangler.toml
+npx wrangler types --env-interface=CloudflareEnv cloudflare-env.d.ts
+
+# Build with OpenNext for Cloudflare
+npx next build
+npx opennextjs-cloudflare build
+
+# Deploy to Cloudflare Workers
+npx wrangler deploy
+```
+
+### Remote Database (one-time setup)
+
+```bash
+# Create the remote D1 database
+npx wrangler d1 create fairprocess
+# → Copy the database_id into wrangler.toml
+
+# Apply schema to remote
+npx wrangler d1 execute fairprocess --remote --file=../../database/d1/schema.sql
+
+# (If upgrading an existing database)
+npx wrangler d1 execute fairprocess --remote --command "ALTER TABLE due_process_findings ADD COLUMN rule_name TEXT;"
+```
+
+## What's Built
+
+### Map & Parcel Lookup
+- Interactive MapLibre map centered on Humboldt County
+- Click any parcel → popup with APN, address, zoning, acreage
+- "Open as Project" button → resolve property by APN → create/select project
+
+### Project Dashboard (`/project/[id]`)
+- **Overview** — metrics (evidence count, findings, critical, timeline events),
+  recent timeline, recent evidence, mini-map
+- **Property Intelligence** — auto-gathered from county GIS on project creation
+  (APN, zoning, general plan, acres, lot size, year built, coastal zone,
+  flood zone, fire responsibility, legal description)
+- **Timeline** — add custom events (notices, hearings, decisions, fines,
+  deadlines), auto-sorted chronologically, adding events auto-triggers analysis
+- **Building Dept** — permit tracking panel (UI shell, data pipeline TBD)
+- **Code Enforcement** — case management panel (UI shell, data pipeline TBD)
+- **Due Process Discrepancies** — findings with severity (critical/warning/info),
+  status management (open/resolved/dismissed), manual "Run Analysis" button
+- **Document Vault** — upload evidence to R2, auto-creates timeline events,
+  auto-triggers analysis, text extraction for text-based files, download
+- **Legal & Law Library** — 24 California legal references
+- **Connectors & Skills** — integration panel (UI shell)
+- **Admin** — project settings panel (UI shell)
+
+### Due-Process Analyzer
+Three rules, scored from 100 (−25 per critical, −10 per warning):
+
+| Rule | Severity | Trigger |
+|------|----------|---------|
+| `notice_timing` | Warning | Action (fine/penalty/lien) taken < 10 days after notice |
+| `hearing_right` | Critical | Adverse action without a recorded hearing |
+| `appeal_pathway` | Warning | Decision without mention of appeal rights in linked evidence |
+
+Analysis runs automatically when timeline events are added/removed and when
+evidence is uploaded. Can also be triggered manually from the Discrepancies panel.
 
 ## Project Structure
 
 ```
 fairprocessmaps/
-├── backend/
-│   ├── api/           # FastAPI REST gateway (properties, evidence, timeline, search, upload, due-process)
-│   ├── workers/       # Temporal workflows + activities
-│   ├── ai/            # LangGraph evidence graph, document extractors, due-process analyzer
-│   └── ingestion/     # CKAN/Socrata harvesters, Playwright scrapers, record normalizers
-├── database/
-│   ├── postgis/       # SQL migrations, spatial functions, seeds
-│   └── neo4j/         # Cypher schemas, graph migrations
-├── frontend/
-│   └── web/           # Next.js 15 + MapLibre + vis-timeline + Tailwind v4
-├── shared/
-│   └── types/         # Python shared types (TS mirror at frontend/web/src/lib/types.ts)
-├── infra/
-│   ├── docker/        # Docker Compose, Dockerfiles
-│   └── terraform/     # Cloud infra (planned)
-├── docs/
-│   ├── architecture/  # ADRs
-│   └── api/           # API documentation
-├── tests/
-│   ├── integration/   # Service integration tests
-│   └── e2e/           # Playwright end-to-end tests
-└── scripts/           # Migration runner, seed scripts, dev helper
+├── frontend/web/           # Next.js app (deployed to Cloudflare Workers)
+│   ├── src/
+│   │   ├── app/            # App router — pages + API routes
+│   │   │   ├── page.tsx     # Map home (search + parcel popup)
+│   │   │   ├── project/[id] # Project dashboard
+│   │   │   └── api/v1/      # API routes (D1 + R2)
+│   │   ├── components/     # React components
+│   │   │   ├── panels/     # Project dashboard panels
+│   │   │   └── *.tsx       # Map, search, modals, etc.
+│   │   └── lib/            # Shared logic
+│   │       ├── auto-triggers.ts # Due-process analyzer + intelligence
+│   │       ├── api.ts      # Legacy API client (home page sidebar)
+│   │       └── types.ts    # TypeScript types
+│   ├── wrangler.toml      # Cloudflare config (D1, R2, vars)
+│   └── cloudflare-env.d.ts # Generated types
+├── database/d1/schema.sql  # D1 schema
+├── docs/architecture/adr.md # Architecture Decision Records
+├── backend/                # Frozen Python reference (not deployed)
+└── INTEGRATION_NOTES.md    # What's wired vs. what's left
 ```
 
-## Core Concepts
+## API Reference
 
-### Property-Centric Evidence Model
-Every piece of evidence is anchored to a `Property` (parcel/address). Evidence flows through:
+All endpoints are relative to the deployed worker URL.
 
-1. **Ingestion** — scrape/OCR county records → raw document in MinIO
-2. **Extraction** — LangGraph agents extract entities, dates, parties, violations
-3. **Normalization** — map to canonical schema (notice type, jurisdiction, timeline)
-4. **Graph Linking** — relate to property, parties, prior events in Neo4j
-5. **Timeline Generation** — chronological events from extracted dates
-6. **Due-Process Analysis** — rule engine checks for procedural gaps
-7. **Indexing** — Meilisearch full-text index for fast search
-
-### Due-Process Detection Rules
-
-| Rule | Severity | Description |
-|------|----------|-------------|
-| Adequate Notice Period | Critical | Owner must receive notice ≥10 days before hearing/action |
-| Right to Hearing | Critical | Owner must be offered a hearing before adverse action |
-| Appeal Pathway Available | Warning | Decision must include information on how to appeal |
-| Public Record Accessibility | Warning | Relevant records must be accessible via FOIA or public portal |
-| Consistent Application | Info | Enforcement should be consistent with prior similar cases |
-
-**Score:** `max(0, 100 - critical×25 - warning×10)`
-
-### Supported Jurisdictions
-- Oakland, CA
-- Alameda County, CA
-- Humboldt County, CA
-- San Francisco, CA
-- Los Angeles, CA
-
-## Development
-
-```bash
-# Run all tests
-make test
-
-# Backend only
-make test-backend    # pytest with coverage
-make lint            # ruff + mypy
-
-# Frontend only
-make test-frontend   # vitest
-make test-e2e        # playwright
-
-# Format code
-make format
-
-# Clean everything
-make clean
-```
-
-## API Overview
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/properties` | List properties (spatial + attribute filters) |
-| GET | `/api/v1/properties/{id}` | Get property details |
-| POST | `/api/v1/properties` | Create property |
-| GET | `/api/v1/evidence` | List evidence (filter by property, type, status) |
-| GET | `/api/v1/evidence/{id}` | Get evidence record |
-| PATCH | `/api/v1/evidence/{id}` | Update evidence |
-| GET | `/api/v1/timeline/{property_id}` | Get property timeline |
-| GET | `/api/v1/search?q=...` | Full-text search |
-| POST | `/api/v1/upload/property/{id}` | Upload document (multipart) |
-| GET | `/api/v1/due-process/property/{id}` | Run due-process analysis |
-| GET | `/health` | Health check |
-
-Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/v1/properties/resolve` | Find-or-create property by APN |
+| GET | `/api/v1/properties/[id]/projects` | List projects for a property |
+| POST | `/api/v1/properties/[id]/projects` | Create a project |
+| GET | `/api/v1/projects?id=...` | Get project summary (joined data) |
+| GET | `/api/v1/intelligence?projectId=...` | Gather county GIS data |
+| GET | `/api/v1/evidence?projectId=...` | List evidence |
+| POST | `/api/v1/evidence/upload` | Upload evidence to R2 |
+| GET | `/api/v1/evidence/download?id=...` | Download evidence from R2 |
+| DELETE | `/api/v1/evidence?id=...&projectId=...` | Delete evidence |
+| GET | `/api/v1/timeline?projectId=...` | List timeline events |
+| POST | `/api/v1/timeline?projectId=...` | Add timeline event |
+| DELETE | `/api/v1/timeline?id=...&projectId=...` | Remove timeline event |
+| GET | `/api/v1/findings?projectId=...` | List findings + score |
+| POST | `/api/v1/findings?projectId=...` | Run analysis manually |
+| PATCH | `/api/v1/findings?id=...&projectId=...` | Update finding status |
+| GET | `/api/v1/permits?projectId=...` | List building permits |
+| GET | `/api/v1/enforcement?projectId=...` | List code enforcement cases |
+| POST | `/api/v1/analyze?projectId=...` | Run analysis (alias) |
 
 ## License
 
-Apache-2.0
+Proprietary — FairProcess 2.0
