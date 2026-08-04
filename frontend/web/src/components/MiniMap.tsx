@@ -6,7 +6,7 @@ import { Maximize2, X } from "lucide-react";
 
 interface MiniMapProps {
   centroid: { lng: number; lat: number };
-  geomGeoJSON?: GeoJSON.Geometry | null;
+  geomGeoJSON?: any | null;
   onExpand?: () => void;
 }
 
@@ -44,7 +44,7 @@ export default function MiniMap({ centroid, geomGeoJSON, onExpand }: MiniMapProp
 
     map.on("load", () => {
       if (!geomGeoJSON) return;
-      map.addSource("parcel-outline", { type: "geojson", data: geomGeoJSON as GeoJSON.GeoJSON });
+      map.addSource("parcel-outline", { type: "geojson", data: geomGeoJSON as any });
       map.addLayer({
         id: "parcel-outline",
         type: "line",

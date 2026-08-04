@@ -72,7 +72,7 @@ export default function ProjectDashboard() {
           {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && section !== "code-enforcement" && section !== "building" && (
             <MiniMap
               centroid={toLngLat(project.property.centroid)!}
-              geomGeoJSON={(project.property.geom as GeoJSON.Geometry) ?? undefined}
+              geomGeoJSON={(project.property.geom as any) ?? undefined}
               onExpand={() => setMapExpanded(true)}
             />
           )}
