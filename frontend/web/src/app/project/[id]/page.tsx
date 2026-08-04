@@ -11,6 +11,7 @@ import EvidenceVaultPanel from "@/components/panels/EvidenceVaultPanel";
 import DiscrepanciesPanel from "@/components/panels/DiscrepanciesPanel";
 import TimelinePanel from "@/components/panels/TimelinePanel";
 import PlaceholderPanel from "@/components/panels/PlaceholderPanel";
+import LegalLibraryPanel from "@/components/panels/LegalLibraryPanel";
 import { ArrowLeft, Shield, Building2, ShieldAlert, BookOpen, Plug, Settings } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
@@ -64,7 +65,7 @@ export default function ProjectDashboard() {
 
         <main className="flex-1 relative overflow-y-auto p-6">
           {/* MiniMap floats in top-right for sections that need spatial context */}
-          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && (
+          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && (
             <MiniMap
               centroid={toLngLat(project.property.centroid)!}
               geomGeoJSON={(project.property.geom as GeoJSON.Geometry) ?? undefined}
@@ -90,13 +91,7 @@ export default function ProjectDashboard() {
           )}
           {section === "discrepancies" && <DiscrepanciesPanel projectId={id} />}
           {section === "vault" && <EvidenceVaultPanel projectId={id} />}
-          {section === "legal" && (
-            <PlaceholderPanel
-              icon={BookOpen}
-              title="Legal & Law Library"
-              description="Relevant statutes, case law, and due process requirements"
-            />
-          )}
+          {section === "legal" && <LegalLibraryPanel />}
           {section === "connectors" && (
             <PlaceholderPanel
               icon={Plug}
