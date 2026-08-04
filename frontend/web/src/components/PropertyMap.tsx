@@ -43,7 +43,7 @@ const PARCEL_TILES = [
 
 // Humboldt County GIS — parcel feature layer for click-to-identify
 const HUMBOLDT_PARCEL_URL =
-  "https://cty-gis-web.co.humboldt.ca.us/server/rest/services/Parcels/MapServer/0";
+  "https://cty-gis-web.co.humboldt.ca.us/server/rest/services/Parcels/Parcels/MapServer/0";
 
 interface ParcelInfo {
   apn: string;
@@ -56,19 +56,18 @@ interface ParcelInfo {
 
 async function fetchParcelAt(lng: number, lat: number): Promise<ParcelInfo | null> {
   try {
-    const r = 0.001;
-    const url = `${HUMBOLDT_PARCEL_URL}/query?where=1%3D1&geometry=${lng - r}%2C${lat - r}%2C${lng + r}%2C${lat + r}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=APN,SITUS_ADDR,SITUS_CITY,ACRES,ZONING,LEGAL_DESC&returnGeometry=false&f=json`;
+    const url = `${HUMBOLDT_PARCEL_URL}/query?where=&geometry=${lng}%2C${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=APN_12,FULLADDR,SITCITY,ACRES,ZONING,GEN_PLAN&returnGeometry=false&f=json`;
     const res = await fetch(url);
     const data = await res.json();
     if (!data.features?.length) return null;
     const attrs = data.features[0].attributes;
     return {
-      apn: attrs.APN || "",
-      address: attrs.SITUS_ADDR || "",
+      apn: attrs.APN_12 || "",
+      address: attrs.FULLADDR || "",
       acres: parseFloat(attrs.ACRES) || 0,
       zoning: attrs.ZONING || "",
-      city: attrs.SITUS_CITY || "",
-      legal: attrs.LEGAL_DESC || "",
+      city: attrs.SITCITY || "",
+      legal: attrs.GEN_PLAN || "",
     };
   } catch {
     return null;
@@ -213,6 +212,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
   const [showParcels, setShowParcels] = useState(true);
   const [parcelInfo, setParcelInfo] = useState<ParcelInfo | null>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
+  const isFirstRender = useRef(true);
 
   // ── Init map ──
   useEffect(() => {
@@ -309,6 +309,10 @@ export default function PropertyMap({ onSelectProperty, selectedProperty }: Prop
 
   // ── Switch base layer ──
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     const map = mapRef.current;
     if (!map) return;
     map.setStyle(buildStyle(baseLayer));
