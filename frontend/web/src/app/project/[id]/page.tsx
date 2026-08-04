@@ -12,6 +12,8 @@ import DiscrepanciesPanel from "@/components/panels/DiscrepanciesPanel";
 import TimelinePanel from "@/components/panels/TimelinePanel";
 import PlaceholderPanel from "@/components/panels/PlaceholderPanel";
 import LegalLibraryPanel from "@/components/panels/LegalLibraryPanel";
+import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
+import AdminPanel from "@/components/panels/AdminPanel";
 import CodeEnforcementPanel from "@/components/panels/CodeEnforcementPanel";
 import BuildingDeptPanel from "@/components/panels/BuildingDeptPanel";
 import { ArrowLeft, Shield, Building2, ShieldAlert, BookOpen, Plug, Settings } from "lucide-react";
@@ -82,20 +84,8 @@ export default function ProjectDashboard() {
           {section === "discrepancies" && <DiscrepanciesPanel projectId={id} />}
           {section === "vault" && <EvidenceVaultPanel projectId={id} />}
           {section === "legal" && <LegalLibraryPanel />}
-          {section === "connectors" && (
-            <PlaceholderPanel
-              icon={Plug}
-              title="Connectors & Skills"
-              description="County data integrations, scraping pipelines, and AI analysis tools"
-            />
-          )}
-          {section === "admin" && (
-            <PlaceholderPanel
-              icon={Settings}
-              title="Admin"
-              description="Project settings, user management, and system configuration"
-            />
-          )}
+          {section === "connectors" && <ConnectorsPanel projectId={id} />}
+          {section === "admin" && <AdminPanel projectId={id} />}
         </main>
       </div>
 
