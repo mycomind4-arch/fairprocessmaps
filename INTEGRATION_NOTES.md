@@ -175,3 +175,34 @@ npx wrangler d1 execute fairprocess --remote --file=database/d1/migrations/004_t
   from migration 004: `organization_members` (not `memberships`), `audit_logs`
   (not `audit_events`). The `emitAuditEvent` function writes to `audit_logs`
   with correct column mapping.
+
+## Phase 2.1: Graph Query API (2026-08-05)
+
+- **Phase 2 contract**: docs/phase-2-contract.md — frozen before implementation.
+  Defines node types, edge types, API response shapes, permission behavior,
+  and the frontend boundary rule (UI consumes domain APIs, never tables).
+
+- **Graph module**: frontend/web/src/lib/graph/ — the domain layer that
+  builds graph responses from D1 queries. Contains types.ts (domain types)
+  and builder.ts (graph construction logic).
+
+- **Four new API routes**:
+  - GET /api/v1/cases/{id}/graph — complete case graph (nodes + edges)
+  - GET /api/v1/cases/{id}/timeline — ordered timeline with actor provenance
+  - GET /api/v1/entities/{type}/{id}/relationships — entity relationships
+  - GET /api/v1/entities/{type}/{id}/history — entity event history
+
+- **Derived relationships**: The graph API computes edges from table joins
+  (case_property, has_evidence, has_finding, has_permit, has_ce_case,
+  has_recorder). Semantic relationships (supported_by, mandated_by, issued_by,
+  etc.) come from the relationships table (migration 005).
+
+- **API envelope**: All Phase 2 responses use { ok, data, error } envelope.
+  Errors return { ok: false, error: { code, message } }.
+
+- **Frontend boundary**: The frontend imports from @/lib/graph/types only.
+  It never imports from builder.ts or queries D1 directly.
+
+- **Security**: All four routes require requireAuth + requireAuthz.
+  Org-scoped via the user's organization_id. Returns 404 (not 403) for
+  resources not in the user's org to prevent enumeration.

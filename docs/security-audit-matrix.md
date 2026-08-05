@@ -75,3 +75,14 @@ Before adding a route, verify:
 | Audit event (if mutation) | ✅ |
 | Test case | ✅ |
 | Security matrix updated | ✅ |
+
+### Phase 2.1 Routes
+
+| Route | Method | Auth | Permission | Org Scoped | Event Actor | Audit Event |
+|---|---|---|---|---|---|---|
+| `/api/v1/cases/{id}/graph` | GET | yes | case.read | yes | no | no |
+| `/api/v1/cases/{id}/timeline` | GET | yes | event.read | yes | no | no |
+| `/api/v1/entities/{type}/{id}/relationships` | GET | yes | relationship.read | yes¹ | no | no |
+| `/api/v1/entities/{type}/{id}/history` | GET | yes | event.read | yes¹ | no | no |
+
+¹ Org-scoped via the caseId query parameter — the entity must belong to a case in the user's organization.
