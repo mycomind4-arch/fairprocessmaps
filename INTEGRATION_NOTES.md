@@ -294,3 +294,35 @@ npx wrangler d1 execute fairprocess --remote --file=database/d1/migrations/004_t
   Investigators can create relationships but cannot review them.
 
 - **Total**: 32 API routes, 11 migrations, 6 graph domain types modules.
+
+## Phase 3 Contract: Agent Operating Model (2026-08-05)
+
+- **Phase 3 Contract frozen**: docs/phase-3-contract.md (556 lines, 13 sections)
+- **Core principle**: AI is a provenance-producing participant, not the
+  source of truth. Agent outputs enter the same review lifecycle as
+  any evidence-derived assertion.
+- **Agent capability boundary**: Agents CAN create observations,
+  evidence links, proposed relationships, procedural checks, and
+  missing information requests. Agents CANNOT create legal conclusions,
+  accepted relationships, final findings, authority determinations,
+  or external communications.
+- **Agent action record**: Every agent action records agent_id,
+  agent_version, model_version, input_evidence_ids, confidence,
+  reasoning_trace, and timestamp.
+- **Agent sandbox**: Agents run on a read-only snapshot of the case
+  graph. Output is proposals only — no writes to canonical graph.
+  Proposals enter agent_proposals table (migration 012) with
+  status=pending. Human review (accept/reject) before promotion.
+- **Double review for AI assertions**: Accepted agent proposals that
+  become relationships still enter relationships with
+  status=pending_review — they require a SECOND review to become
+  accepted relationships.
+- **Agent types defined**: statute matcher, timeline anomaly, evidence
+  extraction, authority mapping. Each with specific input/output contracts.
+- **Agent permission matrix**: Agents are prolific proposers with zero
+  write authority to canonical data. agent.review permission for
+  human reviewers.
+- **New tables**: agent_proposals, agent_runs (migration 012, not yet
+  implemented).
+- **Build sequence**: 3.1 Infrastructure, 3.2 Statute Matcher,
+  3.3 Timeline Anomaly, 3.4 Evidence Extraction, 3.5 Authority Mapping.

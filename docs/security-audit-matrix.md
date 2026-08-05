@@ -89,5 +89,13 @@ Before adding a route, verify:
 | `/api/v1/entities/{type}/{id}/history` | GET | yes | event.read | yes¹ | no | no |
 | `/api/v1/relationships/{id}/review` | PATCH | yes | relationship.review | yes² | yes | yes |
 
+### Phase 3 Routes (Contract — Not Yet Implemented)
+
+| Route | Method | Auth | Permission | Org Scoped | Event Actor | Audit Event |
+|---|---|---|---|---|---|---|
+| `/api/v1/cases/{id}/agents/run` | POST | yes | case.read | yes | no | yes |
+| `/api/v1/cases/{id}/agents/proposals` | GET | yes | case.read | yes | no | no |
+| `/api/v1/agents/proposals/{id}/review` | PATCH | yes | agent.review | yes | yes | yes |
+
 ¹ Org-scoped via the caseId query parameter — the entity must belong to a case in the user's organization.
 ² Org-scoped via the relationship's case_id, which must belong to the user's organization.
