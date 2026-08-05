@@ -245,3 +245,52 @@ npx wrangler d1 execute fairprocess --remote --file=database/d1/migrations/004_t
 - **Dashboard update**: Project cards now have an "Investigate" button
   linking to /investigation/[id] alongside the existing ChevronRight link
   to /project/[id].
+
+## Phase 2.3: Investigation Intelligence (2026-08-05)
+
+- **Edge lifecycle (migration 011)**: Semantic edges now have status
+  (pending_review/accepted/rejected/superseded) and review metadata
+  (reviewed_by, reviewed_at, review_reason). Rejected edges stay in the
+  graph — they are never deleted. Superseded edges are filtered from
+  the graph view but remain in the database.
+
+- **Investigation Focus API**: GET /api/v1/cases/{id}/focus — structured
+  analysis with observations (timeline gaps, sequence anomalies, missing
+  notice, deadline passed, authority gaps, evidence gaps), procedural
+  checks (notice period, compliance deadline, etc.), missing information
+  (documents, dates, parties, authorities), and supporting evidence
+  summary. Uses neutral language — observations, not violations.
+
+- **"Why am I seeing this?" API**: GET /api/v1/cases/{id}/explain?nodeId=X
+  — returns reasons why a node appears in the graph: direct relationships,
+  semantic edges with provenance, timeline event references, finding
+  references. Every AI-derived element answers "why is this here?"
+
+- **Edge Review API**: PATCH /api/v1/relationships/{id}/review — accepts
+  or rejects semantic edges. Only pending_review edges can be reviewed.
+  Admins, attorneys, and reviewers can review. Investigators cannot.
+  Records who reviewed, when, and why.
+
+- **Graph relevance scoring**: Nodes scored 0-100 based on: direct case
+  relationship (+30), open findings (+20), critical findings (+10),
+  processed evidence (+15), recent timeline events (+10), high-confidence
+  semantic edges (+10), connected edges (+5 each, max +20). Nodes with
+  relevance >= 50 show a gold arc. Node size scales with relevance.
+
+- **Hierarchical graph layout**: Replaced circular layout with directed
+  hierarchical layout. Case node at top, property below, evidence/findings
+  radiate from case, permits/CE cases below property, authority chain
+  (statutes, officials, departments) at the bottom. Maps to causality,
+  not topology.
+
+- **Detail Panel expanded**: New "Investigation Focus" tab with
+  observations, procedural checks, missing information, and supporting
+  evidence. "Why am I seeing this?" panel appears when a node is
+  selected, showing all reasons with provenance, confidence, and
+  review status.
+
+- **New authorization action**: relationship.review added to the
+  permission matrix. Available to admin, attorney, and reviewer roles.
+  Investigators can create relationships but cannot review them.
+
+- **Total**: 32 API routes, 11 migrations, 6 graph domain types modules.

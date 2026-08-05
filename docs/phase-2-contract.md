@@ -501,3 +501,143 @@ The initial graph view shows at most:
 If the case has more, the UI shows a "Showing top 50 of N nodes" message
 with a filter to narrow by entity type. The graph engine knows everything;
 the user sees only what matters.
+
+---
+
+## Phase 2.3 Contract Additions: Investigation Intelligence
+
+### Frozen: 2026-08-05
+
+---
+
+### 16. Edge Lifecycle
+
+Semantic edges have a lifecycle:
+
+```
+pending_review → accepted | rejected | superseded
+```
+
+- `pending_review` (default): AI-proposed edge awaiting human review
+- `accepted`: Human reviewer confirmed the edge is valid
+- `rejected`: Human reviewer rejected the edge (stays in DB with reason)
+- `superseded`: Replaced by a newer edge (superseded_by references the replacement)
+
+Rejected edges are visible in the graph (dashed red) with the review reason.
+Superseded edges are filtered from the graph view but remain in the database.
+
+### 17. Investigation Focus API
+
+```
+GET /api/v1/cases/{id}/focus
+```
+
+Returns structured analysis — NOT violations. Neutral language only.
+
+```json
+{
+  "case_id": "proj_123",
+  "generated_at": "2026-08-05T00:25:00Z",
+  "observations": [
+    {
+      "type": "sequence_anomaly",
+      "description": "Hearing occurred 3 days after notice, required minimum is 10 days",
+      "date": "2026-03-20",
+      "severity": "critical",
+      "related_entity_type": "ce_case",
+      "related_entity_id": "ce_001"
+    }
+  ],
+  "procedural_checks": [
+    {
+      "requirement": "Notice period before hearing",
+      "status": "missing",
+      "evidence_ids": [],
+      "detail": "3 days between notice and hearing, required: 10"
+    }
+  ],
+  "supporting_evidence": [
+    {
+      "evidence_id": "evi_001",
+      "evidence_title": "Notice of Violation",
+      "relevance": "notice"
+    }
+  ],
+  "missing_information": [
+    {
+      "description": "Proof of notice service for CE case CE-2026-001",
+      "type": "document",
+      "importance": "critical"
+    }
+  ]
+}
+```
+
+Observation types: timeline_gap, sequence_anomaly, missing_notice,
+deadline_passed, authority_gap, evidence_gap.
+
+Procedural check statuses: met, unclear, missing, not_applicable.
+
+Missing information importance: critical, recommended, optional.
+
+### 18. "Why am I seeing this?" API
+
+```
+GET /api/v1/cases/{id}/explain?nodeId=X
+```
+
+Returns all reasons why a node appears in the graph:
+
+```json
+{
+  "node_id": "evi_001",
+  "node_type": "evidence",
+  "node_label": "Notice of Violation",
+  "reasons": [
+    {
+      "source": "direct_relationship",
+      "description": "Connected to Case via has_evidence"
+    },
+    {
+      "source": "timeline_event",
+      "description": "Referenced by timeline event Evidence Uploaded on 2026-07-15"
+    },
+    {
+      "source": "finding_reference",
+      "description": "Referenced by finding Missing notice period (critical severity)"
+    }
+  ]
+}
+```
+
+Every AI-derived element answers "why is this here?"
+
+### 19. Graph Relevance Scoring
+
+Nodes carry a relevance_score (0-100). Higher = more relevant.
+
+Factors:
+- +30  Direct case/property relationship
+- +20  Open finding
+- +10  Critical finding severity
+- +15  Processed, non-withdrawn evidence
+- +10  Recent timeline event (last 30 days)
+- +10  High-confidence semantic edge (≥ 0.8)
+- +5   Per connected edge (max +20)
+
+Nodes with relevance ≥ 50 display a gold arc indicator.
+Node size scales proportionally with relevance.
+
+### 20. Hierarchical Graph Layout
+
+Replaced circular layout with directed hierarchical layout:
+
+```
+Layer 0: Case node (top center)
+Layer 1: Property (below case)
+Layer 2: Evidence + Findings (radiate from case)
+Layer 3: Permits + CE Cases + Events (below property)
+Layer 4: Authority chain (statutes, officials, departments)
+```
+
+Maps to causality, not topology.

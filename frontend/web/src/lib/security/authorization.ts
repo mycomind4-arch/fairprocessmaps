@@ -17,7 +17,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "property.read", "property.update",
     "evidence.read", "evidence.upload", "evidence.withdraw",
     "finding.read", "finding.review",
-    "relationship.read", "relationship.create",
+    "relationship.read", "relationship.create", "relationship.review",
     "event.read",
     "admin.debug",
   ]),
@@ -36,7 +36,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "property.read",
     "evidence.read", "evidence.upload",
     "finding.read", "finding.review",
-    "relationship.read", "relationship.create",
+    "relationship.read", "relationship.create", "relationship.review",
     "event.read",
   ]),
 
@@ -54,7 +54,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "property.read",
     "evidence.read",
     "finding.read", "finding.review",
-    "relationship.read",
+    "relationship.read", "relationship.review",
     "event.read",
   ]),
 

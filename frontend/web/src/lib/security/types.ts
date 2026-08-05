@@ -41,6 +41,7 @@ export type Action =
   | "finding.review"
   | "relationship.read"
   | "relationship.create"
+  | "relationship.review"
   | "event.read"
   | "admin.debug";
 

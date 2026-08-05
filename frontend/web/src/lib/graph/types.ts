@@ -1,7 +1,7 @@
 /**
- * Graph domain types — Phase 2.1 + 2.2
+ * Graph domain types — Phase 2.1 + 2.2 + 2.3
  *
- * These are the domain shapes the API returns to the frontend.
+ * Domain shapes the API returns to the frontend.
  * The frontend never sees table rows — only these types.
  */
 
@@ -19,12 +19,9 @@ export type NodeType =
   | "ce_case"
   | "owner";
 
-export interface GraphNode {
-  type: NodeType;
-  id: string;
-  label: string;
-  data: Record<string, unknown>;
-}
+// ── Edge Provenance + Lifecycle ──────────────────────────────────────────────
+
+export type EdgeStatus = "pending_review" | "accepted" | "rejected" | "superseded";
 
 export interface EdgeProvenance {
   source: "derived" | "relationship_table";
@@ -34,6 +31,23 @@ export interface EdgeProvenance {
   confidence?: number | null;
   evidence_ids?: string[] | null;
   notes?: string | null;
+  // Lifecycle (migration 011)
+  status?: EdgeStatus;
+  reviewed_by?: string | null;
+  reviewed_by_type?: string | null;
+  reviewed_at?: string | null;
+  review_reason?: string | null;
+  superseded_by?: string | null;
+}
+
+// ── Graph Nodes + Edges ─────────────────────────────────────────────────────
+
+export interface GraphNode {
+  type: NodeType;
+  id: string;
+  label: string;
+  data: Record<string, unknown>;
+  relevance_score?: number;
 }
 
 export interface GraphEdge {
@@ -63,7 +77,7 @@ export interface CaseGraph {
   edges: GraphEdge[];
 }
 
-// ── Case Timeline ─────────────────────────────────────────────────────────────
+// ── Case Timeline ────────────────────────────────────────────────────────────
 
 export interface TimelineEntry {
   id: string;
@@ -89,7 +103,7 @@ export interface CaseTimeline {
   events: TimelineEntry[];
 }
 
-// ── Entity Relationships ─────────────────────────────────────────────────────
+// ── Entity Relationships ──────────────────────────────────────────────────────
 
 export interface RelationshipEdge {
   type: string;
@@ -112,10 +126,7 @@ export interface IncomingEdge {
 }
 
 export interface EntityRelationships {
-  entity: {
-    type: string;
-    id: string;
-  };
+  entity: { type: string; id: string };
   outgoing: RelationshipEdge[];
   incoming: IncomingEdge[];
 }
@@ -136,10 +147,7 @@ export interface HistoryEntry {
 }
 
 export interface EntityHistory {
-  entity: {
-    type: string;
-    id: string;
-  };
+  entity: { type: string; id: string };
   history: HistoryEntry[];
 }
 
@@ -177,6 +185,73 @@ export interface CaseSummary {
   risk_indicators: RiskIndicator[];
 }
 
+// ── Investigation Focus (Phase 2.3) ───────────────────────────────────────────
+//
+// Structured analysis — NOT "violations." These are observations,
+// procedural checks, and unresolved questions. The neutrality contract
+// stays intact.
+
+export interface Observation {
+  type:
+    | "timeline_gap"
+    | "sequence_anomaly"
+    | "missing_notice"
+    | "deadline_passed"
+    | "authority_gap"
+    | "evidence_gap";
+  description: string;
+  date?: string | null;
+  severity: "info" | "warning" | "critical";
+  related_entity_type?: string | null;
+  related_entity_id?: string | null;
+}
+
+export interface ProceduralCheck {
+  requirement: string;
+  status: "met" | "unclear" | "missing" | "not_applicable";
+  evidence_ids: string[];
+  detail: string | null;
+}
+
+export interface MissingInformation {
+  description: string;
+  type: "document" | "date" | "party" | "authority" | "other";
+  importance: "critical" | "recommended" | "optional";
+}
+
+export interface SupportingEvidence {
+  evidence_id: string;
+  evidence_title: string;
+  relevance: string;
+}
+
+export interface InvestigationFocus {
+  case_id: string;
+  generated_at: string;
+  observations: Observation[];
+  procedural_checks: ProceduralCheck[];
+  supporting_evidence: SupportingEvidence[];
+  missing_information: MissingInformation[];
+}
+
+// ── "Why am I seeing this?" (Phase 2.3) ───────────────────────────────────────
+
+export interface NodeExplanation {
+  node_id: string;
+  node_type: string;
+  node_label: string;
+  reasons: NodeReason[];
+}
+
+export interface NodeReason {
+  source: "direct_relationship" | "semantic_edge" | "timeline_event" | "finding_reference";
+  description: string;
+  edge_type?: string | null;
+  edge_provenance?: EdgeProvenance | null;
+  confidence?: number | null;
+  evidence_ids?: string[] | null;
+}
+
 // ── API Envelope ──────────────────────────────────────────────────────────────
 
 export interface ApiSuccess<T> {
@@ -188,10 +263,7 @@ export interface ApiSuccess<T> {
 export interface ApiError {
   ok: false;
   data: null;
-  error: {
-    code: string;
-    message: string;
-  };
+  error: { code: string; message: string };
 }
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError;
