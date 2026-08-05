@@ -287,7 +287,7 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
 
       {/* Recon Status */}
       {intel && (
-        <div className="rounded-xl border border-fp-border bg-fp-surface/20 p-4">
+        <div className="fp-card p-5">
           <div className="flex items-center gap-2 mb-2">
             <Database className="w-4 h-4 text-fp-cyan" />
             <h3 className="text-sm font-medium text-fp-text">Recon Status</h3>
@@ -303,7 +303,7 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
 
       {/* Recon Not Yet Run */}
       {!intel && (
-        <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-5">
+        <div className="fp-card p-6" style={{ borderStyle: "dashed" }}>
           <div className="flex items-center gap-2 mb-3">
             <div className="w-6 h-6 rounded-md bg-fp-blue/20 flex items-center justify-center">
               <span className="text-[10px] font-bold text-fp-blue">AI</span>

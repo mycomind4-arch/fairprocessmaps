@@ -231,7 +231,7 @@ export default function LegalLibraryPanel() {
               );
             })}
             {filtered.length === 0 && (
-              <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-12 text-center">
+              <div className="fp-card p-12 text-center" style={{ borderStyle: "dashed" }}>
                 <AlertCircle className="w-8 h-8 text-fp-text-dim mx-auto mb-3" />
                 <p className="text-sm text-fp-text">No references found</p>
                 <p className="text-xs text-fp-text-dim mt-1">Try a different search term or filter</p>

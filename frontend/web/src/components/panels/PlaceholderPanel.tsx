@@ -16,7 +16,7 @@ export default function PlaceholderPanel({ icon: Icon, title, description, actio
         <h2 className="text-lg font-semibold text-fp-text">{title}</h2>
         <p className="text-xs text-fp-text-dim mt-0.5">{description}</p>
       </div>
-      <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-12 text-center">
+      <div className="fp-card p-12 text-center" style={{ borderStyle: "dashed" }}>
         <Icon className="w-10 h-10 text-fp-text-dim mx-auto mb-4" />
         <h3 className="text-sm font-medium text-fp-text">Coming soon</h3>
         <p className="text-xs text-fp-text-dim mt-1 max-w-sm mx-auto">
