@@ -117,6 +117,7 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
             type="file"
             multiple
             className="hidden"
+            aria-label="Upload evidence files"
             onChange={(e) => handleUpload(e.target.files)}
           />
         </div>

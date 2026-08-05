@@ -29,8 +29,12 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
   return (
     <div
+      role="button"
+      aria-label="Close login modal"
+      tabIndex={0}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fade-in_0.2s_ease-out]"
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === "Escape" || e.key === "Enter") onClose(); }}
     >
       <div
         className="w-full max-w-sm glass rounded-2xl p-6 shadow-2xl animate-[scale-in_0.25s_cubic-bezier(0.16,1,0.3,1)]"
