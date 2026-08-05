@@ -118,7 +118,7 @@ export async function validateSession(db: D1Database, token: string): Promise<Au
     .prepare(
       `SELECT u.id, u.email, u.name, u.status, m.organization_id, m.role
        FROM users u
-       JOIN memberships m ON m.user_id = u.id
+       JOIN organization_members m ON m.user_id = u.id
        WHERE u.id = ? AND u.status = 'active'
        LIMIT 1`,
     )
@@ -209,7 +209,7 @@ export async function login(
   // Resolve membership
   const membership = await db
     .prepare(
-      `SELECT organization_id, role FROM memberships WHERE user_id = ? LIMIT 1`,
+      `SELECT organization_id, role FROM organization_members WHERE user_id = ? LIMIT 1`,
     )
     .bind(userRow.id as string)
     .first();

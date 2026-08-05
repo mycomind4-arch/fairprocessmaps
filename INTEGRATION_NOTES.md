@@ -149,3 +149,29 @@ npx wrangler d1 execute fairprocess --remote --file=database/d1/migrations/004_t
    URLs directly; we stream through the worker with auth checks instead.
    If presigned URLs become needed, use R2 S3 API with `aws-sdk` or
    migrate to R2 public buckets with lifecycle rules.
+
+## Phase 1E: Operational Security Hardening (2026-08-05)
+
+- **Migration fix**: Phase 1D commit accidentally overwrote migrations 004-007.
+  Restored original migrations (004_identity_platform, 005_event_store,
+  006_event_date, 007_domain_validation). Trust boundary migration renamed
+  to 008_trust_boundary.sql. Migration 008 is now ADDITIVE — does not
+  recreate tables from 004 (organizations, organization_members, audit_logs).
+  Only adds users, sessions, and ALTER TABLE columns.
+
+- **Admin bootstrap**: `POST /api/v1/admin/bootstrap` — one-time, self-disabling.
+  Creates initial admin + org + membership. Refuses if any admin exists.
+  `frontend/web/src/lib/security/bootstrap.ts` has the `bootstrapAdmin()` function.
+
+- **Security audit matrix**: `docs/security-audit-matrix.md` — every route with
+  auth, permission, org scoping, and event actor coverage.
+
+- **Supabase removed**: `@supabase/supabase-js` removed from package.json.
+  `auth.tsx` now uses `/api/v1/auth/*` endpoints. `LoginModal` updated.
+  Landing page and dashboard no longer check `NEXT_PUBLIC_SUPABASE_URL`.
+  One identity authority: FairProcess Auth.
+
+- **Table name reconciliation**: Security code updated to use existing tables
+  from migration 004: `organization_members` (not `memberships`), `audit_logs`
+  (not `audit_events`). The `emitAuditEvent` function writes to `audit_logs`
+  with correct column mapping.

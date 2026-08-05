@@ -1,68 +1,90 @@
+/**
+ * FairProcess Authentication — Phase 1E
+ *
+ * Replaces Supabase auth with the standalone D1-based session system.
+ * Uses httpOnly cookies set by /api/v1/auth/login and /api/v1/auth/logout.
+ * The client just needs to know if the user is logged in and their identity.
+ */
+
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { createClient, SupabaseClient, User } from "@supabase/supabase-js";
+
+export interface FairProcessUser {
+  id: string;
+  email: string;
+  name: string;
+  organization_id: string;
+  role: string;
+}
 
 interface AuthContextValue {
-  user: User | null;
+  user: FairProcessUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FairProcessUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [client, setClient] = useState<SupabaseClient | null>(null);
 
+  // Resolve current user from session cookie via /api/v1/auth/me
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    let cancelled = false;
 
-    if (!url || !anonKey) {
-      // No Supabase configured — skip auth (dev mode)
-      setLoading(false);
-      return;
-    }
+    fetch("/api/v1/auth/me", { credentials: "same-origin" })
+      .then((res) => {
+        if (res.ok) return res.json();
+        return null;
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setUser(data?.user ?? null);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUser(null);
+          setLoading(false);
+        }
+      });
 
-    const supabase = createClient(url, anonKey);
-    setClient(supabase);
-
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    if (!client) throw new Error("Supabase not configured");
-    const { error } = await client.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  };
+    const res = await fetch("/api/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ email, password }),
+    });
 
-  const signUp = async (email: string, password: string) => {
-    if (!client) throw new Error("Supabase not configured");
-    const { error } = await client.auth.signUp({ email, password });
-    if (error) throw error;
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error ?? "Login failed");
+    }
+
+    const data = await res.json();
+    setUser(data.user);
   };
 
   const signOut = async () => {
-    if (!client) return;
-    await client.auth.signOut();
+    await fetch("/api/v1/auth/logout", {
+      method: "POST",
+      credentials: "same-origin",
+    });
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

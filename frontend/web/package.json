@@ -14,7 +14,6 @@
     "cf:preview": "npx @opennextjs/cloudflare preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.0",
     "@tailwindcss/postcss": "^4.0.0",
     "@tanstack/react-query": "^5.75.0",
     "clsx": "^2.1.1",

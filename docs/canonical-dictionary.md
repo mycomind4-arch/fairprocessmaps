@@ -122,3 +122,44 @@ Added to `due_process_findings`: `reviewed_by`, `reviewed_at`.
 - `/api/v1/debug/*` requires `admin.debug` permission
 - Only the `admin` role has this permission
 - Internal GIS query logic is never public
+
+---
+
+## Phase 1E: Operational Security Hardening
+
+### Admin Bootstrap Contract
+
+The first admin is created via a one-time, self-disabling endpoint.
+
+- `POST /api/v1/admin/bootstrap` creates the initial user + organization + membership.
+- Refuses to run if any admin already exists (checks `organization_members` for `role='admin'`).
+- No public signup — uncontrolled account creation is inappropriate for a legal evidence system.
+- Passwords must be at least 8 characters.
+- The bootstrap function is idempotent — safe to call multiple times (only creates if not present).
+
+### Session Fixation Prevention
+
+Login destroys any existing session and creates a new authenticated one.
+
+- `POST /api/v1/auth/login` always creates a fresh session.
+- Any prior session token in the cookie is overwritten by the new token.
+- Session tokens are SHA-256 hashed — never stored raw.
+
+### Single Identity Authority
+
+There is one identity system: FairProcess Auth.
+
+- Supabase auth dependency has been removed.
+- Client-side `auth.tsx` now calls `/api/v1/auth/login`, `/api/v1/auth/logout`, `/api/v1/auth/me`.
+- The `@supabase/supabase-js` package has been removed from dependencies.
+- `user_id` in `organization_members` maps to `users.id` (D1), not Supabase `auth.uid`.
+
+### Password Recovery (Future Requirement)
+
+Not implemented in Phase 1E. When added, must use:
+
+- `password_reset_tokens` table with expiry
+- `email_verification` flow
+- `account_recovery_events` in the audit log (append-only)
+
+Do not bolt this on without events.

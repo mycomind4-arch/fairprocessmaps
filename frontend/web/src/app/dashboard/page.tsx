@@ -30,8 +30,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     // If Supabase is configured and user is not logged in, redirect to landing
-    const envConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!loading && envConfigured && !user) {
+
+    if (!loading && !user) {
       router.replace("/");
       return;
     }
