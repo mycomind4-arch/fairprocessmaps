@@ -6,9 +6,13 @@
  * 
  * Timeline, Audit Log, Notifications, and Activity Feed are all projections
  * of the same event stream — no duplication.
+ * 
+ * Temporal Provenance:
+ *   event_date  = when the action actually occurred (may be in the past)
+ *   created_at  = when the database row was inserted (auto by D1)
+ *   For real-time events (upload, user action), event_date = created_at.
+ *   For discovered events (CE notice served, permit issued), event_date = action date.
  */
-
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 // ── Types ──
 
@@ -62,6 +66,7 @@ export interface EventPayload {
   actor_id?: string;
   actor_name?: string;
   severity?: Severity;
+  event_date?: string; // When the action occurred (defaults to now)
   title?: string;
   description?: string;
   payload?: Record<string, any>;
@@ -87,6 +92,7 @@ export interface StoredEvent {
   actor_id: string | null;
   actor_name: string | null;
   severity: string;
+  event_date: string | null;
   title: string | null;
   description: string | null;
   payload: string | null;
@@ -114,10 +120,11 @@ export interface StoredRelationship {
  */
 export async function emitEvent(db: D1Database, event: EventPayload): Promise<string | null> {
   const id = crypto.randomUUID();
+  const now = new Date().toISOString();
   try {
     await db.prepare(
-      `INSERT INTO events (id, case_id, event_type, entity_type, entity_id, actor_type, actor_id, actor_name, severity, title, description, payload)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO events (id, case_id, event_type, entity_type, entity_id, actor_type, actor_id, actor_name, severity, event_date, title, description, payload)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id,
       event.case_id,
@@ -128,6 +135,7 @@ export async function emitEvent(db: D1Database, event: EventPayload): Promise<st
       event.actor_id || null,
       event.actor_name || null,
       event.severity || "info",
+      event.event_date || now, // When the action occurred (defaults to now)
       event.title || null,
       event.description || null,
       event.payload ? JSON.stringify(event.payload) : null
@@ -151,6 +159,7 @@ export async function emitEvents(db: D1Database, events: EventPayload[]): Promis
 /**
  * Create a typed relationship between two entities.
  * Idempotent — if the relationship already exists, it's a no-op.
+ * Only emits a relationship.created event when a NEW relationship is actually created.
  */
 export async function createRelationship(
   db: D1Database,
@@ -158,7 +167,7 @@ export async function createRelationship(
 ): Promise<string | null> {
   const id = crypto.randomUUID();
   try {
-    await db.prepare(
+    const result = await db.prepare(
       `INSERT OR IGNORE INTO relationships (id, case_id, source_type, source_id, target_type, target_id, relationship_type, metadata)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
@@ -172,24 +181,30 @@ export async function createRelationship(
       rel.metadata ? JSON.stringify(rel.metadata) : null
     ).run();
 
-    // Also emit a relationship.created event
-    await emitEvent(db, {
-      case_id: rel.case_id,
-      event_type: "relationship.created",
-      entity_type: "relationship",
-      entity_id: id,
-      actor_type: "system",
-      title: `${rel.source_type} → ${rel.relationship_type} → ${rel.target_type}`,
-      payload: {
-        source_type: rel.source_type,
-        source_id: rel.source_id,
-        target_type: rel.target_type,
-        target_id: rel.target_id,
-        relationship_type: rel.relationship_type,
-      },
-    });
+    // Only emit event if a row was actually inserted
+    const wasInserted = (result as any)?.meta?.changes > 0;
 
-    return id;
+    if (wasInserted) {
+      await emitEvent(db, {
+        case_id: rel.case_id,
+        event_type: "relationship.created",
+        entity_type: "relationship",
+        entity_id: id,
+        actor_type: "system",
+        title: `${rel.source_type} → ${rel.relationship_type} → ${rel.target_type}`,
+        payload: {
+          source_type: rel.source_type,
+          source_id: rel.source_id,
+          target_type: rel.target_type,
+          target_id: rel.target_id,
+          relationship_type: rel.relationship_type,
+        },
+      });
+      return id;
+    }
+
+    // Relationship already existed — no event, no new ID
+    return null;
   } catch (err) {
     console.error("[event-store] createRelationship failed:", err);
     return null;
@@ -212,7 +227,7 @@ export async function queryEvents(
     severity?: string;
     limit?: number;
     offset?: number;
-    since?: string; // ISO timestamp
+    since?: string;
   }
 ): Promise<StoredEvent[]> {
   const conditions: string[] = [];
@@ -239,14 +254,14 @@ export async function queryEvents(
 
 /**
  * Get the event stream for a case — this IS the Timeline.
+ * Sorts by event_date (when the action occurred), falling back to created_at.
  */
 export async function getCaseTimeline(db: D1Database, caseId: string, limit = 200): Promise<StoredEvent[]> {
-  // Only timeline-visible events
   const result = await db.prepare(
     `SELECT e.* FROM events e
      LEFT JOIN event_types et ON e.event_type = et.code
      WHERE e.case_id = ? AND (et.is_timeline_visible = 1 OR et.id IS NULL)
-     ORDER BY e.created_at DESC
+     ORDER BY COALESCE(e.event_date, e.created_at) DESC
      LIMIT ?`
   ).bind(caseId, limit).all();
 
@@ -293,9 +308,6 @@ export async function getNotifications(db: D1Database, caseIds: string[], since?
 
 // ── Relationship Queries (Graph Traversal) ──
 
-/**
- * Get all relationships from a source entity.
- */
 export async function getRelationshipsFrom(
   db: D1Database,
   sourceType: string,
@@ -317,9 +329,6 @@ export async function getRelationshipsFrom(
   return (result.results || []) as unknown as StoredRelationship[];
 }
 
-/**
- * Get all relationships to a target entity.
- */
 export async function getRelationshipsTo(
   db: D1Database,
   targetType: string,
@@ -341,9 +350,6 @@ export async function getRelationshipsTo(
   return (result.results || []) as unknown as StoredRelationship[];
 }
 
-/**
- * Get ALL relationships for a case — the full relationship graph.
- */
 export async function getCaseRelationships(db: D1Database, caseId: string): Promise<StoredRelationship[]> {
   const result = await db.prepare(
     `SELECT * FROM relationships WHERE case_id = ? ORDER BY created_at DESC`
@@ -352,10 +358,6 @@ export async function getCaseRelationships(db: D1Database, caseId: string): Prom
   return (result.results || []) as unknown as StoredRelationship[];
 }
 
-/**
- * Traverse the relationship graph from an entity.
- * Returns all connected entities with their relationship types.
- */
 export async function getConnectedEntities(
   db: D1Database,
   entityType: string,
@@ -373,8 +375,9 @@ export async function getConnectedEntities(
 }
 
 /**
- * Get the Authority Chain for a finding.
+ * Traverse the relationship graph from a finding.
  * Traverses: finding → supported_by → evidence → issued_by → official → member_of → department → delegated_by → authority → authorized_by → statute
+ * Also: finding → mandated_by → statute (direct)
  */
 export async function getAuthorityChain(
   db: D1Database,
@@ -386,38 +389,32 @@ export async function getAuthorityChain(
   authorities: StoredRelationship[];
   statutes: StoredRelationship[];
 }> {
-  // finding → supported_by → evidence
   const evidence = await getRelationshipsFrom(db, "finding", findingId, "supported_by");
 
-  // For each evidence, get issued_by → official
   const officials: StoredRelationship[] = [];
   for (const ev of evidence) {
     const offs = await getRelationshipsFrom(db, "evidence", ev.target_id, "issued_by");
     officials.push(...offs);
   }
 
-  // For each official, get member_of → department
   const departments: StoredRelationship[] = [];
   for (const off of officials) {
     const depts = await getRelationshipsFrom(db, "official", off.target_id, "member_of");
     departments.push(...depts);
   }
 
-  // For each department, get delegated_by → authority
   const authorities: StoredRelationship[] = [];
   for (const dept of departments) {
     const auths = await getRelationshipsFrom(db, "department", dept.target_id, "delegated_by");
     authorities.push(...auths);
   }
 
-  // For each authority, get authorized_by → statute
   const statutes: StoredRelationship[] = [];
   for (const auth of authorities) {
     const stats = await getRelationshipsFrom(db, "authority", auth.target_id, "authorized_by");
     statutes.push(...stats);
   }
 
-  // Also get finding → mandated_by → statute (direct)
   const directStatutes = await getRelationshipsFrom(db, "finding", findingId, "mandated_by");
   statutes.push(...directStatutes);
 
@@ -425,7 +422,6 @@ export async function getAuthorityChain(
 }
 
 // ── Timeline Mapping ──
-// Maps event types to timeline display types for the Timeline panel.
 
 export function eventToTimelineDisplay(event: StoredEvent): {
   event_type: string;
@@ -433,9 +429,9 @@ export function eventToTimelineDisplay(event: StoredEvent): {
   description: string | null;
   entity_type: string;
   entity_id: string;
+  event_date: string;
   created_at: string;
 } {
-  // Map event types to timeline display types
   const TYPE_MAP: Record<string, string> = {
     "evidence.uploaded": "evidence_uploaded",
     "evidence.processed": "evidence_processed",
@@ -471,16 +467,13 @@ export function eventToTimelineDisplay(event: StoredEvent): {
     description: event.description || (payload?.description) || null,
     entity_type: event.entity_type,
     entity_id: event.entity_id,
+    event_date: event.event_date || event.created_at,
     created_at: event.created_at,
   };
 }
 
-// ── High-level convenience: emit + relate in one call ──
+// ── High-level convenience ──
 
-/**
- * Emit an event AND create relationships in one call.
- * Useful for analysis agents that generate findings.
- */
 export async function emitEventWithRelationships(
   db: D1Database,
   event: EventPayload,
@@ -491,4 +484,17 @@ export async function emitEventWithRelationships(
     relationships.map((r) => createRelationship(db, r))
   );
   return { eventId, relationshipIds };
+}
+
+// ── Finding Fingerprint ──
+// Used to determine if a finding is new or already existed before an analysis run.
+// This prevents re-emitting finding.created events on re-analysis.
+
+export function findingFingerprint(finding: {
+  project_id: string;
+  rule: string;
+  evidence_id: string | null;
+  detail: string | null;
+}): string {
+  return `${finding.project_id}:${finding.rule}:${finding.evidence_id || "none"}:${finding.detail?.slice(0, 200) || "none"}`;
 }
