@@ -19,12 +19,8 @@ export async function GET(req: NextRequest) {
       .prepare(
         `SELECT * FROM building_permits WHERE project_id = ? ORDER BY 
          CASE permit_status
-           WHEN 'pending' THEN 0
-           WHEN 'under_review' THEN 1
-           WHEN 'issued' THEN 2
-           WHEN 'inspections' THEN 3
-           WHEN 'finalized' THEN 4
-           WHEN 'expired' THEN 5
+           WHEN 'pending' THEN 0 WHEN 'under_review' THEN 1 WHEN 'issued' THEN 2
+           WHEN 'inspections' THEN 3 WHEN 'finalized' THEN 4 WHEN 'expired' THEN 5
            WHEN 'denied' THEN 6
          END,
          created_at DESC`
@@ -49,7 +45,6 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     const projectId = body.project_id as string;
 
-    // Auto-compute expiry (180 days from issue for most permits)
     let expiredDate = (body.expired_date as string) || null;
     if (!expiredDate && (body.issued_date as string)) {
       const d = new Date(body.issued_date as string);
@@ -68,8 +63,7 @@ export async function POST(req: NextRequest) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
-        id,
-        projectId,
+        id, projectId,
         (body.permit_number as string) || null,
         (body.permit_type as string),
         (body.permit_status as string) || "pending",
@@ -84,12 +78,11 @@ export async function POST(req: NextRequest) {
         (body.last_inspection_date as string) || null,
         (body.last_inspection_result as string) || null,
         (body.notes as string) || null,
-        now,
-        now
+        now, now
       )
       .run();
 
-    // ── Emit events to the Event Store ──
+    // ── Emit events with actual action dates ──
     await emitEvent(db, {
       case_id: projectId,
       event_type: "permit.created",
@@ -107,6 +100,7 @@ export async function POST(req: NextRequest) {
         entity_type: "permit",
         entity_id: id,
         actor_type: "user",
+        event_date: body.issued_date as string,
         title: `Permit issued: ${body.permit_number || body.permit_type || "permit"}`,
         payload: { issued_date: body.issued_date, permit_number: body.permit_number },
       });
@@ -119,23 +113,20 @@ export async function POST(req: NextRequest) {
         entity_id: id,
         actor_type: "system",
         severity: "warning",
+        event_date: expiredDate,
         title: `Permit expires: ${expiredDate}`,
         payload: { expired_date: expiredDate, permit_number: body.permit_number },
       });
     }
 
-    const created = await db
-      .prepare("SELECT * FROM building_permits WHERE id = ?")
-      .bind(id)
-      .first();
-
+    const created = await db.prepare("SELECT * FROM building_permits WHERE id = ?").bind(id).first();
     return NextResponse.json(created, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
 
-// PATCH /api/v1/permits?id=xxx
+// PATCH
 export async function PATCH(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
@@ -147,7 +138,6 @@ export async function PATCH(req: NextRequest) {
     const { env } = getCloudflareContext();
     const db = env.DB;
 
-    // Get existing record for project_id and change detection
     const existing = await db.prepare("SELECT * FROM building_permits WHERE id = ?").bind(id).first() as any;
     const projectId = existing?.project_id;
 
@@ -178,7 +168,7 @@ export async function PATCH(req: NextRequest) {
 
     await db.prepare(`UPDATE building_permits SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
 
-    // ── Emit events for specific changes ──
+    // ── Emit events with actual action dates ──
     if (projectId) {
       if (body.issued_date && body.issued_date !== existing?.issued_date) {
         await emitEvent(db, {
@@ -187,6 +177,7 @@ export async function PATCH(req: NextRequest) {
           entity_type: "permit",
           entity_id: id,
           actor_type: "user",
+          event_date: body.issued_date as string,
           title: `Permit issued: ${existing?.permit_number || "permit"}`,
           payload: { issued_date: body.issued_date },
         });
@@ -198,6 +189,7 @@ export async function PATCH(req: NextRequest) {
           entity_type: "permit",
           entity_id: id,
           actor_type: "user",
+          event_date: body.finalized_date as string,
           title: `Permit finalized: ${existing?.permit_number || "permit"}`,
           payload: { finalized_date: body.finalized_date },
         });
@@ -209,24 +201,21 @@ export async function PATCH(req: NextRequest) {
           entity_type: "permit",
           entity_id: id,
           actor_type: "user",
+          event_date: body.last_inspection_date as string,
           title: `Inspection: ${body.last_inspection_result || "result unknown"}`,
           payload: { inspection_date: body.last_inspection_date, result: body.last_inspection_result },
         });
       }
     }
 
-    const updated = await db
-      .prepare("SELECT * FROM building_permits WHERE id = ?")
-      .bind(id)
-      .first();
-
+    const updated = await db.prepare("SELECT * FROM building_permits WHERE id = ?").bind(id).first();
     return NextResponse.json(updated, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
 
-// DELETE /api/v1/permits?id=xxx
+// DELETE
 export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
