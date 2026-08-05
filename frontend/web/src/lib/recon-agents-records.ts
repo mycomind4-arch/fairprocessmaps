@@ -97,34 +97,45 @@ const buildingPermitsAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> 
 // ── Agent 14: Code Enforcement Cases ──
 
 const codeEnforcementAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
-  const { db, projectId, apn, parcel } = ctx;
+  const { db, projectId, apn } = ctx;
   
   try {
-    // Humboldt County Code Enforcement: (707) 476-2429
-    // Public records requests via NextRequest: humoldtgov.nextrequest.com
-    // No direct online search portal — records collected via public records requests
-    // or browser automation.
+    // Query Humboldt County ArcGIS Code Enforcement layer
+    // Layer: Web/Housing_Public/MapServer/7 — "Code Enforcement Cases 1/15/2025"
+    // Fields: APN_1, RECORD_ID, Type_of_Case_1, DATE_OPENED_1 (epoch ms)
+    // No auth required — public layer.
+    const { syncCECases, fetchCECasesByAPN } = await import("./ce-pipeline");
     
-    // Check for existing CE cases in D1
-    const existingCases = await db.prepare(
-      `SELECT * FROM code_enforcement_cases WHERE project_id = ? ORDER BY notice_served_date DESC`
+    // Get org ID from project
+    const project = await db.prepare(
+      `SELECT organization_id FROM projects WHERE id = ?`
+    ).bind(projectId).first();
+    const orgId = (project?.organization_id as string) || "";
+    
+    // Sync CE cases to D1 (creates records + timeline events)
+    const syncResult = await syncCECases(projectId, apn, orgId, db);
+    
+    // Read back all CE cases (including pre-existing)
+    const allCases = await db.prepare(
+      `SELECT * FROM code_enforcement_cases WHERE project_id = ? ORDER BY created_at DESC`
     ).bind(projectId).all() as any;
     
-    const caseCount = existingCases.results?.length || 0;
+    const caseCount = allCases.results?.length || 0;
     
     if (caseCount > 0) {
-      const caseList = existingCases.results.map((c: any) =>
-        `- ${c.case_number || "No #"} | ${c.violation_type} | Severity: ${c.severity} | Status: ${c.status} | Notice: ${c.notice_served_date || "N/A"} | Hearing: ${c.hearing_date || "N/A"} | Lien: ${c.lien_filed ? "Yes" : "No"}`
+      const caseList = allCases.results.map((c: any) =>
+        `- ${c.case_number || "No #"} | ${c.violation_type || "Unknown"} | Severity: ${c.severity} | Status: ${c.status} | Opened: ${c.notice_served_date || "N/A"} | Hearing: ${c.hearing_date || "N/A"}`
       ).join("\n");
       
       return {
         agent: "code_enforcement",
         status: "success",
-        message: `${caseCount} code enforcement case(s) on file.`,
+        message: `${caseCount} code enforcement case(s) ${syncResult.casesCreated > 0 ? `(${syncResult.casesCreated} new from county GIS, ${syncResult.casesUpdated} updated)` : "on file"}.`,
         data: {
           case_count: caseCount,
-          cases: existingCases.results,
+          cases: allCases.results,
           summary: caseList,
+          sync_result: syncResult,
         },
       };
     }
@@ -132,7 +143,7 @@ const codeEnforcementAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> 
     return {
       agent: "code_enforcement",
       status: "no_data",
-      message: `No code enforcement cases in D1. Contact Code Enforcement at (707) 476-2429 or file a public records request at humboldtgov.nextrequest.com for APN ${apn}.`,
+      message: `No code enforcement cases found for APN ${apn} in county GIS or D1. County CE phone: (707) 476-2429.`,
       data: {
         ce_phone: "(707) 476-2429",
         records_portal: "https://humboldtgov.nextrequest.com",
