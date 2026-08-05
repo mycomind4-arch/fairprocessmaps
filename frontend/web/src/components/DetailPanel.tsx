@@ -5,7 +5,8 @@ import type {
   CaseSummary, CaseGraph, TimelineEntry, GraphNode,
   InvestigationFocus, NodeExplanation, EdgeProvenance,
 } from "@/lib/graph/types";
-import { FileText, AlertTriangle, Scale, Network, Eye, HelpCircle, CheckCircle2, XCircle, Clock } from "lucide-react";
+import type { AgentProposal, ProposalStatus } from "@/lib/agents/types";
+import { FileText, AlertTriangle, Scale, Network, Eye, HelpCircle, CheckCircle2, XCircle, Clock, Bot, Loader2 } from "lucide-react";
 
 interface Props {
   graph: CaseGraph | null;
@@ -13,12 +14,12 @@ interface Props {
   caseId: string | null;
   selectedNode: string | null;
   selectedEvent: TimelineEntry | null;
-  activeTab: "evidence" | "findings" | "authority" | "focus";
-  onTabChange: (tab: "evidence" | "findings" | "authority" | "focus") => void;
+  activeTab: "evidence" | "findings" | "authority" | "focus" | "agents";
+  onTabChange: (tab: "evidence" | "findings" | "authority" | "focus" | "agents") => void;
 }
 
-const TAB_ICONS = { evidence: FileText, findings: AlertTriangle, authority: Scale, focus: Eye };
-const TAB_LABELS = { evidence: "Evidence", findings: "Findings", authority: "Authority", focus: "Investigation Focus" };
+const TAB_ICONS = { evidence: FileText, findings: AlertTriangle, authority: Scale, focus: Eye, agents: Bot };
+const TAB_LABELS = { evidence: "Evidence", findings: "Findings", authority: "Authority", focus: "Investigation Focus", agents: "Agent Proposals" };
 
 const OBSERVATION_ICONS: Record<string, string> = {
   timeline_gap: "⏱", sequence_anomaly: "⚠", missing_notice: "📋",
@@ -42,6 +43,8 @@ export default function DetailPanel({
   graph, summary, caseId, selectedNode, selectedEvent, activeTab, onTabChange,
 }: Props) {
   const [focus, setFocus] = useState<InvestigationFocus | null>(null);
+  const [proposals, setProposals] = useState<AgentProposal[]>([]);
+  const [proposalsLoading, setProposalsLoading] = useState(false);
   const [focusLoading, setFocusLoading] = useState(false);
   const [explanation, setExplanation] = useState<NodeExplanation | null>(null);
   const [explanationLoading, setExplanationLoading] = useState(false);
@@ -57,6 +60,18 @@ export default function DetailPanel({
         .finally(() => setFocusLoading(false));
     }
   }, [activeTab, focus, caseId, focusLoading]);
+
+  // Fetch Agent Proposals when agents tab is opened
+  useEffect(() => {
+    if (activeTab === "agents" && proposals.length === 0 && caseId && !proposalsLoading) {
+      setProposalsLoading(true);
+      fetch(`/api/v1/cases/${caseId}/agents/proposals`)
+        .then(r => r.json())
+        .then(d => { if (d.ok) setProposals(d.data.proposals); })
+        .catch(() => {})
+        .finally(() => setProposalsLoading(false));
+    }
+  }, [activeTab, proposals, caseId, proposalsLoading]);
 
   // Fetch "Why am I seeing this?" when a node is selected
   useEffect(() => {
@@ -80,7 +95,7 @@ export default function DetailPanel({
     <div className="flex flex-col h-full">
       {/* Tabs */}
       <div className="shrink-0 flex items-center gap-1 px-4 py-1.5 border-b border-fp-border/50">
-        {(Object.keys(TAB_LABELS) as ("evidence" | "findings" | "authority" | "focus")[]).map((tab) => {
+        {(Object.keys(TAB_LABELS) as ("evidence" | "findings" | "authority" | "focus" | "agents")[]).map((tab) => {
           const Icon = TAB_ICONS[tab];
           const isActive = activeTab === tab;
           return (
@@ -92,6 +107,12 @@ export default function DetailPanel({
               {TAB_LABELS[tab]}
               {tab === "focus" && focus && focus.observations.length > 0 && (
                 <span className="ml-1 px-1 py-0 rounded text-[9px] bg-fp-amber/20 text-fp-amber">{focus.observations.length}</span>
+              )}
+              {tab === "focus" && focus && focus.pending_agent_proposals > 0 && (
+                <span className="ml-1 px-1 py-0 rounded text-[9px] bg-fp-red/20 text-fp-red">{focus.pending_agent_proposals} pending</span>
+              )}
+              {tab === "agents" && proposals.filter(p => p.status === "pending").length > 0 && (
+                <span className="ml-1 px-1 py-0 rounded text-[9px] bg-fp-red/20 text-fp-red">{proposals.filter(p => p.status === "pending").length}</span>
               )}
             </button>
           );
@@ -426,6 +447,119 @@ export default function DetailPanel({
               return (sn && at.includes(sn.type)) || (tn && at.includes(tn.type));
             }).length === 0 && (
               <p className="text-sm text-fp-text-dim text-center py-4">No authority relationships in this case yet</p>
+            )}
+          </div>
+        )}
+
+
+        {/* Agent Proposals tab */}
+        {activeTab === "agents" && (
+          <div className="space-y-3">
+            {proposalsLoading && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-4 h-4 animate-spin text-fp-text-dim" />
+                <span className="ml-2 text-sm text-fp-text-dim">Loading proposals…</span>
+              </div>
+            )}
+            {!proposalsLoading && proposals.filter(p => p.status === "pending").length === 0 && proposals.filter(p => p.status !== "pending").length === 0 && (
+              <p className="text-sm text-fp-text-dim text-center py-4">No agent proposals for this case yet</p>
+            )}
+            {/* Pending proposals */}
+            {proposals.filter(p => p.status === "pending").length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold text-fp-amber uppercase tracking-wider mb-2">
+                  Pending Review ({proposals.filter(p => p.status === "pending").length})
+                </h4>
+                <div className="space-y-2">
+                  {proposals.filter(p => p.status === "pending").map((proposal) => (
+                    <div key={proposal.id} className="p-3 rounded-lg bg-fp-surface-2 border border-fp-amber/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Bot className="w-3.5 h-3.5 text-fp-purple" />
+                        <span className="text-xs font-medium text-fp-text">{proposal.agent_id}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-fp-purple/20 text-fp-purple">{proposal.proposal_type.replace(/_/g, " ")}</span>
+                        {proposal.confidence != null && (
+                          <span className="text-[10px] text-fp-text-dim ml-auto">{(proposal.confidence * 100).toFixed(0)}% confidence</span>
+                        )}
+                      </div>
+                      {proposal.proposal_type === "relationship_proposal" && (
+                        <p className="text-xs text-fp-text-muted">
+                          {proposal.source_type} → <span className="text-fp-purple">{proposal.relationship_type}</span> → {proposal.target_type}
+                        </p>
+                      )}
+                      {proposal.description && <p className="text-xs text-fp-text-muted mt-1">{proposal.description}</p>}
+                      {proposal.requirement && (
+                        <p className="text-xs text-fp-text-muted mt-1">
+                          <span className="font-medium">{proposal.requirement}</span>: {proposal.check_status}
+                          {proposal.check_detail && <span className="text-fp-text-dim"> — {proposal.check_detail}</span>}
+                        </p>
+                      )}
+                      {proposal.reasoning_trace && (
+                        <p className="text-[11px] text-fp-text-dim mt-1.5 italic">{proposal.reasoning_trace}</p>
+                      )}
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => {
+                            fetch(`/api/v1/agents/proposals/${proposal.id}/review`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ decision: "accepted" }),
+                            }).then(r => r.json()).then(d => {
+                              if (d.ok) {
+                                setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: "accepted" as ProposalStatus } : p));
+                              }
+                            });
+                          }}
+                          className="px-2 py-1 rounded-lg text-[11px] font-medium bg-fp-green/15 text-fp-green hover:bg-fp-green/25 transition-colors"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => {
+                            fetch(`/api/v1/agents/proposals/${proposal.id}/review`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ decision: "rejected", review_reason: "Reviewed and rejected" }),
+                            }).then(r => r.json()).then(d => {
+                              if (d.ok) {
+                                setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: "rejected" as ProposalStatus } : p));
+                              }
+                            });
+                          }}
+                          className="px-2 py-1 rounded-lg text-[11px] font-medium bg-fp-red/15 text-fp-red hover:bg-fp-red/25 transition-colors"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Reviewed proposals (history) */}
+            {proposals.filter(p => p.status !== "pending").length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wider mb-2">
+                  Reviewed ({proposals.filter(p => p.status !== "pending").length})
+                </h4>
+                <div className="space-y-1.5">
+                  {proposals.filter(p => p.status !== "pending").map((proposal) => (
+                    <div key={proposal.id} className={`p-2.5 rounded-lg border text-xs ${
+                      proposal.status === "accepted" ? "bg-fp-green/5 border-fp-green/20" : "bg-fp-red/5 border-fp-red/20"
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <Bot className="w-3 h-3 text-fp-purple" />
+                        <span className="text-fp-text-muted">{proposal.agent_id}</span>
+                        <span className="text-fp-text-dim">· {proposal.proposal_type.replace(/_/g, " ")}</span>
+                        <span className={`ml-auto text-[10px] font-medium ${
+                          proposal.status === "accepted" ? "text-fp-green" : "text-fp-red"
+                        }`}>{proposal.status}</span>
+                      </div>
+                      {proposal.description && <p className="text-fp-text-dim mt-1">{proposal.description}</p>}
+                      {proposal.review_reason && <p className="text-fp-text-dim italic mt-0.5">Reason: {proposal.review_reason}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}

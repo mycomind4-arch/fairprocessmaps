@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import type { CaseSummary, CaseGraph, CaseTimeline, TimelineEntry } from "@/lib/graph/types";
-import { ArrowLeft, Shield, Loader2, AlertTriangle, Clock, MapPin, FileText, Scale, Network, ChevronRight, Filter } from "lucide-react";
+import { ArrowLeft, Shield, Loader2, AlertTriangle, Clock, MapPin, FileText, Scale, Network, ChevronRight, Filter, Bot } from "lucide-react";
 import InvestigationGraph from "@/components/InvestigationGraph";
 import TimelineList from "@/components/TimelineList";
 import DetailPanel from "@/components/DetailPanel";
@@ -22,7 +22,7 @@ export default function InvestigationView() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set());
-  const [activeDetailTab, setActiveDetailTab] = useState<"evidence" | "findings" | "authority" | "focus">("evidence");
+  const [activeDetailTab, setActiveDetailTab] = useState<"evidence" | "findings" | "authority" | "focus" | "agents">("evidence");
   const [visibleNodeTypes, setVisibleNodeTypes] = useState<Set<string>>(new Set());
 
   useEffect(() => {

@@ -326,3 +326,38 @@ npx wrangler d1 execute fairprocess --remote --file=database/d1/migrations/004_t
   implemented).
 - **Build sequence**: 3.1 Infrastructure, 3.2 Statute Matcher,
   3.3 Timeline Anomaly, 3.4 Evidence Extraction, 3.5 Authority Mapping.
+
+## Phase 3.1: Agent Infrastructure Layer (2026-08-05)
+
+- **Migration 012**: Four new tables — agent_definitions, agent_runs,
+  agent_proposals, agent_feedback. Seeds four agent definition rows.
+- **Agent module**: frontend/web/src/lib/agents/ with types.ts (247 lines),
+  runner.ts (224 lines), proposals.ts (185 lines), registry.ts, index.ts.
+- **Agent runner**: Builds read-only input snapshot from case graph,
+  computes SHA256 hash for reproducibility, executes agent, persists
+  proposals to agent_proposals with status='pending'. Never writes to
+  canonical tables.
+- **Proposal manager**: Lists proposals by case/status/agent. Reviews
+  proposals (accept/reject). On accept: relationship_proposals are
+  promoted to relationships with status='pending_review' (DOUBLE REVIEW).
+  Records reviewer feedback in agent_feedback (evaluation dataset).
+- **Three new API routes**: POST /api/v1/cases/{id}/agents/run,
+  GET /api/v1/cases/{id}/agents/proposals, PATCH
+  /api/v1/agents/proposals/{id}/review. All org-scoped, all auth+authz.
+- **New permissions**: agent.read (all human roles), agent.run
+  (admin, investigator, attorney), agent.review (admin, attorney,
+  reviewer). Agents cannot run or review agents.
+- **Agent registry**: Stub. No agents registered yet. Phase 3.2+
+  will register timeline_anomaly, statute_matcher, evidence_extractor,
+  authority_mapper.
+- **Investigation Focus updated**: buildInvestigationFocus now includes
+  accepted agent observations, procedural checks, and missing info.
+  Also returns pending_agent_proposals count for the review queue badge.
+- **Detail Panel**: New "Agent Proposals" tab with pending proposals
+  review queue (Accept/Reject buttons) and reviewed proposals history.
+  Badge shows pending count.
+- **Evaluation contract**: docs/phase-3-evaluation-contract.md (369 lines).
+  Defines test suites for each agent type. Required outputs, forbidden
+  outputs. Agents that fail any test case cannot deploy to production.
+  Forbidden: "violation occurred", confidence=1.0, legal conclusions.
+- **Total**: 35 API routes, 12 migrations.

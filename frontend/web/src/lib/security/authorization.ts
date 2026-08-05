@@ -20,6 +20,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "relationship.read", "relationship.create", "relationship.review",
     "event.read",
     "admin.debug",
+    "agent.read", "agent.run", "agent.review",
   ]),
 
   investigator: new Set<Action>([
@@ -29,6 +30,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read",
     "relationship.read", "relationship.create",
     "event.read",
+    "agent.read", "agent.run",
   ]),
 
   attorney: new Set<Action>([
@@ -38,6 +40,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read", "finding.review",
     "relationship.read", "relationship.create", "relationship.review",
     "event.read",
+    "agent.read", "agent.run", "agent.review",
   ]),
 
   advocate: new Set<Action>([
@@ -47,6 +50,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read",
     "relationship.read",
     "event.read",
+    "agent.read",
   ]),
 
   reviewer: new Set<Action>([
@@ -56,6 +60,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read", "finding.review",
     "relationship.read", "relationship.review",
     "event.read",
+    "agent.read", "agent.review",
   ]),
 
   viewer: new Set<Action>([
@@ -65,6 +70,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read",
     "relationship.read",
     "event.read",
+    "agent.read",
   ]),
 };
 
@@ -79,6 +85,7 @@ export const AGENT_PERMISSIONS = new Set<Action>([
   "finding.read",
   "relationship.read",
   "event.read",
+  "agent.read",
 ]);
 
 // ── authorize() ──────────────────────────────────────────────────────────────

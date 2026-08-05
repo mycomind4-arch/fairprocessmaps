@@ -232,6 +232,7 @@ export interface InvestigationFocus {
   procedural_checks: ProceduralCheck[];
   supporting_evidence: SupportingEvidence[];
   missing_information: MissingInformation[];
+  pending_agent_proposals: number;
 }
 
 // ── "Why am I seeing this?" (Phase 2.3) ───────────────────────────────────────

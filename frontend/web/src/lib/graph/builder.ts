@@ -632,6 +632,70 @@ export async function buildInvestigationFocus(
     });
   }
 
+  // ── Agent proposals (accepted only) ──────────────────────────────────────
+  // Accepted agent proposals are included in the Investigation Focus response.
+  // Pending and rejected proposals are NOT included — they're in the review queue.
+  const agentObs = await db.prepare(
+    `SELECT observation_type, description, severity, related_entity_type, related_entity_id,
+            agent_id, confidence, reasoning_trace
+     FROM agent_proposals
+     WHERE case_id = ? AND organization_id = ? AND status = 'accepted'
+       AND proposal_type = 'observation'
+     ORDER BY created_at DESC`,
+  ).bind(projectId, organizationId).all();
+
+  for (const obs of agentObs.results ?? []) {
+    const r = obs as Record<string, unknown>;
+    observations.push({
+      type: (r.observation_type as string) || "evidence_gap",
+      description: `[Agent: ${r.agent_id as string}] ${r.description as string}`,
+      severity: (r.severity as string) || "info",
+      related_entity_type: (r.related_entity_type as string) || null,
+      related_entity_id: (r.related_entity_id as string) || null,
+    });
+  }
+
+  const agentChecks = await db.prepare(
+    `SELECT requirement, check_status, check_detail, agent_id, confidence, reasoning_trace
+     FROM agent_proposals
+     WHERE case_id = ? AND organization_id = ? AND status = 'accepted'
+       AND proposal_type = 'procedural_check'
+     ORDER BY created_at DESC`,
+  ).bind(projectId, organizationId).all();
+
+  for (const check of agentChecks.results ?? []) {
+    const r = check as Record<string, unknown>;
+    proceduralChecks.push({
+      requirement: (r.requirement as string) || "Agent check",
+      status: (r.check_status as string) || "unclear",
+      evidence_ids: [],
+      detail: `[Agent: ${r.agent_id as string}] ${r.check_detail as string || ""}`,
+    });
+  }
+
+  const agentMissing = await db.prepare(
+    `SELECT description, info_type, importance, agent_id
+     FROM agent_proposals
+     WHERE case_id = ? AND organization_id = ? AND status = 'accepted'
+       AND proposal_type = 'missing_info'
+     ORDER BY created_at DESC`,
+  ).bind(projectId, organizationId).all();
+
+  for (const info of agentMissing.results ?? []) {
+    const r = info as Record<string, unknown>;
+    missingInfo.push({
+      description: `[Agent: ${r.agent_id as string}] ${r.description as string}`,
+      type: (r.info_type as string) || "other",
+      importance: (r.importance as string) || "recommended",
+    });
+  }
+
+  // Count pending agent proposals for the review queue indicator
+  const pendingCount = await db.prepare(
+    `SELECT COUNT(*) AS n FROM agent_proposals
+     WHERE case_id = ? AND organization_id = ? AND status = 'pending'`,
+  ).bind(projectId, organizationId).first();
+
   return {
     case_id: projectId,
     generated_at: new Date().toISOString(),
@@ -639,6 +703,7 @@ export async function buildInvestigationFocus(
     procedural_checks: proceduralChecks,
     supporting_evidence: supportingEvidence,
     missing_information: missingInfo,
+    pending_agent_proposals: (pendingCount?.n as number) || 0,
   };
 }
 

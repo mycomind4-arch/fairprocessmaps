@@ -43,7 +43,10 @@ export type Action =
   | "relationship.create"
   | "relationship.review"
   | "event.read"
-  | "admin.debug";
+  | "admin.debug"
+  | "agent.run"
+  | "agent.review"
+  | "agent.read";
 
 export interface Resource {
   organization_id?: string;
