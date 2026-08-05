@@ -27,6 +27,7 @@ export interface AuthUser {
   name: string;
   organization_id: string;
   role: Role;
+  actor_type?: ActorType;
 }
 
 export type Action =
@@ -50,6 +51,7 @@ export type Action =
 
 export interface Resource {
   organization_id?: string;
+  project_id?: string;
 }
 
 export interface AuthzResult {
@@ -64,7 +66,9 @@ export interface AuthSuccess {
 
 export interface AuthFailure {
   ok: false;
-  response: Response;
+  response?: Response;
+  error?: string;
+  status?: number;
 }
 
 export type AuthResult = AuthSuccess | AuthFailure;

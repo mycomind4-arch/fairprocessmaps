@@ -6,9 +6,10 @@ export const runtime = "nodejs";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const auth = await requireAuth(req);
     if (!auth.ok) return auth.response;
 
@@ -19,7 +20,7 @@ export async function POST(
     const db = env.DB;
 
     // Verify case belongs to user's org
-    const caseOrgId = await resolveProjectOrg(db, params.id);
+    const caseOrgId = await resolveProjectOrg(db, id);
     if (!verifyOrgAccess(auth.user, caseOrgId)) {
       return NextResponse.json(
         { ok: false, data: null, error: { code: "NOT_FOUND", message: "Case not found" } },
@@ -27,7 +28,7 @@ export async function POST(
       );
     }
 
-    const body = await req.json();
+    const body = await req.json() as { agent_type: string };
     const { agent_type } = body;
 
     if (!agent_type) {
@@ -67,7 +68,7 @@ export async function POST(
     const { runAgent } = await import("@/lib/agents/runner");
     const result = await runAgent(
       db,
-      params.id,
+      id,
       auth.user.organization_id,
       agent.execute,
       {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { requireAuth, requireAuthz } from "@/lib/security/middleware";
+import { requireAuth } from "@/lib/security/middleware";
+import { authorize } from "@/lib/security/authorization";
 import { buildNodeExplanation } from "@/lib/graph/builder";
 import type { ApiResponse, NodeExplanation } from "@/lib/graph/types";
 
@@ -8,13 +9,14 @@ export const runtime = "nodejs";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const auth = await requireAuth(req);
     if (!auth.ok) return auth.response;
 
-    const authz = requireAuthz(auth.user, "case.read");
+    const authz = authorize(auth.user, "case.read");
     if (!authz.allowed) {
       return NextResponse.json(
         { ok: false, data: null, error: { code: "FORBIDDEN", message: authz.reason ?? "Insufficient permissions" } },
@@ -33,7 +35,7 @@ export async function GET(
       );
     }
 
-    const explanation = await buildNodeExplanation(db, params.id, nodeId, auth.user.organization_id);
+    const explanation = await buildNodeExplanation(db, id, nodeId, auth.user.organization_id);
 
     if (!explanation) {
       return NextResponse.json(

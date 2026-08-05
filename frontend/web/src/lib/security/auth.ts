@@ -25,7 +25,7 @@ export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LEN));
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(password),
+    new TextEncoder().encode(password) as unknown as BufferSource,
     "PBKDF2",
     false,
     ["deriveBits"],
@@ -48,13 +48,13 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(password),
+    new TextEncoder().encode(password) as unknown as BufferSource,
     "PBKDF2",
     false,
     ["deriveBits"],
   );
   const derived = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    { name: "PBKDF2", salt: salt as unknown as BufferSource, iterations, hash: "SHA-256" },
     keyMaterial,
     PBKDF2_KEYLEN * 8,
   );
@@ -234,7 +234,7 @@ export async function login(
     .run();
 
   // Create new session (track rotation if there was a previous one)
-  const session = await createSession(db, userRow.id as string, oldTokenHashes[0] ?? null);
+  const session = await createSession(db, userRow.id as string);
 
   return {
     user: {

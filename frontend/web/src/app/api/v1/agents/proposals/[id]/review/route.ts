@@ -7,17 +7,19 @@ export const runtime = "nodejs";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const auth = await requireAuth(req);
     if (!auth.ok) return auth.response;
 
     const authz = requireAuthz(auth.user, "agent.review");
     if (!authz.ok) return authz.response;
 
-    const body = await req.json();
+    const body = await req.json() as { decision: string; review_reason?: string };
     const { decision, review_reason } = body;
+    const typedDecision = decision as "accepted" | "rejected";
 
     if (!["accepted", "rejected"].includes(decision)) {
       return NextResponse.json(
@@ -29,7 +31,7 @@ export async function PATCH(
     const { env } = getCloudflareContext();
     const db = env.DB;
 
-    const result = await reviewProposal(db, params.id, auth.user, decision, review_reason ?? null);
+    const result = await reviewProposal(db, id, auth.user, typedDecision, review_reason ?? null);
 
     if (!result.ok) {
       return NextResponse.json(
@@ -39,7 +41,7 @@ export async function PATCH(
     }
 
     return NextResponse.json(
-      { ok: true, data: { id: params.id, decision }, error: null },
+      { ok: true, data: { id: id, decision }, error: null },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {

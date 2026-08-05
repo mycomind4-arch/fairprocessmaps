@@ -72,6 +72,26 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "event.read",
     "agent.read",
   ]),
+
+  manager: new Set<Action>([
+    "case.read", "case.update",
+    "property.read", "property.update",
+    "evidence.read", "evidence.upload", "evidence.withdraw",
+    "finding.read", "finding.review",
+    "relationship.read", "relationship.create", "relationship.review",
+    "event.read",
+    "agent.read", "agent.run", "agent.review",
+  ]),
+
+  analyst: new Set<Action>([
+    "case.read",
+    "property.read",
+    "evidence.read",
+    "finding.read",
+    "relationship.read",
+    "event.read",
+    "agent.read",
+  ]),
 };
 
 // ── Agent permissions (separate from human roles) ────────────────────────────

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { requireAuth, requireAuthz } from "@/lib/security/middleware";
+import { requireAuth } from "@/lib/security/middleware";
+import { authorize } from "@/lib/security/authorization";
 import { buildEntityHistory } from "@/lib/graph/builder";
 import type { ApiResponse, EntityHistory } from "@/lib/graph/types";
 
@@ -8,13 +9,14 @@ export const runtime = "nodejs";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { type: string; id: string } },
+  { params }: { params: Promise<{ type: string; id: string }> },
 ) {
   try {
+    const { type, id } = await params;
     const auth = await requireAuth(req);
     if (!auth.ok) return auth.response;
 
-    const authz = requireAuthz(auth.user, "event.read");
+    const authz = authorize(auth.user, "event.read");
     if (!authz.allowed) {
       return NextResponse.json(
         { ok: false, data: null, error: { code: "FORBIDDEN", message: authz.reason ?? "Insufficient permissions" } },
@@ -35,8 +37,8 @@ export async function GET(
 
     const history = await buildEntityHistory(
       db,
-      params.type,
-      params.id,
+      type,
+      id,
       caseId,
     );
 

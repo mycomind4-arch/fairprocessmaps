@@ -7,9 +7,10 @@ export const runtime = "nodejs";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const auth = await requireAuth(req);
     if (!auth.ok) return auth.response;
 
@@ -19,7 +20,7 @@ export async function GET(
     const { env } = getCloudflareContext();
     const db = env.DB;
 
-    const lineage = await getRelationshipLineage(db, params.id, auth.user.organization_id);
+    const lineage = await getRelationshipLineage(db, id, auth.user.organization_id);
 
     if (!lineage) {
       return NextResponse.json(

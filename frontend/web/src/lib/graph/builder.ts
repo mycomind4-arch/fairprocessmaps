@@ -296,7 +296,7 @@ export async function buildCaseTimeline(
       type: r.event_type as string,
       type_label: EVENT_TYPE_LABELS[r.event_type as string] || (r.event_type as string),
       description: (r.description as string) || "",
-      severity: (r.severity as string) || "info",
+      severity: ((r.severity as string) || "info") as any,
       actor: { type: (r.actor_type as string) || "system", id: (r.actor_id as string) || "system", organization_id: (r.actor_organization_id as string) || null },
       resource_organization_id: (r.resource_organization_id as string) || null,
       evidence_id: (r.evidence_id as string) || null,
@@ -370,7 +370,7 @@ export async function buildEntityHistory(
         id: r.id as string, date: r.created_at as string, type: r.event_type as string,
         type_label: EVENT_TYPE_LABELS[r.event_type as string] || (r.event_type as string),
         actor_type: (r.actor_type as string) || "system", actor_id: (r.actor_id as string) || "system",
-        actor_name: (r.actor_name as string) || "", severity: (r.severity as string) || "info",
+        actor_name: (r.actor_name as string) || "", severity: ((r.severity as string) || "info") as any,
         title: (r.title as string) || null, description: (r.description as string) || null,
       };
     }),
@@ -585,7 +585,7 @@ export async function buildInvestigationFocus(
   const semanticRels = await db.prepare(
     `SELECT COUNT(*) AS n FROM relationships WHERE case_id = ? AND status != 'superseded'`,
   ).bind(projectId).first();
-  if ((semanticRels?.n as number) === 0 && (findings as Record<string, unknown>).total as number > 0) {
+  if ((semanticRels?.n as number) === 0 && ((findings as any)?.total ?? 0) as number > 0) {
     observations.push({
       type: "authority_gap",
       description: "Findings exist but no authority/statute relationships have been mapped. The legal basis for findings is not yet documented.",
@@ -647,9 +647,9 @@ export async function buildInvestigationFocus(
   for (const obs of agentObs.results ?? []) {
     const r = obs as Record<string, unknown>;
     observations.push({
-      type: (r.observation_type as string) || "evidence_gap",
+      type: ((r.observation_type as string) || "evidence_gap") as any,
       description: `[Agent: ${r.agent_id as string}] ${r.description as string}`,
-      severity: (r.severity as string) || "info",
+      severity: ((r.severity as string) || "info") as any,
       related_entity_type: (r.related_entity_type as string) || null,
       related_entity_id: (r.related_entity_id as string) || null,
     });
@@ -667,7 +667,7 @@ export async function buildInvestigationFocus(
     const r = check as Record<string, unknown>;
     proceduralChecks.push({
       requirement: (r.requirement as string) || "Agent check",
-      status: (r.check_status as string) || "unclear",
+      status: ((r.check_status as string) || "unclear") as any,
       evidence_ids: [],
       detail: `[Agent: ${r.agent_id as string}] ${r.check_detail as string || ""}`,
     });
@@ -685,8 +685,8 @@ export async function buildInvestigationFocus(
     const r = info as Record<string, unknown>;
     missingInfo.push({
       description: `[Agent: ${r.agent_id as string}] ${r.description as string}`,
-      type: (r.info_type as string) || "other",
-      importance: (r.importance as string) || "recommended",
+      type: ((r.info_type as string) || "other") as any,
+      importance: ((r.importance as string) || "recommended") as any,
     });
   }
 
