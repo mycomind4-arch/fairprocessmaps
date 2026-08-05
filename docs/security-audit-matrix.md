@@ -76,12 +76,13 @@ Before adding a route, verify:
 | Test case | ✅ |
 | Security matrix updated | ✅ |
 
-### Phase 2.1 Routes
+### Phase 2.1+2.2 Routes
 
 | Route | Method | Auth | Permission | Org Scoped | Event Actor | Audit Event |
 |---|---|---|---|---|---|---|
 | `/api/v1/cases/{id}/graph` | GET | yes | case.read | yes | no | no |
 | `/api/v1/cases/{id}/timeline` | GET | yes | event.read | yes | no | no |
+| `/api/v1/cases/{id}/summary` | GET | yes | case.read | yes | no | no |
 | `/api/v1/entities/{type}/{id}/relationships` | GET | yes | relationship.read | yes¹ | no | no |
 | `/api/v1/entities/{type}/{id}/history` | GET | yes | event.read | yes¹ | no | no |
 

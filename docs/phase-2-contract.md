@@ -364,3 +364,140 @@ Error responses:
   }
 }
 ```
+
+---
+
+## Phase 2.2 Contract Additions: Investigation View
+
+### Frozen: 2026-08-05
+
+---
+
+### 10. Case Summary API
+
+```
+GET /api/v1/cases/{id}/summary
+```
+
+Returns a computed summary that the UI should NOT calculate.
+
+```json
+{
+  "case_id": "proj_123",
+  "case_name": "123 Main St - Code Enforcement",
+  "status": "open",
+  "property": {
+    "apn": "123-456-789",
+    "address": "123 Main St",
+    "city": "Eureka",
+    "zoning": "Residential",
+    "acres": 0.25
+  },
+  "jurisdiction": "Humboldt County",
+  "case_type": "code_enforcement",
+  "open_findings_count": 3,
+  "critical_findings_count": 1,
+  "evidence_count": 12,
+  "timeline_event_count": 28,
+  "last_action": {
+    "date": "2026-07-20",
+    "type": "ce.notice_served",
+    "type_label": "Notice Served",
+    "description": "Notice of violation served"
+  },
+  "risk_indicators": [
+    {
+      "label": "Critical Findings",
+      "severity": "critical",
+      "detail": "1 critical due-process finding(s) open"
+    }
+  ]
+}
+```
+
+### 11. Edge Provenance
+
+Semantic edges (from the relationships table) carry provenance:
+
+```json
+{
+  "provenance": {
+    "source": "relationship_table",
+    "created_by": "statute-analysis-agent",
+    "created_by_type": "agent",
+    "created_at": "2026-07-15T10:30:00Z",
+    "confidence": 0.91,
+    "evidence_ids": ["evi_001", "evi_002"],
+    "notes": "Inferred from notice + statute comparison"
+  }
+}
+```
+
+Derived edges (from table joins) carry minimal provenance:
+
+```json
+{
+  "provenance": {
+    "source": "derived"
+  }
+}
+```
+
+### 12. Investigation View Model
+
+The Investigation View has six panels:
+
+| Panel | Content | Data Source |
+|---|---|---|
+| Case Overview | Property, jurisdiction, status, risk indicators | Case Summary API |
+| Timeline | Chronological events with actor provenance | Case Timeline API |
+| Graph Context | Interactive node-link visualization | Case Graph API |
+| Evidence Panel | Evidence list with status + download | Evidence API (existing) |
+| Finding Panel | Due-process findings with severity | Findings API (existing) |
+| Authority Panel | Statutes, officials, departments, authorities | Entity Relationships API |
+
+### 13. Graph Interaction Rules
+
+| Action | Result |
+|---|---|
+| Click node | Detail panel shows node info + relationships |
+| Click edge | Provenance panel shows who/when/confidence/evidence |
+| Click timeline event | Graph highlights connected nodes |
+| Filter by entity type | Show/hide node types (property, evidence, finding, etc.) |
+| Filter by date range | Timeline + graph show only events in range |
+| Hover node | Tooltip with label + type |
+| Hover edge | Tooltip with type label + provenance source |
+
+### 14. Layout
+
+```
+┌──────────────────────────────────────────┐
+│ CASE HEADER                              │
+│ Property • Jurisdiction • Status • Risks │
+└──────────────────────────────────────────┘
+┌───────────────────┬──────────────────────┐
+│                   │                      │
+│ Timeline          │ Relationship Graph   │
+│                   │                      │
+│ (scrollable)      │ (interactive)        │
+│                   │                      │
+└───────────────────┴──────────────────────┘
+┌──────────────────────────────────────────┐
+│ Evidence / Findings / Authority Details  │
+│ (tabbed)                                 │
+└──────────────────────────────────────────┘
+```
+
+The timeline drives the investigation.
+The graph supports the timeline.
+The details panel supports both.
+
+### 15. Graph Limits
+
+The initial graph view shows at most:
+- 50 nodes
+- 100 edges
+
+If the case has more, the UI shows a "Showing top 50 of N nodes" message
+with a filter to narrow by entity type. The graph engine knows everything;
+the user sees only what matters.

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { Shield, Plus, Map, FileText, Clock, AlertTriangle, ChevronRight, LogOut, Loader2 } from "lucide-react";
+import { Shield, Plus, Map, FileText, Clock, AlertTriangle, ChevronRight, LogOut, Loader2, Network } from "lucide-react";
 
 interface ProjectListItem {
   id: string;
@@ -129,10 +129,9 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {projects.map((p) => (
-              <button
+              <div
                 key={p.id}
-                onClick={() => router.push(`/project/${p.id}`)}
-                className="group glass rounded-2xl p-5 text-left hover:scale-[1.01] transition-all hover:border-fp-blue/30"
+                className="group glass rounded-2xl p-5 hover:scale-[1.01] transition-all hover:border-fp-blue/30"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="min-w-0 flex-1">
@@ -141,7 +140,21 @@ export default function Dashboard() {
                       {p.property.address || "No address"} · APN {p.property.apn}
                     </p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-fp-text-dim group-hover:text-fp-cyan transition-colors shrink-0 ml-2" />
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); router.push(`/investigation/${p.id}`); }}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-fp-blue/10 text-fp-blue hover:bg-fp-blue/20 transition-colors text-[11px] font-medium"
+                    >
+                      <Network className="w-3 h-3" />
+                      Investigate
+                    </button>
+                    <button
+                      onClick={() => router.push(`/project/${p.id}`)}
+                      className="p-1 rounded-lg text-fp-text-dim hover:text-fp-cyan hover:bg-fp-surface-2 transition-colors"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-4 text-[11px] text-fp-text-muted">
@@ -173,7 +186,7 @@ export default function Dashboard() {
                     {p.status}
                   </span>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}

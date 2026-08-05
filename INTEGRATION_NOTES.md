@@ -206,3 +206,42 @@ npx wrangler d1 execute fairprocess --remote --file=database/d1/migrations/004_t
 - **Security**: All four routes require requireAuth + requireAuthz.
   Org-scoped via the user's organization_id. Returns 404 (not 403) for
   resources not in the user's org to prevent enumeration.
+
+## Phase 2.2: Investigation View + Edge Provenance (2026-08-05)
+
+- **Edge provenance**: Semantic edges now carry provenance (migration 010).
+  created_by, created_by_type, confidence, evidence_ids, notes. Derived edges
+  carry { source: "derived" }. The distinction is clear: derived = fact,
+  semantic = claim with provenance.
+
+- **Case Summary API**: GET /api/v1/cases/{id}/summary — computed summary
+  with property, jurisdiction, counts (evidence, findings, timeline),
+  last action, and risk indicators (critical findings, open findings,
+  overdue compliance, expired permits). The UI does not calculate this.
+
+- **Phase 2.2 contract**: Frozen additions to docs/phase-2-contract.md.
+  Investigation View Model (6 panels), Graph Interaction Rules (7 actions),
+  Layout (case header + timeline/graph split + detail panel), Graph Limits
+  (50 nodes / 100 edges max, with filter to narrow).
+
+- **Investigation View**: /investigation/[id] — three-panel layout:
+  - Case Header: property, jurisdiction, status, risk indicators, summary stats
+  - Timeline (left, 320px): chronological events with actor provenance,
+    severity colors, evidence references, agent version badges
+  - Relationship Graph (right, flex): SVG-based interactive node-link diagram
+    with type-filtered visibility, node selection, edge hover for provenance,
+    legend distinguishing derived vs semantic edges
+  - Detail Panel (bottom, 256px): tabbed (Evidence/Findings/Authority) with
+    selected node details, connected edges with provenance, event details
+
+- **Three new components**:
+  - InvestigationGraph.tsx — SVG-based graph with circular layout, type colors,
+    selection highlighting, edge provenance on hover
+  - TimelineList.tsx — scrollable timeline with severity borders, actor icons,
+    evidence references, agent version badges
+  - DetailPanel.tsx — tabbed detail view showing node data, connections with
+    provenance, evidence/findings/authority tabs
+
+- **Dashboard update**: Project cards now have an "Investigate" button
+  linking to /investigation/[id] alongside the existing ChevronRight link
+  to /project/[id].

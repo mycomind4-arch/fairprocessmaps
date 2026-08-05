@@ -1,5 +1,5 @@
 /**
- * Graph domain types — Phase 2.1
+ * Graph domain types — Phase 2.1 + 2.2
  *
  * These are the domain shapes the API returns to the frontend.
  * The frontend never sees table rows — only these types.
@@ -26,6 +26,16 @@ export interface GraphNode {
   data: Record<string, unknown>;
 }
 
+export interface EdgeProvenance {
+  source: "derived" | "relationship_table";
+  created_by?: string | null;
+  created_by_type?: string | null;
+  created_at?: string | null;
+  confidence?: number | null;
+  evidence_ids?: string[] | null;
+  notes?: string | null;
+}
+
 export interface GraphEdge {
   source: string;
   target: string;
@@ -33,7 +43,10 @@ export interface GraphEdge {
   type_label?: string;
   valid_from?: string | null;
   valid_to?: string | null;
+  provenance?: EdgeProvenance;
 }
+
+// ── Case Graph ────────────────────────────────────────────────────────────────
 
 export interface CaseGraph {
   case: {
@@ -49,6 +62,8 @@ export interface CaseGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
+
+// ── Case Timeline ─────────────────────────────────────────────────────────────
 
 export interface TimelineEntry {
   id: string;
@@ -74,14 +89,7 @@ export interface CaseTimeline {
   events: TimelineEntry[];
 }
 
-export interface EntityRelationships {
-  entity: {
-    type: string;
-    id: string;
-  };
-  outgoing: RelationshipEdge[];
-  incoming: RelationshipEdge[];
-}
+// ── Entity Relationships ─────────────────────────────────────────────────────
 
 export interface RelationshipEdge {
   type: string;
@@ -91,6 +99,7 @@ export interface RelationshipEdge {
   target_label: string;
   valid_from: string | null;
   valid_to: string | null;
+  provenance?: EdgeProvenance;
 }
 
 export interface IncomingEdge {
@@ -99,15 +108,19 @@ export interface IncomingEdge {
   source_type: string;
   source_id: string;
   source_label: string;
+  provenance?: EdgeProvenance;
 }
 
-export interface EntityHistory {
+export interface EntityRelationships {
   entity: {
     type: string;
     id: string;
   };
-  history: HistoryEntry[];
+  outgoing: RelationshipEdge[];
+  incoming: IncomingEdge[];
 }
+
+// ── Entity History ───────────────────────────────────────────────────────────
 
 export interface HistoryEntry {
   id: string;
@@ -122,7 +135,50 @@ export interface HistoryEntry {
   description: string | null;
 }
 
-// API envelope
+export interface EntityHistory {
+  entity: {
+    type: string;
+    id: string;
+  };
+  history: HistoryEntry[];
+}
+
+// ── Case Summary (Phase 2.2) ──────────────────────────────────────────────────
+
+export interface RiskIndicator {
+  label: string;
+  severity: "info" | "warning" | "critical";
+  detail: string;
+}
+
+export interface CaseSummary {
+  case_id: string;
+  case_name: string;
+  status: string;
+  property: {
+    apn: string;
+    address: string;
+    city: string;
+    zoning: string;
+    acres: number | null;
+  };
+  jurisdiction: string;
+  case_type: string;
+  open_findings_count: number;
+  critical_findings_count: number;
+  evidence_count: number;
+  timeline_event_count: number;
+  last_action: {
+    date: string | null;
+    type: string | null;
+    type_label: string | null;
+    description: string | null;
+  };
+  risk_indicators: RiskIndicator[];
+}
+
+// ── API Envelope ──────────────────────────────────────────────────────────────
+
 export interface ApiSuccess<T> {
   ok: true;
   data: T;

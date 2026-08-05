@@ -2,6 +2,7 @@ export type {
   NodeType,
   GraphNode,
   GraphEdge,
+  EdgeProvenance,
   CaseGraph,
   CaseTimeline,
   TimelineEntry,
@@ -10,6 +11,8 @@ export type {
   IncomingEdge,
   EntityHistory,
   HistoryEntry,
+  CaseSummary,
+  RiskIndicator,
   ApiResponse,
   ApiSuccess,
   ApiError,
@@ -20,4 +23,5 @@ export {
   buildCaseTimeline,
   buildEntityRelationships,
   buildEntityHistory,
+  buildCaseSummary,
 } from "./builder";
