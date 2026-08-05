@@ -64,6 +64,8 @@ export default function SearchBar({ onSelectResult }: SearchBarProps) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fp-text-dim" />
         <input
           type="text"
+          id="property-search"
+          aria-label="Search properties, evidence, addresses"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setShowResults(true)}

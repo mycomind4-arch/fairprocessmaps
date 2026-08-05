@@ -137,8 +137,9 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
         <div className="rounded-xl border border-fp-border bg-fp-surface/60 p-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-fp-text-muted mb-1.5">Event Date</label>
+              <label htmlFor="event-date" className="block text-xs font-medium text-fp-text-muted mb-1.5">Event Date</label>
               <input
+                id="event-date"
                 type="date"
                 value={newEvent.event_date}
                 onChange={(e) => setNewEvent({ ...newEvent, event_date: e.target.value })}
@@ -146,8 +147,9 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-fp-text-muted mb-1.5">Event Type</label>
+              <label htmlFor="event-type" className="block text-xs font-medium text-fp-text-muted mb-1.5">Event Type</label>
               <select
+                id="event-type"
                 value={newEvent.event_type}
                 onChange={(e) => setNewEvent({ ...newEvent, event_type: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg bg-fp-bg border border-fp-border text-sm text-fp-text focus:outline-none focus:border-fp-blue/40 appearance-none cursor-pointer"

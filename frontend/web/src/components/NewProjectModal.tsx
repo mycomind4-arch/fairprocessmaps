@@ -101,12 +101,16 @@ export default function NewProjectModal({ propertyId, propertyLabel, onClose, on
           <div>
             <div className="text-[11px] uppercase tracking-wide text-fp-text-dim mb-2">New project</div>
             <input
+              id="project-name"
+              aria-label="New project name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. 2026 Cannabis Abatement"
               className="w-full px-3 py-2 rounded-lg bg-fp-surface-2 border border-fp-border text-sm text-fp-text mb-2 outline-none focus:border-fp-blue"
             />
             <select
+              id="project-type"
+              aria-label="Case type"
               value={caseType}
               onChange={(e) => setCaseType(e.target.value as CaseType)}
               className="w-full px-3 py-2 rounded-lg bg-fp-surface-2 border border-fp-border text-sm text-fp-text mb-3 outline-none focus:border-fp-blue"

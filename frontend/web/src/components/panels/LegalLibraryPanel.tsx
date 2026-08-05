@@ -128,6 +128,8 @@ export default function LegalLibraryPanel() {
           <div className="relative">
             <Search className="w-4 h-4 text-fp-text-dim absolute left-3 top-1/2 -translate-y-1/2" />
             <input
+              id="legal-search"
+              aria-label="Search legal library"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search statutes, cases, keywords…"
