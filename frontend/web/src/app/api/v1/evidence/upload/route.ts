@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { runAnalysis } from "@/lib/auto-triggers";
+import { emitEvent } from "@/lib/event-store";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,17 @@ export async function POST(req: NextRequest) {
         )
         .bind(crypto.randomUUID(), projectId, id, `Evidence uploaded: ${file.name}`)
         .run();
+
+      // ── Emit event to the Event Store ──
+      await emitEvent(db, {
+        case_id: projectId,
+        event_type: "evidence.uploaded",
+        entity_type: "evidence",
+        entity_id: id,
+        actor_type: "user",
+        title: `Evidence uploaded: ${file.name}`,
+        payload: { file_name: file.name, mime_type: mime, r2_key: r2Key },
+      });
 
       uploaded.push({ id, title: file.name, r2Key });
     }
