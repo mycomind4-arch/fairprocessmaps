@@ -1,14 +1,16 @@
 /**
- * Actor-aware event emission — Phase 1D.
+ * Actor-aware event emission — Phase 1D + 1E hardening.
  *
- * Every event (timeline + audit) records actor provenance:
+ * Every event records actor provenance:
  *   actor_type: human | agent | system | government_source
  *   actor_id:   user_id | agent_name | "system" | source_name
- *   actor_organization_id: the org context
+ *   actor_organization_id: the org context of the actor
+ *   resource_organization_id: the org that owns the affected resource
+ *   agent_version: version of the agent (for AI provenance)
  *
- * Uses existing tables from migrations 004-007:
- *   - timeline_events (with new actor columns from migration 008)
- *   - audit_logs (from migration 004, actor_type/actor_id already present)
+ * Uses existing tables:
+ *   - timeline_events (with actor + resource columns from migrations 008-009)
+ *   - audit_logs (from migration 004, append-only — never UPDATE/DELETE)
  *   - events (canonical event store from migration 005)
  */
 
@@ -24,11 +26,16 @@ export function humanActor(user: AuthUser): Actor {
   };
 }
 
-export function agentActor(agentName: string, organizationId: string | null): Actor {
+export function agentActor(
+  agentName: string,
+  organizationId: string | null,
+  agentVersion?: string,
+): Actor {
   return {
     type: "agent",
     id: agentName,
     organization_id: organizationId,
+    agent_version: agentVersion,
   };
 }
 
@@ -40,7 +47,10 @@ export function systemActor(organizationId: string | null): Actor {
   };
 }
 
-export function governmentSourceActor(sourceName: string, organizationId: string | null): Actor {
+export function governmentSourceActor(
+  sourceName: string,
+  organizationId: string | null,
+): Actor {
   return {
     type: "government_source",
     id: sourceName,
@@ -49,7 +59,6 @@ export function governmentSourceActor(sourceName: string, organizationId: string
 }
 
 // ── Timeline event emission ───────────────────────────────────────────────────
-// Uses timeline_events table (existing) with actor provenance columns (migration 008).
 
 export interface EventEmitParams {
   db: D1Database;
@@ -59,18 +68,24 @@ export interface EventEmitParams {
   eventType: string;
   description: string;
   actor: Actor;
+  resourceOrganizationId?: string | null;
 }
 
 export async function emitTimelineEvent(params: EventEmitParams): Promise<string> {
   const { db, projectId, evidenceId, eventDate, eventType, description, actor } = params;
+
+  // If resource org not specified, default to actor's org
+  const resourceOrgId = params.resourceOrganizationId ?? actor.organization_id;
+
   const id = crypto.randomUUID();
 
   await db
     .prepare(
       `INSERT INTO timeline_events
         (id, project_id, evidence_id, event_date, event_type, description,
-         organization_id, actor_type, actor_id, actor_organization_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         organization_id, actor_type, actor_id, actor_organization_id,
+         resource_organization_id, agent_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       id,
@@ -83,14 +98,15 @@ export async function emitTimelineEvent(params: EventEmitParams): Promise<string
       actor.type,
       actor.id,
       actor.organization_id,
+      resourceOrgId,
+      actor.agent_version ?? null,
     )
     .run();
 
   return id;
 }
 
-// ── Audit event emission ──────────────────────────────────────────────────────
-// Uses audit_logs table (from migration 004) which already has actor_type/actor_id.
+// ── Audit event emission (append-only — never UPDATE/DELETE) ──────────────────
 
 export interface AuditEmitParams {
   db: D1Database;
@@ -117,7 +133,7 @@ export async function emitAuditEvent(params: AuditEmitParams): Promise<string> {
       actor.organization_id,
       actor.type,
       actor.id,
-      actor.id, // actor_name = same as actor_id for identification
+      actor.id,
       action,
       resourceType ?? null,
       resourceId ?? null,
@@ -129,8 +145,6 @@ export async function emitAuditEvent(params: AuditEmitParams): Promise<string> {
 }
 
 // ── Canonical event store emission ────────────────────────────────────────────
-// Uses the events table from migration 005 (append-only, source-backed).
-// This is the canonical event store that supports replay.
 
 export interface CanonicalEventParams {
   db: D1Database;
@@ -142,18 +156,22 @@ export interface CanonicalEventParams {
   title?: string;
   description?: string;
   severity?: string;
+  resourceOrganizationId?: string | null;
 }
 
 export async function emitCanonicalEvent(params: CanonicalEventParams): Promise<string> {
   const { db, caseId, eventType, entityType, entityId, actor, title, description, severity } = params;
+
+  const resourceOrgId = params.resourceOrganizationId ?? actor.organization_id;
   const id = crypto.randomUUID();
 
   await db
     .prepare(
       `INSERT INTO events
         (id, case_id, event_type, entity_type, entity_id,
-         actor_type, actor_id, actor_name, severity, title, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         actor_type, actor_id, actor_name, severity, title, description,
+         resource_organization_id, agent_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       id,
@@ -167,6 +185,8 @@ export async function emitCanonicalEvent(params: CanonicalEventParams): Promise<
       severity ?? "info",
       title ?? null,
       description ?? null,
+      resourceOrgId,
+      actor.agent_version ?? null,
     )
     .run();
 

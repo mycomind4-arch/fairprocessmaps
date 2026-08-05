@@ -1,17 +1,16 @@
 /**
- * Security types for the trust boundary layer (Phase 1D).
- *
- * Identity model: User → Membership → Organization
- * Every API request resolves an AuthUser containing id, organization_id, and role.
+ * Security type definitions — Phase 1D + 1E hardening.
  */
 
-// ── Roles ──────────────────────────────────────────────────────────────────
-
-export type Role = "admin" | "investigator" | "attorney" | "advocate" | "reviewer" | "viewer";
-
-export const ALL_ROLES: Role[] = ["admin", "investigator", "attorney", "advocate", "reviewer", "viewer"];
-
-// ── Actor Types ─────────────────────────────────────────────────────────────
+export type Role =
+  | "admin"
+  | "investigator"
+  | "attorney"
+  | "advocate"
+  | "reviewer"
+  | "viewer"
+  | "manager"
+  | "analyst";
 
 export type ActorType = "human" | "agent" | "system" | "government_source";
 
@@ -19,9 +18,8 @@ export interface Actor {
   type: ActorType;
   id: string;
   organization_id: string | null;
+  agent_version?: string;
 }
-
-// ── Authenticated User ───────────────────────────────────────────────────────
 
 export interface AuthUser {
   id: string;
@@ -30,8 +28,6 @@ export interface AuthUser {
   organization_id: string;
   role: Role;
 }
-
-// ── Actions ─────────────────────────────────────────────────────────────────
 
 export type Action =
   | "case.read"
@@ -48,14 +44,14 @@ export type Action =
   | "event.read"
   | "admin.debug";
 
-// ── Authorization Result ─────────────────────────────────────────────────────
+export interface Resource {
+  organization_id?: string;
+}
 
 export interface AuthzResult {
   allowed: boolean;
   reason?: string;
 }
-
-// ── Auth Result (from middleware) ────────────────────────────────────────────
 
 export interface AuthSuccess {
   ok: true;
@@ -64,15 +60,7 @@ export interface AuthSuccess {
 
 export interface AuthFailure {
   ok: false;
-  status: number;
-  error: string;
+  response: Response;
 }
 
 export type AuthResult = AuthSuccess | AuthFailure;
-
-// ── Resource (for resource-level checks) ─────────────────────────────────────
-
-export interface Resource {
-  organization_id?: string;
-  project_id?: string;
-}

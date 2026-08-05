@@ -1,10 +1,19 @@
 /**
  * POST /api/v1/admin/bootstrap
  *
- * Creates the initial admin user + organization.
- * Only works when NO admin exists yet (one-time setup).
- * After the first admin is created, this endpoint refuses to run.
+ * Creates the initial admin user + organization + membership.
+ * Requires:
+ *   1. BOOTSTRAP_TOKEN env var is set
+ *   2. Request includes X-Bootstrap-Token header matching it
+ *   3. No admin already exists (self-disabling)
+ *
+ * Security layers:
+ *   - Environment token (prevents drive-by bootstrapping)
+ *   - Self-disabling (refuses if any admin exists)
+ *   - Password minimum length (8 chars)
+ *   - Idempotent (safe to retry)
  */
+
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { bootstrapAdmin } from "@/lib/security/bootstrap";
@@ -14,9 +23,26 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     const { env } = getCloudflareContext();
-    const db = env.DB;
 
-    // Security: refuse if any admin already exists
+    // Layer 1: Environment token check
+    const expectedToken = (env as Record<string, string>).BOOTSTRAP_TOKEN;
+    if (!expectedToken) {
+      return NextResponse.json(
+        { error: "Bootstrap is not configured — set BOOTSTRAP_TOKEN environment variable" },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const providedToken = req.headers.get("X-Bootstrap-Token");
+    if (!providedToken || providedToken !== expectedToken) {
+      return NextResponse.json(
+        { error: "Invalid bootstrap token" },
+        { status: 401, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    // Layer 2: Self-disabling — refuse if any admin exists
+    const db = env.DB;
     const existingAdmin = await db
       .prepare(
         `SELECT COUNT(*) AS n FROM organization_members WHERE role = 'admin' AND status = 'active'`,
@@ -30,6 +56,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Layer 3: Input validation
     const body = (await req.json()) as {
       email?: string;
       name?: string;
@@ -51,6 +78,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Layer 4: Create admin
     const result = await bootstrapAdmin(db, {
       email: body.email,
       name: body.name,
@@ -64,6 +92,16 @@ export async function POST(req: NextRequest) {
         { status: 500, headers: { "Cache-Control": "no-store" } },
       );
     }
+
+    // Layer 5: Record bootstrap usage
+    await db
+      .prepare(
+        `INSERT INTO bootstrap_config (id, token_hash, used_at)
+         VALUES ('singleton', ?, datetime('now'))
+         ON CONFLICT(id) DO UPDATE SET used_at = datetime('now')`,
+      )
+      .bind(providedToken)
+      .run();
 
     return NextResponse.json(
       {

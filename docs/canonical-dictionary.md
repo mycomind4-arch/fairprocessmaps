@@ -163,3 +163,56 @@ Not implemented in Phase 1E. When added, must use:
 - `account_recovery_events` in the audit log (append-only)
 
 Do not bolt this on without events.
+
+---
+
+## Pre-Production Hardening (Phase 1E+)
+
+### Audit Log Immutability Contract
+
+Audit logs are append-only. No UPDATE. No DELETE.
+
+- `assertAppendOnly()` in `immutability.ts` rejects UPDATE/DELETE on audit_logs.
+- Corrections to audit records are themselves new audit events:
+  `{ action: "audit.correction", details: "..." }`
+- The `audit_logs` table (from migration 004) is never mutated by any code path.
+
+### Resource Organization Scoping Contract
+
+Events record both actor and resource organization separately.
+
+- `actor_organization_id`: the organization of the actor performing the action.
+- `resource_organization_id`: the organization that owns the affected resource.
+- These are NOT always the same. A government_source agent (actor org = null)
+  can create an event about a resource owned by Organization B.
+- Both columns exist on `timeline_events` and `events` (migration 009).
+
+### Agent Version Provenance Contract
+
+AI agents record their version in every event.
+
+- `agent_version` column on `timeline_events`, `events`, and `due_process_findings`.
+- An event from `statute-analysis-agent v2.1.0` records:
+  `actor_type: "agent", actor_id: "statute-analysis-agent", agent_version: "2.1.0"`
+- Version provenance matters for AI systems — findings from v1.0 may be
+  superseded by v2.0 rules.
+
+### Bootstrap Hardening Contract
+
+The bootstrap endpoint requires an environment token.
+
+- `BOOTSTRAP_TOKEN` env var must be set for the endpoint to activate.
+- Request must include `X-Bootstrap-Token` header matching the env var.
+- Self-disabling: refuses if any admin already exists.
+- Records usage in `bootstrap_config` table.
+- The vulnerable moment (first invocation) is protected by the token.
+
+### Session Fixation Prevention Contract
+
+Login destroys all existing sessions before creating a new one.
+
+- `login()` queries all existing sessions for the user, deletes them,
+  then creates a fresh session with `rotated_from` tracking.
+- The `sessions.rotated_from` column records the previous session's token hash.
+- This prevents session fixation attacks where an attacker pre-sets a
+  session cookie and waits for the victim to authenticate.

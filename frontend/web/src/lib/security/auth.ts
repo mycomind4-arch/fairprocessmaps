@@ -218,7 +218,23 @@ export async function login(
     return { error: "No organization membership found", status: 403 };
   }
 
-  const session = await createSession(db, userRow.id as string);
+  // Session fixation prevention: destroy any existing sessions for this user
+  // before creating a new one. This ensures the old session token is invalidated.
+  const existingSessions = await db
+    .prepare("SELECT token_hash FROM sessions WHERE user_id = ?")
+    .bind(userRow.id as string)
+    .all();
+
+  const oldTokenHashes = (existingSessions.results ?? []).map((r: any) => r.token_hash as string);
+
+  // Delete all existing sessions for this user
+  await db
+    .prepare("DELETE FROM sessions WHERE user_id = ?")
+    .bind(userRow.id as string)
+    .run();
+
+  // Create new session (track rotation if there was a previous one)
+  const session = await createSession(db, userRow.id as string, oldTokenHashes[0] ?? null);
 
   return {
     user: {

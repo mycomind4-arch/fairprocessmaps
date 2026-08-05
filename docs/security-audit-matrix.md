@@ -1,5 +1,5 @@
 # FairProcess Security Audit Matrix
-## Phase 1D — Route-Level Security Contract
+## Phase 1D+1E — Route-Level Security Contract
 
 Every API route, its authentication, authorization, organization scoping, and actor identity coverage.
 
@@ -8,7 +8,7 @@ Every API route, its authentication, authorization, organization scoping, and ac
 | `/api/v1/auth/login` | POST | none | none | no | no | no |
 | `/api/v1/auth/logout` | POST | session | none | no | no | no |
 | `/api/v1/auth/me` | GET | session | none | no | no | no |
-| `/api/v1/admin/bootstrap` | POST | none¹ | none¹ | no | no | no |
+| `/api/v1/admin/bootstrap` | POST | token¹ | none¹ | no | no | no |
 | `/api/v1/projects` | GET | yes | case.read | yes | no | no |
 | `/api/v1/projects/list` | GET | yes | case.read | yes | no | no |
 | `/api/v1/property-projects` | GET | yes | case.read | yes | no | no |
@@ -42,17 +42,36 @@ Every API route, its authentication, authorization, organization scoping, and ac
 
 ### Notes
 
-¹ Bootstrap is a one-time endpoint that refuses if any admin already exists. No auth required but self-disabling.
+¹ Bootstrap requires `BOOTSTRAP_TOKEN` env var + `X-Bootstrap-Token` header. Self-disabling after first admin.
 
-² Properties and property intelligence are shared county-wide parcel data — not org-scoped. Only child entities (projects, evidence, findings, etc.) are org-scoped.
+² Properties and property intelligence are shared county-wide parcel data — not org-scoped.
 
 ### Security Properties
 
 - **No route is publicly accessible** (except login + one-time bootstrap)
 - **Every org-scoped query** includes `AND organization_id = ?`
 - **Evidence is immutable** — DELETE returns 405, use withdraw
+- **Audit logs are append-only** — application-layer enforcement, no UPDATE/DELETE
 - **All mutations** emit timeline events with actor provenance + audit events
 - **Agent permissions** are separate from human permissions (read-only)
-- **Session tokens** are hashed with SHA-256 — never stored raw
+- **Agent version** tracked in events (agent_version column)
+- **Resource org** tracked separately from actor org (resource_organization_id)
+- **Session fixation** prevented — login destroys old sessions, tracks rotation
+- **Session tokens** hashed with SHA-256 — never stored raw
 - **Cookies** are HttpOnly + Secure + SameSite=Strict
 - **Password hashing** uses PBKDF2 (100k iterations) via Web Crypto
+- **Bootstrap** requires environment token + self-disables after first admin
+
+### PR Checklist for New Routes
+
+Before adding a route, verify:
+
+| Requirement | Required |
+|---|---|
+| Auth middleware (`requireAuth`) | ✅ |
+| Authorization rule (`requireAuthz`) | ✅ |
+| Organization scope (if org-scoped data) | ✅ |
+| Actor event (if mutation) | ✅ |
+| Audit event (if mutation) | ✅ |
+| Test case | ✅ |
+| Security matrix updated | ✅ |

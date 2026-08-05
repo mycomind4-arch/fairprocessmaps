@@ -1,8 +1,5 @@
 /**
- * Security module barrel export — Phase 1D Trust Boundary Layer.
- *
- * Import from here in API routes:
- *   import { requireAuth, requireAuthz } from "@/lib/security";
+ * Security module barrel export — Phase 1D + 1E hardening.
  */
 
 export type {
@@ -65,4 +62,13 @@ export {
   governmentSourceActor,
   emitTimelineEvent,
   emitAuditEvent,
+  emitCanonicalEvent,
 } from "./events";
+
+export {
+  assertAppendOnly,
+} from "./immutability";
+
+export {
+  bootstrapAdmin,
+} from "./bootstrap";
