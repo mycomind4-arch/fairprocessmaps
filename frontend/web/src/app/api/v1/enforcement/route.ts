@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { emitEvent } from "@/lib/event-store";
 
 export const runtime = "nodejs";
 
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+    const projectId = body.project_id as string;
 
     // Auto-compute compliance deadline from notice date + notice period
     let complianceDeadline = (body.compliance_deadline as string) || null;
@@ -68,7 +70,7 @@ export async function POST(req: NextRequest) {
       )
       .bind(
         id,
-        (body.project_id as string),
+        projectId,
         (body.case_number as string) || null,
         (body.violation_type as string),
         (body.violation_description as string) || null,
@@ -92,6 +94,53 @@ export async function POST(req: NextRequest) {
       )
       .run();
 
+    // ── Emit events to the Event Store ──
+    await emitEvent(db, {
+      case_id: projectId,
+      event_type: "ce.case_created",
+      entity_type: "ce_case",
+      entity_id: id,
+      actor_type: "user",
+      title: `Code enforcement case created: ${body.violation_type || "unknown violation"}`,
+      payload: { case_number: body.case_number, violation_type: body.violation_type, severity: body.severity },
+    });
+
+    if (body.notice_served_date) {
+      await emitEvent(db, {
+        case_id: projectId,
+        event_type: "ce.notice_served",
+        entity_type: "ce_case",
+        entity_id: id,
+        actor_type: "user",
+        severity: "warning",
+        title: `Notice served: ${body.violation_type || "violation"}`,
+        payload: { notice_date: body.notice_served_date, notice_method: body.notice_method, notice_period_days: body.notice_period_days },
+      });
+    }
+    if (body.hearing_date) {
+      await emitEvent(db, {
+        case_id: projectId,
+        event_type: "ce.hearing_scheduled",
+        entity_type: "ce_case",
+        entity_id: id,
+        actor_type: "user",
+        title: `Hearing scheduled for ${body.hearing_date}`,
+        payload: { hearing_date: body.hearing_date, hearing_type: body.hearing_type },
+      });
+    }
+    if (complianceDeadline) {
+      await emitEvent(db, {
+        case_id: projectId,
+        event_type: "ce.compliance_deadline",
+        entity_type: "ce_case",
+        entity_id: id,
+        actor_type: "system",
+        severity: "warning",
+        title: `Compliance deadline: ${complianceDeadline}`,
+        payload: { compliance_deadline: complianceDeadline, notice_period_days: body.notice_period_days },
+      });
+    }
+
     const created = await db
       .prepare("SELECT * FROM code_enforcement_cases WHERE id = ?")
       .bind(id)
@@ -114,6 +163,10 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json() as Record<string, unknown>;
     const { env } = getCloudflareContext();
     const db = env.DB;
+
+    // Get the existing record to know the project_id and what changed
+    const existing = await db.prepare("SELECT * FROM code_enforcement_cases WHERE id = ?").bind(id).first() as any;
+    const projectId = existing?.project_id;
 
     const fields: string[] = [];
     const values: unknown[] = [];
@@ -145,6 +198,67 @@ export async function PATCH(req: NextRequest) {
     values.push(id);
 
     await db.prepare(`UPDATE code_enforcement_cases SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+
+    // ── Emit events for specific field changes ──
+    if (projectId) {
+      if (body.notice_served_date && body.notice_served_date !== existing?.notice_served_date) {
+        await emitEvent(db, {
+          case_id: projectId,
+          event_type: "ce.notice_served",
+          entity_type: "ce_case",
+          entity_id: id,
+          actor_type: "user",
+          severity: "warning",
+          title: `Notice served: ${existing?.violation_type || "violation"}`,
+          payload: { notice_date: body.notice_served_date, notice_method: body.notice_method },
+        });
+      }
+      if (body.hearing_date && body.hearing_date !== existing?.hearing_date) {
+        await emitEvent(db, {
+          case_id: projectId,
+          event_type: "ce.hearing_scheduled",
+          entity_type: "ce_case",
+          entity_id: id,
+          actor_type: "user",
+          title: `Hearing scheduled for ${body.hearing_date}`,
+          payload: { hearing_date: body.hearing_date, hearing_type: body.hearing_type },
+        });
+      }
+      if (body.abatement_date && body.abatement_date !== existing?.abatement_date) {
+        await emitEvent(db, {
+          case_id: projectId,
+          event_type: "ce.abatement",
+          entity_type: "ce_case",
+          entity_id: id,
+          actor_type: "user",
+          severity: "critical",
+          title: `Property abated`,
+          payload: { abatement_date: body.abatement_date, abatement_cost: body.abatement_cost },
+        });
+      }
+      if (body.appeal_date && body.appeal_date !== existing?.appeal_date) {
+        await emitEvent(db, {
+          case_id: projectId,
+          event_type: "ce.appeal_filed",
+          entity_type: "ce_case",
+          entity_id: id,
+          actor_type: "user",
+          title: `Appeal filed`,
+          payload: { appeal_date: body.appeal_date },
+        });
+      }
+      if (body.status === "closed" && existing?.status !== "closed") {
+        await emitEvent(db, {
+          case_id: projectId,
+          event_type: "ce.closed",
+          entity_type: "ce_case",
+          entity_id: id,
+          actor_type: "user",
+          title: `CE case closed`,
+          payload: { outcome: body.outcome },
+        });
+      }
+    }
 
     const updated = await db
       .prepare("SELECT * FROM code_enforcement_cases WHERE id = ?")
