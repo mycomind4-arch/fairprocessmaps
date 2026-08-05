@@ -96,6 +96,7 @@ Before adding a route, verify:
 | `/api/v1/cases/{id}/agents/run` | POST | yes | agent.run | yes | agent | yes |
 | `/api/v1/cases/{id}/agents/proposals` | GET | yes | agent.read | yes | no | no |
 | `/api/v1/agents/proposals/{id}/review` | PATCH | yes | agent.review | yes | human | yes |
+| `/api/v1/relationships/{id}/lineage` | GET | yes | relationship.read | yes | no | no |
 
 ¹ Org-scoped via the caseId query parameter — the entity must belong to a case in the user's organization.
 ² Org-scoped via the relationship's case_id, which must belong to the user's organization.

@@ -389,3 +389,32 @@ npx wrangler d1 execute fairprocess --remote --file=database/d1/migrations/004_t
   verify required outputs, forbidden outputs (no "violation",
   "illegal", etc.), and no false positives on compliant/empty cases.
 - **Total**: 35 API routes, 12 migrations.
+
+## Phase 3.3: Statute Matcher Agent + Proposal Lineage (2026-08-05)
+
+- **Migration 013**: Added `created_from_proposal_id` column to
+  relationships table. Backfills from JSON notes for existing rows.
+  Completes the provenance chain: Agent Run → Proposal → Accepted
+  Proposal → Relationship → Review. Every accepted edge can now
+  answer "Why does this relationship exist?" with a queryable FK.
+- **Migration 014**: Statute library — 14 seeded statutes covering
+  notice, hearing, enforcement, nuisance, substandard, permit, and
+  due process categories. Humboldt County codes + California state
+  codes. Each statute has keywords for matching and optional
+  notice_period_days.
+- **Lineage API**: GET /api/v1/relationships/{id}/lineage returns the
+  full provenance chain: relationship → proposal → agent_run →
+  agent_definition. 36 API routes total.
+- **Statute Matcher Agent**: Pure rules engine. Matches findings to
+  statutes based on rule-to-category mapping, keyword overlap, and
+  jurisdiction preference. Produces only relationship_proposal
+  (mandated_by). Never produces observations, checks, or findings.
+  Confidence capped at 0.9. Skips closed/resolved findings.
+- **Validator refinement**: statute_matcher forbidden phrases
+  refined to avoid false positives on statute names containing
+  "violation" (e.g. "Notice of Violation Service Requirements").
+  Forbidden phrases now target conclusions, not nouns.
+- **Test suite**: 6 test cases, 22 assertions, all passing. Tests
+  verify correct matching, neutral language, confidence ranges,
+  deduplication, and no false positives on empty/ambiguous cases.
+- **Total**: 36 API routes, 14 migrations.

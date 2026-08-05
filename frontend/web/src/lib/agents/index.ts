@@ -11,7 +11,8 @@ export {
 } from "./runner";
 
 export {
-  listProposals, reviewProposal, getAgentFeedbackStats,
+  listProposals, reviewProposal, getAgentFeedbackStats, getRelationshipLineage,
+  type RelationshipLineage,
 } from "./proposals";
 
 export {
@@ -22,3 +23,7 @@ export {
 export {
   TIMELINE_ANOMALY_AGENT,
 } from "./timeline-anomaly";
+
+export {
+  STATUTE_MATCHER_AGENT,
+} from "./statute-matcher";

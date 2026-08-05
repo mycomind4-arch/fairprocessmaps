@@ -49,11 +49,13 @@ const DEFAULT_CAPABILITIES: Record<string, AgentCapabilities> = {
     allowed_outputs: ["relationship_proposal"],
     forbidden_outputs: ["observation", "procedural_check", "missing_info"],
     forbidden_phrases: [
-      "violates", "violation of", "illegal", "unlawful",
+      "violates", "violation occurred", "violation of", "illegal", "unlawful",
       "due process denied", "due process violation",
       "at fault", "culpable", "liable",
       "applies because", "is applicable because",
-      "constitutes a violation",
+      "constitutes a violation", "is a violation",
+      "the county violated", "the department violated",
+      "the statute applies",
     ],
   },
   evidence_extractor: {
