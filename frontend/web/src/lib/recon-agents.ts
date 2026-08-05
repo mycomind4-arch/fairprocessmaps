@@ -740,7 +740,7 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
     `Succeeded: ${succeeded}, No data: ${noData}, Failed: ${failed}`,
   ];
 
-  const intelligenceSummary = summaryLines.join("\n");
+  let intelligenceSummary = summaryLines.join("\n");
 
   // Step 4: Write to property_intelligence cache
   const reconId = crypto.randomUUID();
@@ -797,9 +797,9 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
     });
     
     // Add analysis summary to intelligence summary
-    intelligenceSummary += \`\n\n=== ANALYSIS AGENTS ===\n\${analysisResult.summary}\`;
+    intelligenceSummary += `\n\n=== ANALYSIS AGENTS ===\n${analysisResult.summary}`;
   } catch (analysisErr: any) {
-    intelligenceSummary += \`\n\n=== ANALYSIS AGENTS ===\nAnalysis agents encountered an error: \${analysisErr?.message || "unknown"}\`;
+    intelligenceSummary += `\n\n=== ANALYSIS AGENTS ===\nAnalysis agents encountered an error: ${analysisErr?.message || "unknown"}`;
   }
 
   return {

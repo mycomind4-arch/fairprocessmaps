@@ -252,15 +252,15 @@ export async function factExtractionAgent(ctx: AnalysisContext): Promise<Analysi
     }
 
     // Extract facts from property intelligence (GIS data)
-    for (const intel of (intel.results || []) as any[]) {
-      const rawData = typeof intel.raw_data === "string" ? JSON.parse(intel.raw_data) : intel.raw_data;
+    for (const intelRec of (intel.results || []) as any[]) {
+      const rawData = typeof intelRec.raw_data === "string" ? JSON.parse(intelRec.raw_data) : intelRec.raw_data;
       // Transfer date from GIS
       if (rawData?.parcel?.transfer_date) {
         facts.push({
           fact_id: `gis_transfer`,
-          text: `Property transferred (GIS Book/Page: ${intel.apn ? rawData.parcel.bkpg : "unknown"})`,
+          text: `Property transferred (GIS Book/Page: ${intelRec.apn ? rawData.parcel.bkpg : "unknown"})`,
           source: "property_intelligence",
-          source_id: intel.id,
+          source_id: intelRec.id,
           date: rawData.parcel.transfer_date,
           category: "transfer",
         });

@@ -152,7 +152,7 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
     try {
       const res = await fetch(`/api/v1/findings?projectId=${projectId}`, { method: "POST" });
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
-      const result = await res.json();
+      const result: { results?: Array<{ status: string; agent: string; message: string }>; guardrail?: string; score?: number } = await res.json();
       setAnalysisResult(result);
       setScore(result.score ?? null);
       fetchData();
