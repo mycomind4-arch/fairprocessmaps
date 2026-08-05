@@ -31,6 +31,11 @@ export interface AgentCapabilities {
 //
 // These are also stored in agent_definitions.capabilities, but having
 // them in code ensures enforcement even if the DB row is wrong.
+//
+// Phase 3.4 refinement: evidence_extractor forbidden phrases now target
+// conclusions, not nouns. "Notice of Violation" is a document title, not
+// a legal conclusion. Forbidden phrases are "constitutes a violation",
+// "violation occurred", etc. — same approach as statute_matcher Phase 3.3.
 
 const DEFAULT_CAPABILITIES: Record<string, AgentCapabilities> = {
   timeline_anomaly: {
@@ -62,9 +67,11 @@ const DEFAULT_CAPABILITIES: Record<string, AgentCapabilities> = {
     allowed_outputs: ["relationship_proposal", "observation"],
     forbidden_outputs: ["procedural_check", "missing_info"],
     forbidden_phrases: [
-      "violates", "violation", "illegal", "unlawful",
+      "violates", "violation occurred", "constitutes a violation", "is a violation",
+      "illegal", "unlawful",
       "satisfies", "complies with", "meets the requirement",
       "proves", "establishes", "demonstrates compliance",
+      "the county failed", "the department failed",
     ],
   },
   authority_mapper: {

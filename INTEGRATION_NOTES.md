@@ -418,3 +418,59 @@ npx wrangler d1 execute fairprocess --remote --file=database/d1/migrations/004_t
   verify correct matching, neutral language, confidence ranges,
   deduplication, and no false positives on empty/ambiguous cases.
 - **Total**: 36 API routes, 14 migrations.
+
+## Phase 3.4: Evidence Extraction Agent (2026-08-05)
+
+- **Agent module**: `frontend/web/src/lib/agents/evidence-extractor.ts` —
+  pure rules engine, no LLM. Analyzes evidence in the case vault and
+  proposes connections to findings and timeline events.
+
+- **Five detection rules**:
+  1. **Finding without evidence** — open findings with no `evidence_id`
+     produce `evidence_gap` observation (severity scaled to finding severity).
+  2. **Evidence → Finding match** — doc_type + title keyword scoring proposes
+     `supports` relationship_proposal linking evidence to open findings.
+     Deduplicated per evidence→finding pair, confidence capped at 0.85.
+  3. **Evidence → Timeline event match** — doc_type maps to event types,
+     proposes `documents` relationship_proposal. Keyword overlap with
+     event description adds to score. Confidence capped at 0.85.
+  4. **Unlinked evidence** — evidence not linked to any finding or timeline
+     event produces `evidence_gap` observation (severity=info).
+  5. **Withdrawn evidence linked to active findings** — evidence with
+     status=withdrawn still referenced by open findings produces
+     `evidence_gap` observation (severity=warning). Agent does NOT propose
+     new relationships from withdrawn evidence.
+
+- **Validator refinement**: evidence_extractor forbidden phrases refined
+  (same approach as statute_matcher Phase 3.3). Bare "violation" →
+  "violation occurred", "constitutes a violation", "is a violation".
+  Evidence titles like "Notice of Violation" are document names, not
+  legal conclusions. Added "the county failed", "the department failed"
+  to catch conclusion language.
+
+- **Agent registered** in registry.ts. Agent run route now functional
+  for `agent_type=evidence_extractor`.
+
+- **Doc type mappings**: 9 document types mapped to timeline event types
+  (notice, hearing, decision, compliance, permit, appeal, abatement, fine, lien).
+  8 document types mapped to finding rules.
+
+- **Keyword extraction**: Stop-word filtered title keyword extraction for
+  semantic matching. Filters numbers, articles, and common procedural terms.
+
+- **Test suite**: 9 test cases, 35 assertions, all passing. Tests verify:
+  - Evidence gap detection (finding without evidence)
+  - Evidence→finding matching by doc_type
+  - Evidence→timeline matching by doc_type
+  - Unlinked evidence detection
+  - Withdrawn evidence flagging
+  - No duplicate proposals for already-linked evidence
+  - Empty case (no false positives)
+  - Neutral language enforcement (no "proves", "establishes", "satisfies", etc.)
+  - Closed findings skipped
+
+- **Existing tests verified**: timeline_anomaly (24 assertions) and
+  statute_matcher (22 assertions) both still pass after validator change.
+  No regressions. TypeScript compiles clean (tsc --noEmit = 0 errors).
+
+- **Total**: 36 API routes, 14 migrations, 3 registered agents.
