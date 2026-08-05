@@ -1,5 +1,7 @@
 "use client";
 
+import AgentAnalysisBanner from "@/components/AgentAnalysisBanner";
+
 import { useState, useEffect, useCallback } from "react";
 import { AutoSaveIndicator } from "@/components/AutoSaveIndicator";
 import {

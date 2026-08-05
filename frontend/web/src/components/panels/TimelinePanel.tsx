@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import {
-  Calendar, Loader2, AlertCircle, RefreshCw, Plus, X, Trash2, ChevronDown,
+  Calendar, Loader2, AlertCircle, RefreshCw, Plus, X, Trash2, ChevronDown, ScanLine,
 } from "lucide-react";
+import AgentAnalysisBanner from "@/components/AgentAnalysisBanner";
 
 interface TimelineItem {
   id: string;

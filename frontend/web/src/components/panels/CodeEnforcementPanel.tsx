@@ -1,5 +1,7 @@
 "use client";
 
+import AgentAnalysisBanner from "@/components/AgentAnalysisBanner";
+
 import { useState, useEffect, useCallback } from "react";
 import { AutoSaveIndicator } from "@/components/AutoSaveIndicator";
 import {
@@ -159,6 +161,14 @@ export default function CodeEnforcementPanel({ projectId }: { projectId: string 
         <StatTile label="Abatement Costs" value={totalCosts > 0 ? `$${totalCosts.toLocaleString()}` : "$0"} icon={DollarSign} />
         <StatTile label="Liens Filed" value={lienCount} icon={FileText} />
       </div>
+
+      {/* Agent analysis findings */}
+      <AgentAnalysisBanner
+        projectId={projectId}
+        filterPrefixes={["statute_HCC_351_7", "statute_HCC_351_12", "statute_HCC_4_2", "statute_HCC_311_3", "statute_HCC_351_9", "statute_CA_Gov_Code_53069_4", "discrepancy_abatement_without_hearing", "discrepancy_missing_compliance_deadline", "discrepancy_missing_outcome"]}
+        title="Enforcement-Related Agent Findings"
+        description="Notice timing, hearing rights, and abatement statute checks"
+      />
 
       {/* Cases list */}
       {loading ? (
