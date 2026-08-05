@@ -1,92 +1,46 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
-import EvidencePanel from "@/components/EvidencePanel";
-import TimelinePanel from "@/components/TimelinePanel";
-import SearchBar from "@/components/SearchBar";
-import DueProcessBadge from "@/components/DueProcessBadge";
-import DocumentUpload from "@/components/DocumentUpload";
-import PropertyDetail from "@/components/PropertyDetail";
-import ScoreRing from "@/components/ScoreRing";
-import NewProjectModal from "@/components/NewProjectModal";
-import { FileText, Calendar, Upload, Info, PanelRightOpen, PanelRight, Shield } from "lucide-react";
-import type { SearchResult } from "@/lib/types";
+import { useAuth } from "@/lib/auth";
+import { LoginModal } from "@/components/LoginModal";
+import { Shield, Map, FileText, Scale, ArrowRight, CheckCircle2 } from "lucide-react";
 
-// Mirrors the ParcelInfo interface in PropertyMap.tsx — what the popup's
-// "Open as project" button hands back.
-interface PendingParcel {
-  apn: string;
-  address: string;
-  city: string;
-  acres: number;
-  zoning: string;
-  legal: string;
-}
-
-// Dynamic import — maplibre-gl requires browser APIs (WebGL/canvas)
-const PropertyMap = dynamic(() => import("@/components/PropertyMap"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-fp-bg">
-      <div className="shimmer w-full h-full rounded-lg" />
-    </div>
-  ),
-});
-
-type PanelTab = "detail" | "evidence" | "timeline" | "upload";
-
-const TABS: { id: PanelTab; label: string; icon: typeof FileText }[] = [
-  { id: "detail", label: "Overview", icon: Info },
-  { id: "evidence", label: "Evidence", icon: FileText },
-  { id: "timeline", label: "Timeline", icon: Calendar },
-  { id: "upload", label: "Upload", icon: Upload },
-];
-
-export default function Home() {
+export default function LandingPage() {
   const router = useRouter();
-  const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<PanelTab>("detail");
-  const [evidenceRefresh, setEvidenceRefresh] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [pendingParcel, setPendingParcel] = useState<PendingParcel | null>(null);
-  const [pendingPropertyId, setPendingPropertyId] = useState<string | null>(null);
+  const { user, loading } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
 
-  // Popup's "Open as project" button lands here. We first resolve/create the
-  // underlying Property record for this APN (properties are looked up by
-  // APN, created on first contact), then show the new/existing project modal.
-  const handleOpenAsProject = useCallback(async (info: PendingParcel, lngLat: [number, number]) => {
-    const res = await fetch("/api/v1/properties/resolve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...info, lng: lngLat[0], lat: lngLat[1] }),
-    });
-    const property = await res.json() as { id: string };
-    setPendingPropertyId(property.id);
-    setPendingParcel(info);
-  }, []);
-
-  const handleSelectResult = useCallback((result: SearchResult) => {
-    if (result.type === "property" && result.id) {
-      setSelectedProperty(result.id);
-      setActiveTab("detail");
-    } else if (result.property_id) {
-      setSelectedProperty(result.property_id);
-      setActiveTab(result.type === "evidence" ? "evidence" : "detail");
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/dashboard");
     }
-  }, []);
+  }, [user, loading, router]);
 
-  const handleUploaded = useCallback(() => {
-    setEvidenceRefresh((k) => k + 1);
-    setActiveTab("evidence");
-  }, []);
+  // If Supabase not configured (dev mode), go straight to dashboard
+  useEffect(() => {
+    const envConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!loading && !envConfigured) {
+      router.replace("/dashboard");
+    }
+  }, [loading, router]);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-fp-bg">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-lg shadow-fp-blue/20 animate-pulse">
+          <Shield className="w-5 h-5 text-white" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-screen flex flex-col bg-fp-bg overflow-hidden">
+    <div className="min-h-screen bg-fp-bg flex flex-col">
       {/* ── Header ── */}
-      <header className="h-16 flex items-center px-4 gap-4 glass shrink-0 z-20 border-b border-fp-border">
-        <div className="flex items-center gap-2.5 shrink-0">
+      <header className="h-16 flex items-center justify-between px-6 glass shrink-0 z-20 border-b border-fp-border">
+        <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-lg shadow-fp-blue/20">
             <Shield className="w-5 h-5 text-white" />
           </div>
@@ -95,121 +49,100 @@ export default function Home() {
             <div className="text-[10px] text-fp-text-dim uppercase tracking-widest mt-0.5">Evidence-First</div>
           </div>
         </div>
-
         <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all"
-          title={sidebarOpen ? "Hide panel" : "Show panel"}
+          onClick={() => setShowLogin(true)}
+          className="text-sm text-fp-text-muted hover:text-fp-text transition-colors px-4 py-2 rounded-lg hover:bg-fp-surface-2"
         >
-          {sidebarOpen ? <PanelRight className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+          Sign In
         </button>
-
-        <div className="flex-1 max-w-xl">
-          <SearchBar onSelectResult={handleSelectResult} />
-        </div>
-
-        <DueProcessBadge propertyId={selectedProperty} />
       </header>
 
-      {/* ── Main ── */}
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 relative">
-          <PropertyMap
-            onSelectProperty={(id) => {
-              setSelectedProperty(id);
-              setActiveTab("detail");
-            }}
-            selectedProperty={selectedProperty}
-            onOpenAsProject={handleOpenAsProject}
-          />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-fp-bg/20 via-transparent to-fp-bg/40" />
+      {/* ── Hero ── */}
+      <section className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden">
+        {/* Background glow */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-fp-blue/10 blur-[120px]" />
+          <div className="absolute bottom-1/4 left-1/3 w-[400px] h-[400px] rounded-full bg-fp-cyan/8 blur-[100px]" />
         </div>
 
-        {sidebarOpen && (
-          <aside className="w-[400px] border-l border-fp-border bg-fp-surface/80 backdrop-blur-xl flex flex-col overflow-hidden shrink-0 animate-[slide-right_0.3s_cubic-bezier(0.16,1,0.3,1)_forwards]">
-            <nav className="flex border-b border-fp-border shrink-0">
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const active = activeTab === tab.id;
-                const disabled = !selectedProperty && tab.id !== "upload";
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    disabled={disabled}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs font-medium transition-all relative border-b-2 ${
-                      active
-                        ? "border-fp-blue text-fp-text"
-                        : "border-transparent text-fp-text-dim hover:text-fp-text-muted"
-                    } ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    {tab.label}
-                    {active && (
-                      <div className="absolute inset-x-0 -bottom-px h-0.5 bg-gradient-to-r from-fp-blue to-fp-cyan" />
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
+        <div className="relative z-10 max-w-3xl text-center animate-[fade-in_0.6s_ease-out]">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass mb-6 text-xs text-fp-text-muted">
+            <CheckCircle2 className="w-3.5 h-3.5 text-fp-cyan" />
+            Humboldt County Pilot — Live
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-fp-text tracking-tight leading-tight mb-4">
+            Evidence-First Platform for
+            <br />
+            <span className="bg-gradient-to-r from-fp-blue to-fp-cyan bg-clip-text text-transparent">
+              Property Due-Process Analysis
+            </span>
+          </h1>
+          <p className="text-base text-fp-text-muted max-w-xl mx-auto mb-8 leading-relaxed">
+            Combine property-centric GIS, an evidence vault, automatic timeline generation,
+            and automated detection of due-process discrepancies — all on a globally distributed edge network.
+          </p>
 
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {activeTab === "detail" && selectedProperty && (
-                <div className="flex-1 overflow-y-auto animate-[fade-in_0.3s_ease-out]">
-                  <PropertyDetail
-                    propertyId={selectedProperty}
-                    onShowPanel={(panel) => setActiveTab(panel as PanelTab)}
-                  />
-                </div>
-              )}
-              {activeTab === "evidence" && (
-                <EvidencePanel propertyId={selectedProperty} refreshKey={evidenceRefresh} />
-              )}
-              {activeTab === "timeline" && (
-                <TimelinePanel propertyId={selectedProperty} refreshKey={evidenceRefresh} />
-              )}
-              {activeTab === "upload" && selectedProperty && (
-                <div className="flex-1 overflow-y-auto animate-[fade-in_0.3s_ease-out]">
-                  <DocumentUpload
-                    propertyId={selectedProperty}
-                    onUploaded={handleUploaded}
-                  />
-                </div>
-              )}
-              {activeTab === "upload" && !selectedProperty && (
-                <div className="flex-1 flex items-center justify-center p-8 text-center">
-                  <div>
-                    <div className="w-16 h-16 rounded-2xl glass flex items-center justify-center mx-auto mb-3">
-                      <Upload className="w-7 h-7 text-fp-text-dim" />
-                    </div>
-                    <p className="text-sm text-fp-text-muted">Select a property to upload evidence</p>
-                  </div>
-                </div>
-              )}
-              {activeTab === "detail" && !selectedProperty && (
-                <div className="flex-1 flex items-center justify-center p-8 text-center">
-                  <div>
-                    <ScoreRing score={null} size="lg" />
-                    <p className="text-sm text-fp-text-muted mt-4">Select a property to begin analysis</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </aside>
-        )}
-      </div>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => setShowLogin(true)}
+              className="group flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-fp-blue to-fp-cyan text-white text-sm font-medium hover:shadow-xl hover:shadow-fp-blue/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Get Started
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+            <a
+              href="https://github.com/mycomind4-arch/fairprocessmaps"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 rounded-xl glass text-fp-text-muted hover:text-fp-text text-sm font-medium transition-all hover:scale-[1.02]"
+            >
+              View on GitHub
+            </a>
+          </div>
+        </div>
 
-      {pendingParcel && pendingPropertyId && (
-        <NewProjectModal
-          propertyId={pendingPropertyId}
-          propertyLabel={`${pendingParcel.address || "No address"} · APN ${pendingParcel.apn}`}
-          onClose={() => {
-            setPendingParcel(null);
-            setPendingPropertyId(null);
-          }}
-          onOpenProject={(projectId) => router.push(`/project/${projectId}`)}
-        />
-      )}
+        {/* ── Feature Cards ── */}
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4 mt-16 max-w-4xl w-full px-2">
+          {[
+            {
+              icon: Map,
+              title: "GIS Parcel Mapping",
+              desc: "Interactive parcel map with click-to-identify. Humboldt County ArcGIS integration for APN, zoning, acreage, and legal description lookup.",
+            },
+            {
+              icon: FileText,
+              title: "Evidence Vault",
+              desc: "Upload and organize documents, photos, and notices. R2-backed storage with extracted text and AI-generated summaries for every item.",
+            },
+            {
+              icon: Scale,
+              title: "Due-Process Analysis",
+              desc: "Automated rule engine checks notice timing, hearing rights, appeal pathways, abatement compliance, and permit review rights.",
+            },
+          ].map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <div
+                key={feature.title}
+                className="glass rounded-2xl p-6 hover:scale-[1.02] transition-transform animate-[fade-in_0.5s_ease-out]"
+              >
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-fp-blue/20 to-fp-cyan/20 flex items-center justify-center mb-4">
+                  <Icon className="w-5 h-5 text-fp-cyan" />
+                </div>
+                <h3 className="text-sm font-semibold text-fp-text mb-2">{feature.title}</h3>
+                <p className="text-xs text-fp-text-muted leading-relaxed">{feature.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="h-16 flex items-center justify-center px-6 border-t border-fp-border text-xs text-fp-text-dim shrink-0">
+        &copy; 2026 FairProcess Contributors — Apache 2.0
+      </footer>
+
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
     </div>
   );
 }

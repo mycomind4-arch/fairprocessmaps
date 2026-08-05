@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS projects (
   status TEXT NOT NULL DEFAULT 'open',
   due_process_score INTEGER,
   opened_at TEXT DEFAULT (datetime('now')),
-  closed_at TEXT
+  closed_at TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_projects_property_id ON projects(property_id);
@@ -95,16 +96,24 @@ CREATE TABLE IF NOT EXISTS building_permits (
   project_id TEXT NOT NULL REFERENCES projects(id),
   permit_number TEXT,
   permit_type TEXT,
-  status TEXT NOT NULL DEFAULT 'pending',
-  issued_date TEXT,
-  expiry_date TEXT,
-  valuation REAL,
+  permit_status TEXT NOT NULL DEFAULT 'pending',
   description TEXT,
-  created_at TEXT DEFAULT (datetime('now'))
+  valuation REAL,
+  sqft REAL,
+  issued_date TEXT,
+  expired_date TEXT,
+  finalized_date TEXT,
+  assigned_inspector TEXT,
+  inspections_count INTEGER DEFAULT 0,
+  last_inspection_date TEXT,
+  last_inspection_result TEXT,
+  notes TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_permits_project_id ON building_permits(project_id);
-CREATE INDEX IF NOT EXISTS idx_permits_status ON building_permits(status);
+CREATE INDEX IF NOT EXISTS idx_permits_permit_status ON building_permits(permit_status);
 
 -- ── Code Enforcement Cases ──
 CREATE TABLE IF NOT EXISTS code_enforcement_cases (
@@ -112,14 +121,24 @@ CREATE TABLE IF NOT EXISTS code_enforcement_cases (
   project_id TEXT NOT NULL REFERENCES projects(id),
   case_number TEXT,
   violation_type TEXT,
+  violation_description TEXT,
+  severity TEXT NOT NULL DEFAULT 'moderate',
   status TEXT NOT NULL DEFAULT 'open',
-  notice_date TEXT,
+  notice_served_date TEXT,
+  notice_method TEXT,
+  notice_period_days INTEGER,
   compliance_deadline TEXT,
-  hearing_date TEXT,
   abatement_date TEXT,
   abatement_cost REAL,
+  lien_filed INTEGER DEFAULT 0,
+  hearing_date TEXT,
+  hearing_type TEXT,
+  appeal_filed INTEGER DEFAULT 0,
+  appeal_date TEXT,
   outcome TEXT,
-  created_at TEXT DEFAULT (datetime('now'))
+  notes TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_enforcement_project_id ON code_enforcement_cases(project_id);

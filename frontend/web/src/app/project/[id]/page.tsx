@@ -39,7 +39,7 @@ export default function ProjectDashboard() {
     <div className="h-screen flex flex-col bg-fp-bg overflow-hidden">
       <header className="h-14 flex items-center px-4 gap-3 glass shrink-0 z-30 border-b border-fp-border">
         <button
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/dashboard")}
           className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
           title="Back to map"
         >
