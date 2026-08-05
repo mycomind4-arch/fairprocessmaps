@@ -34,12 +34,11 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Try to extract basic text from text-based files
       let extractedText: string | null = null;
       const mime = file.type;
       if (mime.startsWith("text/") || mime === "application/json" || mime === "application/xml") {
         const text = await file.text();
-        extractedText = text.slice(0, 50000); // cap at 50k chars
+        extractedText = text.slice(0, 50000);
       }
 
       await db
@@ -50,16 +49,8 @@ export async function POST(req: NextRequest) {
         .bind(id, projectId, mime || "document", file.name, extractedText)
         .run();
 
-      // Create a timeline event for the upload
-      await db
-        .prepare(
-          `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description)
-           VALUES (?, ?, ?, datetime('now'), 'evidence_uploaded', ?)`
-        )
-        .bind(crypto.randomUUID(), projectId, id, `Evidence uploaded: ${file.name}`)
-        .run();
-
-      // ── Emit event to the Event Store ──
+      // ── Emit event to the Event Store (canonical source) ──
+      // No longer creating legacy timeline_events rows — the event store IS the timeline.
       await emitEvent(db, {
         case_id: projectId,
         event_type: "evidence.uploaded",
@@ -73,7 +64,6 @@ export async function POST(req: NextRequest) {
       uploaded.push({ id, title: file.name, r2Key });
     }
 
-    // Auto-trigger analysis after evidence upload
     try {
       const analysisResult = await runAnalysis(projectId);
       return NextResponse.json(
@@ -81,7 +71,6 @@ export async function POST(req: NextRequest) {
         { headers: { "Cache-Control": "no-store" } }
       );
     } catch {
-      // Analysis failed but upload succeeded
       return NextResponse.json(
         { uploaded: uploaded.length, ids: uploaded.map(u => u.id) },
         { headers: { "Cache-Control": "no-store" } }
@@ -95,7 +84,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET endpoint to download evidence files from R2
 export async function GET(req: NextRequest) {
   try {
     const projectId = req.nextUrl.searchParams.get("projectId");
@@ -109,7 +97,6 @@ export async function GET(req: NextRequest) {
     const db = env.DB;
 
     if (evidenceId) {
-      // Return specific evidence record with download URL
       const record = await db
         .prepare("SELECT * FROM evidence WHERE id = ? AND project_id = ?")
         .bind(evidenceId, projectId)
@@ -122,7 +109,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(record, { headers: { "Cache-Control": "no-store" } });
     }
 
-    // List all evidence for the project
     const result = await db
       .prepare(
         `SELECT id, title, source, doc_type, status, extracted_text, ai_summary, created_at
