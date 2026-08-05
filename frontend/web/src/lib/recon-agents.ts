@@ -9,6 +9,7 @@
  */
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { RECORDS_AGENTS } from "./recon-agents-records";
 
 // ── ArcGIS endpoints ──
 
@@ -74,7 +75,7 @@ async function fetchParcelByAPN(apn: string): Promise<ParcelData | null> {
   });
 
   try {
-    const resp = await fetch(`${PARCELS_URL}?${params}`);
+    const resp = await fetch(`${PARCELS_URL}/query?${params}`);
     if (!resp.ok) return null;
     const data: any = await resp.json();
     const feature = data.features?.[0];
@@ -239,7 +240,7 @@ export interface ReconContext {
   parcel: ParcelData | null;
 }
 
-type ReconAgent = (ctx: ReconContext) => Promise<ReconAgentResult>;
+export type ReconAgent = (ctx: ReconContext) => Promise<ReconAgentResult>;
 
 // ── Agent 1: Parcel Data ──
 
@@ -571,6 +572,7 @@ export const ALL_AGENTS: { name: string; agent: ReconAgent; description: string 
   { name: "jurisdiction", agent: jurisdictionAgent, description: "City/county jurisdiction, districts" },
   { name: "natural_resources", agent: naturalResourcesAgent, description: "Wetlands, Williamson Act, streamside areas" },
   { name: "adu", agent: aduAgent, description: "ADU (Accessory Dwelling Unit) eligibility" },
+  ...RECORDS_AGENTS,
 ];
 
 // ── Main Recon Orchestrator ──
@@ -624,15 +626,28 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
     }
   }
 
-  // If forcing, delete old recon evidence + timeline
+  // If forcing, delete dependent records first (FK constraints), THEN evidence
   if (force) {
+    // Delete ALL timeline events that reference ai_research evidence
     await db.prepare(
-      `DELETE FROM evidence WHERE project_id = ? AND source = 'ai_research' AND doc_type IN ('recon_report', 'intelligence_report', 'parcel_lookup')`
+      `DELETE FROM timeline_events WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research')`
     ).bind(projectId).run();
-    // Also delete old recon timeline events
+    // Delete due_process_findings that reference ai_research evidence
     await db.prepare(
-      `DELETE FROM timeline_events WHERE project_id = ? AND event_type = 'intelligence_gathered'`
+      `DELETE FROM due_process_findings WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research')`
     ).bind(projectId).run();
+    // Delete evidence_relations that reference ai_research evidence
+    await db.prepare(
+      `DELETE FROM evidence_relations WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research') OR related_evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research')`
+    ).bind(projectId, projectId).run();
+    // Now safe to delete evidence
+    await db.prepare(
+      `DELETE FROM evidence WHERE project_id = ? AND source = 'ai_research'`
+    ).bind(projectId).run();
+    // Delete old property_intelligence cache
+    await db.prepare(
+      `DELETE FROM property_intelligence WHERE property_id = ?`
+    ).bind(project.property_id as string).run();
   }
 
   // Step 1: Fetch parcel data (needed for geometry-based queries by other agents)
@@ -706,6 +721,18 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
     ``,
     `=== ADU ELIGIBILITY ===`,
     results.find(r => r.agent === "adu")?.message || "No data",
+    ``,
+    `=== BUILDING PERMITS ===`,
+    results.find(r => r.agent === "building_permits")?.message || "No data",
+    ``,
+    `=== CODE ENFORCEMENT ===`,
+    results.find(r => r.agent === "code_enforcement")?.message || "No data",
+    ``,
+    `=== COUNTY RECORDER ===`,
+    results.find(r => r.agent === "county_recorder")?.message || "No data",
+    ``,
+    `=== DUE PROCESS ANALYSIS ===`,
+    results.find(r => r.agent === "due_process_analysis")?.message || "No data",
     ``,
     `=== RECON SUMMARY ===`,
     `Agents run: ${ALL_AGENTS.length}`,
