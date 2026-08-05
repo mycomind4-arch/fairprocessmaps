@@ -98,3 +98,54 @@ See `docs/architecture/adr.md` ADR-006 for the full rationale.
 
 5. **Building permits & code enforcement** — API routes exist but
    don't pull real data from county systems yet. Panels are UI shells.
+
+## Phase 1D: Trust Boundary Layer (2026-08-05)
+
+### What's wired
+
+- **Identity model**: users, organizations, memberships, sessions tables in D1
+  (migration 004). PBKDF2 password hashing via Web Crypto. Session tokens
+  stored as SHA-256 hashes — never raw.
+- **Auth routes**: `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`,
+  `GET /api/v1/auth/me`. Session in httpOnly + Secure + SameSite=Strict cookie.
+- **Auth middleware**: `requireAuth()` + `requireAuthz()` called in every API
+  route. Unauthenticated requests get 401; unauthorized get 403.
+- **Authorization**: Centralized `authorize(user, action, resource)` with a
+  6-role × 13-action permission matrix. Agent permissions are separate.
+- **Org isolation**: Every org-scoped table has `organization_id`. Every query
+  includes `AND organization_id = ?`. Properties are shared (county data).
+- **Actor provenance**: Timeline events + audit_events table record
+  `actor_type` (human/agent/system/government_source), `actor_id`,
+  `actor_organization_id`.
+- **Evidence immutability**: DELETE returns 405. New
+  `POST /api/v1/evidence/withdraw` marks evidence as withdrawn with
+  provenance. R2 objects retained.
+- **Upload security**: 50 MB limit, MIME allowlist, filename sanitization,
+  safe R2 keys (`evidence/{org}/{id}/{filename}`), SHA-256 hash on upload.
+- **Download security**: Auth → org check → permission check → withdrawal
+  check → stream from R2. Audit event on every download.
+- **Debug routes**: `/api/v1/debug/*` requires admin role.
+- **Security tests**: `frontend/web/src/lib/security/__tests__/security.test.ts`
+  covers auth, authorization, org isolation, agent security, upload validation,
+  filename sanitization, R2 key safety, and actor identity.
+- **Canonical dictionary**: `docs/canonical-dictionary.md` documents all
+  Phase 1D contracts.
+
+### Migration required
+
+```bash
+npx wrangler d1 execute fairprocess --remote --file=database/d1/migrations/004_trust_boundary.sql
+```
+
+### Still open
+
+1. **Seed users** — need a CLI script or admin UI to create initial users +
+   organizations + memberships.
+2. **Client-side auth update** — `auth.tsx` still uses Supabase; needs to
+   switch to the new `/api/v1/auth/*` endpoints.
+3. **Replay validation** — the replay harness needs to verify actor
+   provenance on all events.
+4. **R2 signed URLs** — Cloudflare R2 Workers API doesn't support presigned
+   URLs directly; we stream through the worker with auth checks instead.
+   If presigned URLs become needed, use R2 S3 API with `aws-sdk` or
+   migrate to R2 public buckets with lifecycle rules.

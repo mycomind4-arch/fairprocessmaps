@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { requireAuth, requireAuthz, resolveProjectOrg } from "@/lib/security/middleware";
+import { humanActor, emitAuditEvent } from "@/lib/security/events";
 
 export const runtime = "nodejs";
 
-// GET /api/v1/enforcement?projectId=xxx
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireAuth(req);
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
+
     const projectId = req.nextUrl.searchParams.get("projectId");
     if (!projectId) {
-      return NextResponse.json({ error: "projectId is required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json(
+        { error: "projectId is required" },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const { env } = getCloudflareContext();
@@ -16,39 +24,56 @@ export async function GET(req: NextRequest) {
 
     const result = await db
       .prepare(
-        `SELECT * FROM code_enforcement_cases WHERE project_id = ? ORDER BY 
-         CASE status 
-           WHEN 'open' THEN 0 
-           WHEN 'notice_served' THEN 1 
-           WHEN 'compliance_period' THEN 2 
-           WHEN 'hearing_scheduled' THEN 3 
-           WHEN 'abatement_pending' THEN 4 
-           WHEN 'appealed' THEN 5 
-           WHEN 'abated' THEN 6 
-           WHEN 'closed' THEN 7 
-         END,
-         created_at DESC`
+        `SELECT * FROM code_enforcement_cases
+         WHERE project_id = ? AND organization_id = ?
+         ORDER BY CASE status
+           WHEN 'open' THEN 0 WHEN 'notice_served' THEN 1 WHEN 'compliance_period' THEN 2
+           WHEN 'hearing_scheduled' THEN 3 WHEN 'abatement_pending' THEN 4 WHEN 'appealed' THEN 5
+           WHEN 'abated' THEN 6 WHEN 'closed' THEN 7
+         END, created_at DESC`,
       )
-      .bind(projectId)
+      .bind(projectId, user.organization_id)
       .all();
 
-    return NextResponse.json({ items: result.results ?? [] }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { items: result.results ?? [] },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { error: String(err) },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
 
-// POST /api/v1/enforcement
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireAuth(req);
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
+
     const body = await req.json() as Record<string, unknown>;
+    const projectId = body.project_id as string;
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: "project_id is required" },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     const { env } = getCloudflareContext();
     const db = env.DB;
 
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const projectOrg = await resolveProjectOrg(db, projectId);
+    const authz = requireAuthz(user, "case.update", {
+      organization_id: projectOrg ?? undefined,
+    });
+    if (!authz.ok) return authz.response;
 
-    // Auto-compute compliance deadline from notice date + notice period
+    const id = crypto.randomUUID();
+
     let complianceDeadline = (body.compliance_deadline as string) || null;
     if (!complianceDeadline && body.notice_served_date && body.notice_period_days) {
       const d = new Date(body.notice_served_date as string);
@@ -63,12 +88,11 @@ export async function POST(req: NextRequest) {
           severity, status, notice_served_date, notice_method, notice_period_days,
           compliance_deadline, abatement_date, abatement_cost, lien_filed,
           hearing_date, hearing_type, appeal_filed, appeal_date, outcome, notes,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          created_at, updated_at, organization_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
-        id,
-        (body.project_id as string),
+        id, projectId,
         (body.case_number as string) || null,
         (body.violation_type as string),
         (body.violation_description as string) || null,
@@ -80,98 +104,35 @@ export async function POST(req: NextRequest) {
         complianceDeadline,
         (body.abatement_date as string) || null,
         (body.abatement_cost as number) ?? null,
-        (body.lien_filed as boolean) ? 1 : 0,
+        (body.lien_filed as number) ?? 0,
         (body.hearing_date as string) || null,
         (body.hearing_type as string) || null,
-        (body.appeal_filed as boolean) ? 1 : 0,
+        (body.appeal_filed as number) ?? 0,
         (body.appeal_date as string) || null,
         (body.outcome as string) || null,
         (body.notes as string) || null,
-        now,
-        now
+        new Date().toISOString(), new Date().toISOString(),
+        user.organization_id,
       )
       .run();
 
-    const created = await db
-      .prepare("SELECT * FROM code_enforcement_cases WHERE id = ?")
-      .bind(id)
-      .first();
+    await emitAuditEvent({
+      db,
+      actor: humanActor(user),
+      action: "case.update",
+      resourceType: "code_enforcement_case",
+      resourceId: id,
+      detail: `CE case '${body.case_number || "unnamed"}' added by ${user.name}`,
+    });
 
-    return NextResponse.json(created, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { id, created: true },
+      { status: 201, headers: { "Cache-Control": "no-store" } },
+    );
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500, headers: { "Cache-Control": "no-store" } });
-  }
-}
-
-// PATCH /api/v1/enforcement?id=xxx
-export async function PATCH(req: NextRequest) {
-  try {
-    const id = req.nextUrl.searchParams.get("id");
-    if (!id) {
-      return NextResponse.json({ error: "id is required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
-    }
-
-    const body = await req.json() as Record<string, unknown>;
-    const { env } = getCloudflareContext();
-    const db = env.DB;
-
-    const fields: string[] = [];
-    const values: unknown[] = [];
-
-    const allowed = [
-      "case_number", "violation_type", "violation_description", "severity", "status",
-      "notice_served_date", "notice_method", "notice_period_days", "compliance_deadline",
-      "abatement_date", "abatement_cost", "hearing_date", "hearing_type",
-      "appeal_filed", "appeal_date", "outcome", "notes",
-    ];
-
-    for (const key of allowed) {
-      if (body[key] !== undefined) {
-        fields.push(`${key} = ?`);
-        values.push(body[key]);
-      }
-    }
-    if (body.lien_filed !== undefined) {
-      fields.push("lien_filed = ?");
-      values.push((body.lien_filed as boolean) ? 1 : 0);
-    }
-
-    if (fields.length === 0) {
-      return NextResponse.json({ error: "no fields to update" }, { status: 400, headers: { "Cache-Control": "no-store" } });
-    }
-
-    fields.push(`updated_at = ?`);
-    values.push(new Date().toISOString());
-    values.push(id);
-
-    await db.prepare(`UPDATE code_enforcement_cases SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
-
-    const updated = await db
-      .prepare("SELECT * FROM code_enforcement_cases WHERE id = ?")
-      .bind(id)
-      .first();
-
-    return NextResponse.json(updated, { headers: { "Cache-Control": "no-store" } });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500, headers: { "Cache-Control": "no-store" } });
-  }
-}
-
-// DELETE /api/v1/enforcement?id=xxx
-export async function DELETE(req: NextRequest) {
-  try {
-    const id = req.nextUrl.searchParams.get("id");
-    if (!id) {
-      return NextResponse.json({ error: "id is required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
-    }
-
-    const { env } = getCloudflareContext();
-    const db = env.DB;
-
-    await db.prepare("DELETE FROM code_enforcement_cases WHERE id = ?").bind(id).run();
-
-    return NextResponse.json({ success: true, id }, { headers: { "Cache-Control": "no-store" } });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { error: String(err) },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }

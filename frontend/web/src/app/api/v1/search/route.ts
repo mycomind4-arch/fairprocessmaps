@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { requireAuth } from "@/lib/security/middleware";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireAuth(req);
+    if (!auth.ok) return auth.response;
+
     const q = req.nextUrl.searchParams.get("q");
     if (!q || q.trim().length < 2) {
       return NextResponse.json({ items: [] }, { headers: { "Cache-Control": "no-store" } });
@@ -13,10 +17,10 @@ export async function GET(req: NextRequest) {
     const { env } = getCloudflareContext();
     const db = env.DB;
 
+    // Properties are shared county-wide data — no org filter on property search
     const query = q.trim();
     const likeQuery = `%${query}%`;
 
-    // Search properties by APN or address
     const properties = await db
       .prepare(
         `SELECT id, apn, address, city, zoning, acres, created_at
@@ -25,7 +29,7 @@ export async function GET(req: NextRequest) {
          ORDER BY
            CASE WHEN apn LIKE ? THEN 0 ELSE 1 END,
            created_at DESC
-         LIMIT 10`
+         LIMIT 10`,
       )
       .bind(likeQuery, likeQuery, likeQuery, `${query}%`)
       .all();
@@ -44,7 +48,7 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       { error: String(err) },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

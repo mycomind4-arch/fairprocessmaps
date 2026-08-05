@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { requireAuth } from "@/lib/security/middleware";
 
 export const runtime = "nodejs";
 
@@ -15,14 +16,22 @@ interface ResolveBody {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
+  const user = auth.user;
+
   const body = (await req.json()) as ResolveBody;
   if (!body.apn) {
-    return NextResponse.json({ error: "apn is required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { error: "apn is required" },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const { env } = getCloudflareContext();
   const db = env.DB;
 
+  // Properties are shared county-wide data — no org filter
   const existing = await db
     .prepare("SELECT * FROM properties WHERE apn = ?")
     .bind(body.apn)
@@ -36,19 +45,10 @@ export async function POST(req: NextRequest) {
   await db
     .prepare(
       `INSERT INTO properties (id, apn, address, city, zoning, acres, legal_desc, centroid_lng, centroid_lat)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(
-      id,
-      body.apn,
-      body.address ?? null,
-      body.city ?? null,
-      body.zoning ?? null,
-      body.acres ?? null,
-      body.legal ?? null,
-      body.lng ?? null,
-      body.lat ?? null
-    )
+    .bind(id, body.apn, body.address ?? null, body.city ?? null, body.zoning ?? null,
+      body.acres ?? null, body.legal ?? null, body.lng ?? null, body.lat ?? null)
     .run();
 
   const created = await db.prepare("SELECT * FROM properties WHERE id = ?").bind(id).first();
