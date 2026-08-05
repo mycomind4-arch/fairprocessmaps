@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { AutoSaveIndicator } from "@/components/AutoSaveIndicator";
 import {
   ShieldAlert,
   Plus,
@@ -509,6 +510,7 @@ function CaseDetailModal({
 }) {
   const [caseData, setCaseData] = useState(initial);
   const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState({ saving: false, saved: false, error: null as string | null });
   const violation = VIOLATION_META[caseData.violation_type] ?? VIOLATION_META.other;
   const severity = SEVERITY_META[caseData.severity] ?? SEVERITY_META.moderate;
   const days = daysUntil(caseData.compliance_deadline);
@@ -533,7 +535,7 @@ function CaseDetailModal({
   };
 
   const updateField = async (field: string, value: unknown) => {
-    setSaving(true);
+    setSaveState({ saving: true, saved: false, error: null });
     try {
       const res = await fetch(`/api/v1/enforcement?id=${caseData.id}`, {
         method: "PATCH",
@@ -544,9 +546,13 @@ function CaseDetailModal({
         const updated = (await res.json()) as EnforcementCase;
         setCaseData(updated);
         onUpdate();
+        setSaveState({ saving: false, saved: true, error: null });
+        setTimeout(() => setSaveState((s) => ({ ...s, saved: false })), 2000);
+      } else {
+        setSaveState({ saving: false, saved: false, error: "Save failed" });
       }
-    } finally {
-      setSaving(false);
+    } catch (e: any) {
+      setSaveState({ saving: false, saved: false, error: e.message });
     }
   };
 
@@ -614,24 +620,27 @@ function CaseDetailModal({
           </div>
         </div>
 
-        {/* Details grid */}
+        {/* Details grid — editable, auto-saves on blur */}
         <div className="grid grid-cols-2 gap-3">
-          <DetailField label="Notice Served" value={fmtDate(caseData.notice_served_date)} icon={FileText} />
-          <DetailField label="Notice Method" value={caseData.notice_method?.replace(/_/g, " ") ?? "—"} icon={FileText} />
-          <DetailField label="Hearing Date" value={fmtDate(caseData.hearing_date)} icon={Gavel} />
-          <DetailField label="Hearing Type" value={caseData.hearing_type ?? "—"} icon={Gavel} />
-          <DetailField
-            label="Abatement Cost"
-            value={caseData.abatement_cost != null ? `$${caseData.abatement_cost.toLocaleString()}` : "—"}
-            icon={DollarSign}
-          />
-          <DetailField
-            label="Lien Filed"
-            value={caseData.lien_filed ? "Yes" : "No"}
-            icon={FileText}
-          />
-          <DetailField label="Appeal Filed" value={caseData.appeal_filed ? "Yes" : "—"} icon={Gavel} />
-          <DetailField label="Appeal Date" value={fmtDate(caseData.appeal_date)} icon={Calendar} />
+          <EditableField label="Notice Served" type="date" value={caseData.notice_served_date ?? ""} icon={FileText}
+            onSave={(v) => updateField("notice_served_date", v || null)} />
+          <EditableSelect label="Notice Method" value={caseData.notice_method ?? ""} icon={FileText}
+            options={[["certified_mail", "Certified Mail"], ["posting", "Posting on Property"], ["personal_service", "Personal Service"], ["publication", "Publication"]]}
+            onSave={(v) => updateField("notice_method", v || null)} />
+          <EditableField label="Hearing Date" type="date" value={caseData.hearing_date ?? ""} icon={Gavel}
+            onSave={(v) => updateField("hearing_date", v || null)} />
+          <EditableField label="Hearing Type" type="text" value={caseData.hearing_type ?? ""} icon={Gavel}
+            onSave={(v) => updateField("hearing_type", v || null)} />
+          <EditableField label="Abatement Cost" type="number" value={caseData.abatement_cost ?? ""} icon={DollarSign}
+            onSave={(v) => updateField("abatement_cost", v ? parseFloat(v) : null)} prefix="$" />
+          <EditableSelect label="Lien Filed" value={caseData.lien_filed ? "1" : "0"} icon={FileText}
+            options={[["0", "No"], ["1", "Yes"]]}
+            onSave={(v) => updateField("lien_filed", v === "1")} />
+          <EditableSelect label="Appeal Filed" value={caseData.appeal_filed ? "1" : "0"} icon={Gavel}
+            options={[["0", "No"], ["1", "Yes"]]}
+            onSave={(v) => updateField("appeal_filed", v === "1")} />
+          <EditableField label="Appeal Date" type="date" value={caseData.appeal_date ?? ""} icon={Calendar}
+            onSave={(v) => updateField("appeal_date", v || null)} />
         </div>
 
         {/* Legal reference */}
@@ -649,15 +658,21 @@ function CaseDetailModal({
           </div>
         )}
 
-        {/* Notes */}
-        {caseData.notes && (
-          <div>
-            <label className="text-xs font-medium text-fp-text-dim mb-1 block">Notes</label>
-            <p className="text-sm text-fp-text-muted bg-fp-surface/40 rounded-lg p-3 border border-fp-border">
-              {caseData.notes}
-            </p>
-          </div>
-        )}
+        {/* Notes — always show, editable */}
+        <div>
+          <label className="text-xs font-medium text-fp-text-dim mb-1 block">Notes</label>
+          <textarea
+            defaultValue={caseData.notes ?? ""}
+            placeholder="Add notes…"
+            rows={3}
+            onBlur={(e) => {
+              if (e.target.value !== (caseData.notes ?? "")) {
+                updateField("notes", e.target.value || null);
+              }
+            }}
+            className="w-full px-3 py-2 rounded-lg bg-fp-surface border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-cyan resize-none"
+          />
+        </div>
 
         {/* Outcome */}
         {caseData.outcome && (
@@ -668,6 +683,93 @@ function CaseDetailModal({
         )}
       </div>
     </Modal>
+  );
+}
+
+
+// ── Editable Field (auto-saves on blur) ──
+function EditableField({
+  label, type = "text", value, icon: Icon, onSave, prefix, suffix,
+}: {
+  label: string;
+  type?: string;
+  value: string | number;
+  icon: typeof FileText;
+  onSave: (value: string) => void;
+  prefix?: string;
+  suffix?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value));
+
+  const display = type === "date" && value
+    ? fmtDate(value as string)
+    : value === "" || (value === 0 && type !== "number")
+    ? "—"
+    : `${prefix ?? ""}${value}${suffix ?? ""}`;
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => { setDraft(String(value)); setEditing(true); }}
+        className="w-full text-left rounded-lg border border-fp-border bg-fp-surface/40 p-3 hover:border-fp-cyan/40 transition-colors"
+      >
+        <div className="flex items-center gap-1.5 mb-1">
+          <Icon className="w-3 h-3 text-fp-text-dim" />
+          <span className="text-[11px] text-fp-text-dim font-medium">{label}</span>
+        </div>
+        <span className="text-sm text-fp-text">{display}</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-fp-cyan/40 bg-fp-surface p-3">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Icon className="w-3 h-3 text-fp-cyan" />
+        <span className="text-[11px] text-fp-cyan font-medium">{label}</span>
+      </div>
+      <input
+        type={type}
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { setEditing(false); if (draft !== String(value)) onSave(draft); }}
+        onKeyDown={(e) => { if (e.key === "Enter") { setEditing(false); if (draft !== String(value)) onSave(draft); } if (e.key === "Escape") setEditing(false); }}
+        className="w-full px-2 py-1 rounded bg-fp-surface-2 border border-fp-border text-sm text-fp-text focus:outline-none focus:border-fp-cyan"
+      />
+    </div>
+  );
+}
+
+// ── Editable Select (auto-saves on change) ──
+function EditableSelect({
+  label, value, icon: Icon, options, onSave,
+}: {
+  label: string;
+  value: string;
+  icon: typeof FileText;
+  options: [string, string][];
+  onSave: (value: string) => void;
+}) {
+  const display = options.find(([k]) => k === value)?.[1] ?? value ?? "—";
+  return (
+    <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-3">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Icon className="w-3 h-3 text-fp-text-dim" />
+        <span className="text-[11px] text-fp-text-dim font-medium">{label}</span>
+      </div>
+      <select
+        value={value}
+        onChange={(e) => onSave(e.target.value)}
+        className="w-full px-2 py-1 rounded bg-fp-surface-2 border border-fp-border text-sm text-fp-text focus:outline-none focus:border-fp-cyan"
+      >
+        <option value="">—</option>
+        {options.map(([k, v]) => (
+          <option key={k} value={k}>{v}</option>
+        ))}
+      </select>
+    </div>
   );
 }
 

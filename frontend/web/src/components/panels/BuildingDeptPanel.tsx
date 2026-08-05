@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { AutoSaveIndicator } from "@/components/AutoSaveIndicator";
 import {
   Building2,
   Plus,
@@ -539,6 +540,8 @@ function PermitDetailModal({
   const days = daysUntil(permit.expired_date);
   const isExpired = days !== null && days < 0 && permit.permit_status !== "finalized" && permit.permit_status !== "denied";
 
+  const [saveState, setSaveState] = useState({ saving: false, saved: false, error: null as string | null });
+
   const updateStatus = async (newStatus: string) => {
     setSaving(true);
     try {
@@ -554,6 +557,28 @@ function PermitDetailModal({
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const updateField = async (field: string, value: unknown) => {
+    setSaveState({ saving: true, saved: false, error: null });
+    try {
+      const res = await fetch(`/api/v1/permits?id=${permit.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (res.ok) {
+        const updated = (await res.json()) as Permit;
+        setPermit(updated);
+        onUpdate();
+        setSaveState({ saving: false, saved: true, error: null });
+        setTimeout(() => setSaveState((s) => ({ ...s, saved: false })), 2000);
+      } else {
+        setSaveState({ saving: false, saved: false, error: "Save failed" });
+      }
+    } catch (e: any) {
+      setSaveState({ saving: false, saved: false, error: e.message });
     }
   };
 
@@ -623,12 +648,18 @@ function PermitDetailModal({
 
         {/* Details grid */}
         <div className="grid grid-cols-2 gap-3">
-          <DetailField label="Issued Date" value={fmtDate(permit.issued_date)} icon={Calendar} />
-          <DetailField label="Finalized Date" value={fmtDate(permit.finalized_date)} icon={CheckCircle2} />
-          <DetailField label="Valuation" value={permit.valuation != null ? `$${permit.valuation.toLocaleString()}` : "—"} icon={DollarSign} />
-          <DetailField label="Square Footage" value={permit.sqft != null ? `${permit.sqft.toLocaleString()} sqft` : "—"} icon={Building2} />
-          <DetailField label="Inspector" value={permit.assigned_inspector ?? "—"} icon={HardHat} />
-          <DetailField label="Inspections" value={String(permit.inspections_count ?? 0)} icon={ClipboardCheck} />
+          <EditableField label="Issued Date" type="date" value={permit.issued_date ?? ""} icon={Calendar}
+            onSave={(v) => updateField("issued_date", v || null)} />
+          <EditableField label="Finalized Date" type="date" value={permit.finalized_date ?? ""} icon={CheckCircle2}
+            onSave={(v) => updateField("finalized_date", v || null)} />
+          <EditableField label="Valuation" type="number" value={permit.valuation ?? ""} icon={DollarSign}
+            onSave={(v) => updateField("valuation", v ? parseFloat(v) : null)} prefix="$" />
+          <EditableField label="Square Footage" type="number" value={permit.sqft ?? ""} icon={Building2}
+            onSave={(v) => updateField("sqft", v ? parseFloat(v) : null)} suffix=" sqft" />
+          <EditableField label="Inspector" type="text" value={permit.assigned_inspector ?? ""} icon={HardHat}
+            onSave={(v) => updateField("assigned_inspector", v || null)} />
+          <EditableField label="Inspections" type="number" value={permit.inspections_count ?? 0} icon={ClipboardCheck}
+            onSave={(v) => updateField("inspections_count", v ? parseInt(v) : 0)} />
         </div>
 
         {/* Last inspection */}
@@ -648,15 +679,21 @@ function PermitDetailModal({
           </div>
         )}
 
-        {/* Notes */}
-        {permit.notes && (
-          <div>
-            <label className="text-xs font-medium text-fp-text-dim mb-1 block">Notes</label>
-            <p className="text-sm text-fp-text-muted bg-fp-surface/40 rounded-lg p-3 border border-fp-border">
-              {permit.notes}
-            </p>
-          </div>
-        )}
+        {/* Notes — always show, editable */}
+        <div>
+          <label className="text-xs font-medium text-fp-text-dim mb-1 block">Notes</label>
+          <textarea
+            defaultValue={permit.notes ?? ""}
+            placeholder="Add notes…"
+            rows={3}
+            onBlur={(e) => {
+              if (e.target.value !== (permit.notes ?? "")) {
+                updateField("notes", e.target.value || null);
+              }
+            }}
+            className="w-full px-3 py-2 rounded-lg bg-fp-surface border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-cyan resize-none"
+          />
+        </div>
       </div>
     </Modal>
   );
@@ -671,6 +708,62 @@ function DetailField({ label, value, icon: Icon }: { label: string; value: strin
         <span className="text-[11px] text-fp-text-dim font-medium">{label}</span>
       </div>
       <span className="text-sm text-fp-text">{value}</span>
+    </div>
+  );
+}
+
+
+// ── Editable Field (auto-saves on blur) ──
+function EditableField({
+  label, type = "text", value, icon: Icon, onSave, prefix, suffix,
+}: {
+  label: string;
+  type?: string;
+  value: string | number;
+  icon: typeof FileText;
+  onSave: (value: string) => void;
+  prefix?: string;
+  suffix?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value));
+
+  const display = type === "date" && value
+    ? fmtDate(value as string)
+    : value === "" || value === 0 && type !== "number"
+    ? "—"
+    : `${prefix ?? ""}${value}${suffix ?? ""}`;
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => { setDraft(String(value)); setEditing(true); }}
+        className="w-full text-left rounded-lg border border-fp-border bg-fp-surface/40 p-3 hover:border-fp-cyan/40 transition-colors"
+      >
+        <div className="flex items-center gap-1.5 mb-1">
+          <Icon className="w-3 h-3 text-fp-text-dim" />
+          <span className="text-[11px] text-fp-text-dim font-medium">{label}</span>
+        </div>
+        <span className="text-sm text-fp-text">{display}</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-fp-cyan/40 bg-fp-surface p-3">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Icon className="w-3 h-3 text-fp-cyan" />
+        <span className="text-[11px] text-fp-cyan font-medium">{label}</span>
+      </div>
+      <input
+        type={type}
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { setEditing(false); if (draft !== String(value)) onSave(draft); }}
+        onKeyDown={(e) => { if (e.key === "Enter") { setEditing(false); if (draft !== String(value)) onSave(draft); } if (e.key === "Escape") setEditing(false); }}
+        className="w-full px-2 py-1 rounded bg-fp-surface-2 border border-fp-border text-sm text-fp-text focus:outline-none focus:border-fp-cyan"
+      />
     </div>
   );
 }
