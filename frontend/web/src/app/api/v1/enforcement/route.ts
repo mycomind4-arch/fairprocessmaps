@@ -50,7 +50,6 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     const projectId = body.project_id as string;
 
-    // Auto-compute compliance deadline from notice date + notice period
     let complianceDeadline = (body.compliance_deadline as string) || null;
     if (!complianceDeadline && body.notice_served_date && body.notice_period_days) {
       const d = new Date(body.notice_served_date as string);
@@ -69,8 +68,7 @@ export async function POST(req: NextRequest) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
-        id,
-        projectId,
+        id, projectId,
         (body.case_number as string) || null,
         (body.violation_type as string),
         (body.violation_description as string) || null,
@@ -89,12 +87,11 @@ export async function POST(req: NextRequest) {
         (body.appeal_date as string) || null,
         (body.outcome as string) || null,
         (body.notes as string) || null,
-        now,
-        now
+        now, now
       )
       .run();
 
-    // ── Emit events to the Event Store ──
+    // ── Emit events with actual action dates as event_date ──
     await emitEvent(db, {
       case_id: projectId,
       event_type: "ce.case_created",
@@ -113,6 +110,7 @@ export async function POST(req: NextRequest) {
         entity_id: id,
         actor_type: "user",
         severity: "warning",
+        event_date: body.notice_served_date as string,
         title: `Notice served: ${body.violation_type || "violation"}`,
         payload: { notice_date: body.notice_served_date, notice_method: body.notice_method, notice_period_days: body.notice_period_days },
       });
@@ -124,6 +122,7 @@ export async function POST(req: NextRequest) {
         entity_type: "ce_case",
         entity_id: id,
         actor_type: "user",
+        event_date: body.hearing_date as string,
         title: `Hearing scheduled for ${body.hearing_date}`,
         payload: { hearing_date: body.hearing_date, hearing_type: body.hearing_type },
       });
@@ -136,6 +135,7 @@ export async function POST(req: NextRequest) {
         entity_id: id,
         actor_type: "system",
         severity: "warning",
+        event_date: complianceDeadline,
         title: `Compliance deadline: ${complianceDeadline}`,
         payload: { compliance_deadline: complianceDeadline, notice_period_days: body.notice_period_days },
       });
@@ -164,7 +164,6 @@ export async function PATCH(req: NextRequest) {
     const { env } = getCloudflareContext();
     const db = env.DB;
 
-    // Get the existing record to know the project_id and what changed
     const existing = await db.prepare("SELECT * FROM code_enforcement_cases WHERE id = ?").bind(id).first() as any;
     const projectId = existing?.project_id;
 
@@ -199,7 +198,7 @@ export async function PATCH(req: NextRequest) {
 
     await db.prepare(`UPDATE code_enforcement_cases SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
 
-    // ── Emit events for specific field changes ──
+    // ── Emit events with actual action dates as event_date ──
     if (projectId) {
       if (body.notice_served_date && body.notice_served_date !== existing?.notice_served_date) {
         await emitEvent(db, {
@@ -209,6 +208,7 @@ export async function PATCH(req: NextRequest) {
           entity_id: id,
           actor_type: "user",
           severity: "warning",
+          event_date: body.notice_served_date as string,
           title: `Notice served: ${existing?.violation_type || "violation"}`,
           payload: { notice_date: body.notice_served_date, notice_method: body.notice_method },
         });
@@ -220,6 +220,7 @@ export async function PATCH(req: NextRequest) {
           entity_type: "ce_case",
           entity_id: id,
           actor_type: "user",
+          event_date: body.hearing_date as string,
           title: `Hearing scheduled for ${body.hearing_date}`,
           payload: { hearing_date: body.hearing_date, hearing_type: body.hearing_type },
         });
@@ -232,6 +233,7 @@ export async function PATCH(req: NextRequest) {
           entity_id: id,
           actor_type: "user",
           severity: "critical",
+          event_date: body.abatement_date as string,
           title: `Property abated`,
           payload: { abatement_date: body.abatement_date, abatement_cost: body.abatement_cost },
         });
@@ -243,6 +245,7 @@ export async function PATCH(req: NextRequest) {
           entity_type: "ce_case",
           entity_id: id,
           actor_type: "user",
+          event_date: body.appeal_date as string,
           title: `Appeal filed`,
           payload: { appeal_date: body.appeal_date },
         });
