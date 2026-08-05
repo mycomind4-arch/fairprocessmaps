@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import type { CaseSummary, CaseGraph, CaseTimeline, TimelineEntry } from "@/lib/graph/types";
-import { ArrowLeft, Shield, Loader2, AlertTriangle, Clock, MapPin, FileText, Scale, Network, ChevronRight, Filter, Bot } from "lucide-react";
+import { ArrowLeft, Shield, Loader2, AlertTriangle, Clock, MapPin, FileText, Scale, Network, ChevronRight, ChevronDown, Filter, Bot } from "lucide-react";
 import InvestigationGraph from "@/components/InvestigationGraph";
 import TimelineList from "@/components/TimelineList";
 import DetailPanel from "@/components/DetailPanel";
@@ -23,6 +23,7 @@ export default function InvestigationView() {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set());
   const [activeDetailTab, setActiveDetailTab] = useState<"evidence" | "findings" | "authority" | "focus" | "agents">("evidence");
+  const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [visibleNodeTypes, setVisibleNodeTypes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -104,24 +105,24 @@ export default function InvestigationView() {
   return (
     <div className="h-screen flex flex-col bg-fp-bg overflow-hidden">
       {/* Case Header */}
-      <header className="shrink-0 border-b border-fp-border bg-fp-surface/60 backdrop-blur-xl">
-        <div className="flex items-center gap-4 px-6 py-3">
-          <button onClick={() => router.push("/dashboard")} className="text-fp-text-dim hover:text-fp-text transition-colors">
+      <header className="shrink-0 border-b border-fp-border bg-fp-surface/40 backdrop-blur-xl">
+        <div className="flex items-center gap-4 px-6 py-3.5">
+          <button onClick={() => router.push("/dashboard")} className="p-1.5 -ml-1.5 rounded-lg text-fp-text-dim hover:text-fp-text hover:bg-fp-surface-2 transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-fp-blue/80 to-fp-cyan/80 flex items-center justify-center">
+              <Shield className="w-3.5 h-3.5 text-white" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-fp-text leading-tight">{summary.case_name}</h1>
-              <div className="flex items-center gap-2 text-xs text-fp-text-dim mt-0.5">
+              <h1 className="text-sm font-semibold text-fp-text leading-tight tracking-tight">{summary.case_name}</h1>
+              <div className="flex items-center gap-2 text-[11px] text-fp-text-dim mt-0.5">
                 <MapPin className="w-3 h-3" />
                 <span>{summary.property.address || summary.property.apn}</span>
-                <span>•</span>
+                <span className="text-fp-border-hover">·</span>
                 <span>{summary.jurisdiction}</span>
-                <span>•</span>
-                <span className={summary.status === "open" ? "text-fp-amber" : "text-fp-green"}>{summary.status}</span>
+                <span className="text-fp-border-hover">·</span>
+                <span className={summary.status === "open" ? "text-fp-amber font-medium" : "text-fp-green font-medium"}>{summary.status}</span>
               </div>
             </div>
           </div>
@@ -140,19 +141,19 @@ export default function InvestigationView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-6 px-6 py-2 border-t border-fp-border/50 text-xs text-fp-text-dim">
-          <span className="flex items-center gap-1.5"><FileText className="w-3 h-3" />{summary.evidence_count} evidence</span>
-          <span className="flex items-center gap-1.5"><AlertTriangle className="w-3 h-3" />{summary.open_findings_count} open findings{summary.critical_findings_count > 0 && <span className="text-fp-red">({summary.critical_findings_count} critical)</span>}</span>
-          <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" />{summary.timeline_event_count} events</span>
+        <div className="flex items-center gap-6 px-6 py-2.5 border-t border-fp-border/50 text-xs">
+          <span className="flex items-center gap-1.5 text-fp-text-dim"><FileText className="w-3 h-3" /> <span className="text-fp-text-muted">Evidence</span> <span className="font-semibold text-fp-text">{summary.evidence_count}</span></span>
+          <span className="flex items-center gap-1.5 text-fp-text-dim"><AlertTriangle className="w-3 h-3" /> <span className="text-fp-text-muted">Findings</span> <span className="font-semibold text-fp-text">{summary.open_findings_count}</span>{summary.critical_findings_count > 0 && <span className="text-fp-red font-medium">({summary.critical_findings_count} critical)</span>}</span>
+          <span className="flex items-center gap-1.5 text-fp-text-dim"><Clock className="w-3 h-3" /> <span className="text-fp-text-muted">Timeline</span> <span className="font-semibold text-fp-text">{summary.timeline_event_count}</span></span>
           {summary.last_action.date && (
-            <span className="flex items-center gap-1.5">Last: {summary.last_action.type_label || summary.last_action.type}<span className="text-fp-text-muted">{summary.last_action.date}</span></span>
+            <span className="flex items-center gap-1.5 text-fp-text-dim">Last: {summary.last_action.type_label || summary.last_action.type} <span className="text-fp-text-muted">{summary.last_action.date}</span></span>
           )}
         </div>
       </header>
 
       {/* Timeline | Graph */}
       <div className="flex-1 flex min-h-0">
-        <div className="w-80 shrink-0 border-r border-fp-border bg-fp-surface/40 overflow-hidden flex flex-col">
+        <div className="w-72 shrink-0 border-r border-fp-border bg-fp-surface/40 overflow-hidden flex flex-col">
           <div className="shrink-0 px-4 py-2.5 border-b border-fp-border/50 flex items-center gap-2">
             <Clock className="w-3.5 h-3.5 text-fp-text-dim" />
             <h2 className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider">Timeline</h2>
@@ -196,8 +197,18 @@ export default function InvestigationView() {
       </div>
 
       {/* Detail Panel */}
-      <div className="h-64 shrink-0 border-t border-fp-border bg-fp-surface/60 backdrop-blur-xl overflow-hidden flex flex-col">
-        <DetailPanel graph={graph} summary={summary} caseId={id} selectedNode={selectedNode} selectedEvent={timeline?.events.find(e => e.id === selectedEvent) ?? null} activeTab={activeDetailTab} onTabChange={setActiveDetailTab} />
+      <div className={`shrink-0 border-t border-fp-border bg-fp-surface/40 backdrop-blur-xl overflow-hidden flex flex-col transition-all duration-200 ${detailCollapsed ? "h-10" : "h-64"}`}>
+        <button
+          onClick={() => setDetailCollapsed(!detailCollapsed)}
+          className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-fp-border/50 text-xs font-medium text-fp-text-muted hover:text-fp-text transition-colors w-full text-left"
+        >
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${detailCollapsed ? "rotate-180" : ""}`} />
+          <span className="uppercase tracking-wider">Details</span>
+          {selectedNode && <span className="text-fp-text-dim ml-2 normal-case tracking-normal">· selected node</span>}
+        </button>
+        {!detailCollapsed && (
+          <DetailPanel graph={graph} summary={summary} caseId={id} selectedNode={selectedNode} selectedEvent={timeline?.events.find(e => e.id === selectedEvent) ?? null} activeTab={activeDetailTab} onTabChange={setActiveDetailTab} />
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Scale, AlertTriangle, ShieldCheck, Loader2,
-  AlertCircle, RefreshCw, ChevronDown, Play, CheckCircle, XCircle,
+  AlertCircle, RefreshCw, Play, CheckCircle, XCircle,
   BookOpen, FileSearch, Gavel,
 } from "lucide-react";
 
@@ -25,9 +25,9 @@ function severityIcon(severity: string) {
 }
 
 function severityBorder(severity: string) {
-  if (severity === "critical") return "border-l-fp-red";
-  if (severity === "warning") return "border-l-fp-amber";
-  return "border-l-fp-cyan";
+  if (severity === "critical") return "fp-accent-left-red";
+  if (severity === "warning") return "fp-accent-left-amber";
+  return "fp-accent-left-cyan";
 }
 
 function ruleIcon(rule: string) {
@@ -49,19 +49,19 @@ function ruleLabel(finding: Finding) {
   return labels[finding.rule] ?? finding.rule.replace(/_/g, " ");
 }
 
-function FindingCard({ finding, onResolve, onDismiss, onReopen }: {
+function FindingRow({ finding, onResolve, onDismiss, onReopen }: {
   finding: Finding;
   onResolve: (id: string) => void;
   onDismiss: (id: string) => void;
   onReopen: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  
+
   return (
-    <div className={`rounded-xl border border-fp-border border-l-4 ${severityBorder(finding.severity)} bg-fp-surface/40 overflow-hidden`}>
+    <div className={`fp-card ${severityBorder(finding.severity)} overflow-hidden`}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-4 text-left hover:bg-fp-surface-2/40 transition-colors"
+        className="w-full flex items-center gap-4 p-4 text-left hover:bg-fp-surface-2/30 transition-colors"
       >
         {severityIcon(finding.severity)}
         <div className="flex-1 min-w-0">
@@ -73,14 +73,20 @@ function FindingCard({ finding, onResolve, onDismiss, onReopen }: {
             {finding.severity} · {finding.status} · {finding.created_at?.slice(0, 10)}
           </div>
         </div>
-        <ChevronDown
-          className={`w-4 h-4 text-fp-text-dim transition-transform ${expanded ? "rotate-180" : ""}`}
-        />
+        {finding.status === "open" ? (
+          <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-fp-amber/15 text-fp-amber shrink-0">
+            Open
+          </span>
+        ) : (
+          <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-fp-green/15 text-fp-green shrink-0">
+            {finding.status}
+          </span>
+        )}
       </button>
       {expanded && (
-        <div className="px-4 pb-4 pt-1 border-t border-fp-border/30">
+        <div className="px-4 pb-4 pt-1 border-t border-fp-border-subtle">
           {finding.detail && (
-            <p className="text-sm text-fp-text-muted leading-relaxed mt-2">{finding.detail}</p>
+            <p className="text-sm text-fp-text-muted leading-relaxed mt-3">{finding.detail}</p>
           )}
           {finding.evidence_id && (
             <div className="mt-3 text-[11px] text-fp-text-dim">
@@ -88,10 +94,10 @@ function FindingCard({ finding, onResolve, onDismiss, onReopen }: {
             </div>
           )}
           {finding.status === "open" && (
-            <div className="flex items-center gap-2 mt-3">
+            <div className="flex items-center gap-2 mt-4">
               <button
                 onClick={() => onResolve(finding.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-green/15 text-fp-green text-xs font-medium hover:bg-fp-green/25 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-green/10 text-fp-green text-xs font-medium hover:bg-fp-green/20 transition-colors"
               >
                 <CheckCircle className="w-3.5 h-3.5" /> Mark Resolved
               </button>
@@ -124,7 +130,6 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "statute" | "discrepancy" | "legacy">("all");
 
   const fetchData = async () => {
     setLoading(true);
@@ -179,15 +184,9 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
   const critical = findings.filter((f) => f.severity === "critical" && f.status === "open");
   const warnings = findings.filter((f) => f.severity === "warning" && f.status === "open");
   const resolved = findings.filter((f) => f.status === "resolved");
-
+  const missingInfo = findings.filter((f) => f.rule.startsWith("discrepancy_") && f.status === "open");
   const statuteFindings = findings.filter(f => f.rule.startsWith("statute_"));
-  const discrepancyFindings = findings.filter(f => f.rule.startsWith("discrepancy_"));
-  const legacyFindings = findings.filter(f => !f.rule.startsWith("statute_") && !f.rule.startsWith("discrepancy_"));
-
-  const filteredFindings = filter === "statute" ? statuteFindings
-    : filter === "discrepancy" ? discrepancyFindings
-    : filter === "legacy" ? legacyFindings
-    : findings;
+  const proceduralChecks = findings.filter(f => !f.rule.startsWith("statute_") && !f.rule.startsWith("discrepancy_"));
 
   function scoreColor(s: number | null) {
     if (s === null) return "text-fp-text-dim";
@@ -198,23 +197,19 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
   }
 
   return (
-    <div className="space-y-5 pb-8 max-w-4xl">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 pb-12 max-w-4xl">
+      {/* ── Page Header ── */}
+      <div className="fp-page-header flex items-start justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-fp-text">Due Process Analysis</h2>
-          <p className="text-xs text-fp-text-dim mt-0.5">
-            Multi-agent statute matching, discrepancy detection &amp; procedural analysis
+          <h2 className="fp-page-title">Due Process Analysis</h2>
+          <p className="fp-page-subtitle">
+            Multi-agent statute matching, discrepancy detection &amp; procedural analysis.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {score !== null && (
-            <div className="px-3 py-1.5 rounded-lg bg-fp-surface/60 border border-fp-border text-sm">
-              Score: <span className={`font-semibold ${scoreColor(score)}`}>{score}</span>
-            </div>
-          )}
           <button
             onClick={fetchData}
-            className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
+            className="p-2.5 rounded-lg fp-card fp-card-lift text-fp-text-muted hover:text-fp-text"
             title="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
@@ -222,10 +217,10 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
           <button
             onClick={runAnalysis}
             disabled={analyzing}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-fp-cyan text-white text-sm font-medium hover:bg-fp-cyan/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-fp-cyan text-white text-sm font-medium hover:bg-fp-cyan/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {analyzing ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Running Agents…</>
+              <><Loader2 className="w-4 h-4 animate-spin" /> Running…</>
             ) : (
               <><Play className="w-4 h-4" /> Run All Agents</>
             )}
@@ -233,79 +228,72 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
         </div>
       </div>
 
-      {/* Agent results banner */}
-      {analysisResult && !analyzing && (
-        <div className="rounded-xl border border-fp-cyan/20 bg-fp-cyan/5 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Scale className="w-4 h-4 text-fp-cyan" />
-            <span className="text-sm font-medium text-fp-text">Analysis Agents Complete</span>
+      {/* ── Overall Score ── */}
+      <div className="fp-card p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="fp-section-title">Overall Score</h3>
+            <div className="text-[11px] text-fp-text-dim mt-1">Composite due-process compliance rating</div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-            {analysisResult.results?.map((r: any, i: number) => (
-              <div key={i} className="rounded-lg bg-fp-surface/40 border border-fp-border p-2.5">
-                <div className="flex items-center gap-1.5">
-                  {r.status === "success" ? <CheckCircle className="w-3 h-3 text-fp-green" /> : <AlertCircle className="w-3 h-3 text-fp-amber" />}
-                  <span className="text-[11px] font-medium text-fp-text capitalize">{r.agent.replace(/_/g, " ")}</span>
-                </div>
-                <div className="text-[10px] text-fp-text-dim mt-1 line-clamp-2">{r.message}</div>
-              </div>
-            ))}
-          </div>
-          <div className="text-[10px] text-fp-text-dim mt-3 italic">
-            {analysisResult.guardrail}
+          <div className="text-right">
+            <div className={`text-4xl font-bold ${scoreColor(score)}`}>{score ?? "—"}</div>
+            <div className="text-[11px] text-fp-text-dim mt-1">
+              {score !== null && score >= 80 ? "Strong compliance" : score !== null && score >= 60 ? "Moderate compliance" : score !== null ? "Significant gaps" : "Not scored"}
+            </div>
           </div>
         </div>
-      )}
+        {analysisResult && !analyzing && (
+          <div className="mt-6 pt-6 border-t border-fp-border-subtle">
+            <div className="flex items-center gap-2 mb-3">
+              <Scale className="w-3.5 h-3.5 text-fp-cyan" />
+              <span className="text-xs font-medium text-fp-text">Agent Results</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {analysisResult.results?.map((r: any, i: number) => (
+                <div key={i} className="rounded-lg bg-fp-surface/40 border border-fp-border p-3">
+                  <div className="flex items-center gap-1.5">
+                    {r.status === "success" ? <CheckCircle className="w-3 h-3 text-fp-green" /> : <AlertCircle className="w-3 h-3 text-fp-amber" />}
+                    <span className="text-[11px] font-medium text-fp-text capitalize">{r.agent.replace(/_/g, " ")}</span>
+                  </div>
+                  <div className="text-[10px] text-fp-text-dim mt-1 line-clamp-2">{r.message}</div>
+                </div>
+              ))}
+            </div>
+            {analysisResult.guardrail && (
+              <div className="text-[10px] text-fp-text-dim mt-3 italic">{analysisResult.guardrail}</div>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* Summary tiles */}
+      {/* ── Observations ── */}
       {!loading && findings.length > 0 && (
-        <>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-lg border border-fp-red/20 bg-fp-red/5 p-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-fp-red" />
-                <div className="text-[10px] uppercase tracking-wider text-fp-text-dim font-medium">Critical</div>
-              </div>
-              <div className="text-2xl font-semibold text-fp-red mt-1">{critical.length}</div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="fp-card p-6">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-fp-red" />
+              <div className="text-[10px] uppercase tracking-wider text-fp-text-dim font-medium">Critical</div>
             </div>
-            <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-fp-amber" />
-                <div className="text-[10px] uppercase tracking-wider text-fp-text-dim font-medium">Warnings</div>
-              </div>
-              <div className="text-2xl font-semibold text-fp-text mt-1">{warnings.length}</div>
-            </div>
-            <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-4">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-fp-cyan" />
-                <div className="text-[10px] uppercase tracking-wider text-fp-text-dim font-medium">Resolved</div>
-              </div>
-              <div className="text-2xl font-semibold text-fp-text mt-1">{resolved.length}</div>
-            </div>
+            <div className="text-3xl font-semibold text-fp-red mt-2">{critical.length}</div>
+            <div className="text-[11px] text-fp-text-dim mt-1">Open critical findings</div>
           </div>
-
-          {/* Filter tabs */}
-          <div className="flex items-center gap-1 flex-wrap">
-            {([
-              { key: "all", label: "All", count: findings.length },
-              { key: "statute", label: "Statute Matching", count: statuteFindings.length },
-              { key: "discrepancy", label: "Discrepancies", count: discrepancyFindings.length },
-              ...(legacyFindings.length > 0 ? [{ key: "legacy" as const, label: "Rule-Based", count: legacyFindings.length }] : []),
-            ] as const).map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setFilter(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  filter === tab.key
-                    ? "bg-fp-cyan/15 text-fp-cyan"
-                    : "text-fp-text-dim hover:text-fp-text hover:bg-fp-surface-2/40"
-                }`}
-              >
-                {tab.label} <span className="opacity-60">({tab.count})</span>
-              </button>
-            ))}
+          <div className="fp-card p-6">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-fp-amber" />
+              <div className="text-[10px] uppercase tracking-wider text-fp-text-dim font-medium">Warnings</div>
+            </div>
+            <div className="text-3xl font-semibold text-fp-text mt-2">{warnings.length}</div>
+            <div className="text-[11px] text-fp-text-dim mt-1">Open warnings</div>
           </div>
-        </>
+          <div className="fp-card p-6">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-fp-cyan" />
+              <div className="text-[10px] uppercase tracking-wider text-fp-text-dim font-medium">Resolved</div>
+            </div>
+            <div className="text-3xl font-semibold text-fp-text mt-2">{resolved.length}</div>
+            <div className="text-[11px] text-fp-text-dim mt-1">Findings resolved</div>
+          </div>
+        </div>
       )}
 
       {loading && (
@@ -321,29 +309,77 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
         </div>
       )}
 
-      {/* Findings list */}
-      {!loading && filteredFindings.length > 0 && (
-        <div className="space-y-3">
-          {filteredFindings.map((f) => (
-            <FindingCard
-              key={f.id}
-              finding={f}
-              onResolve={(id) => updateStatus(id, "resolved")}
-              onDismiss={(id) => updateStatus(id, "dismissed")}
-              onReopen={(id) => updateStatus(id, "open")}
-            />
-          ))}
+      {/* ── Procedural Checks (Statute Matching) ── */}
+      {!loading && statuteFindings.length > 0 && (
+        <div>
+          <h3 className="fp-section-title mb-4">Procedural Checks</h3>
+          <p className="text-xs text-fp-text-dim mb-4">Statute-matched findings from California code enforcement law</p>
+          <div className="space-y-3">
+            {statuteFindings.map((f) => (
+              <FindingRow
+                key={f.id}
+                finding={f}
+                onResolve={(id) => updateStatus(id, "resolved")}
+                onDismiss={(id) => updateStatus(id, "dismissed")}
+                onReopen={(id) => updateStatus(id, "open")}
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      {!loading && filteredFindings.length === 0 && !error && (
-        <div className="text-center py-12">
-          <Scale className="w-10 h-10 text-fp-text-dim mx-auto mb-3" />
-          <p className="text-sm text-fp-text-dim">
-            {findings.length === 0
-              ? "No findings yet. Run the analysis agents to detect statute deviations and discrepancies."
-              : `No ${filter === "all" ? "" : filter + " "}findings.`}
+      {/* ── Missing Information (Discrepancies) ── */}
+      {!loading && missingInfo.length > 0 && (
+        <div>
+          <h3 className="fp-section-title mb-4">Missing Information</h3>
+          <p className="text-xs text-fp-text-dim mb-4">Discrepancy detection — required data or procedures not found</p>
+          <div className="space-y-3">
+            {missingInfo.map((f) => (
+              <FindingRow
+                key={f.id}
+                finding={f}
+                onResolve={(id) => updateStatus(id, "resolved")}
+                onDismiss={(id) => updateStatus(id, "dismissed")}
+                onReopen={(id) => updateStatus(id, "open")}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Legacy Rule-Based Findings ── */}
+      {!loading && proceduralChecks.length > 0 && (
+        <div>
+          <h3 className="fp-section-title mb-4">Rule-Based Findings</h3>
+          <div className="space-y-3">
+            {proceduralChecks.map((f) => (
+              <FindingRow
+                key={f.id}
+                finding={f}
+                onResolve={(id) => updateStatus(id, "resolved")}
+                onDismiss={(id) => updateStatus(id, "dismissed")}
+                onReopen={(id) => updateStatus(id, "open")}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Empty state ── */}
+      {!loading && findings.length === 0 && !error && (
+        <div className="fp-card p-12 text-center" style={{ borderStyle: "dashed" }}>
+          <Scale className="w-10 h-10 text-fp-text-dim mx-auto mb-4" />
+          <h3 className="text-sm font-medium text-fp-text">No analysis has been run yet.</h3>
+          <p className="text-xs text-fp-text-dim mt-1.5 mb-6 max-w-sm mx-auto">
+            Run the analysis agents to detect statute deviations, procedural discrepancies, and due process issues.
           </p>
+          <button
+            onClick={runAnalysis}
+            disabled={analyzing}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-fp-cyan text-white text-sm font-medium hover:bg-fp-cyan/90 disabled:opacity-50 transition-colors"
+          >
+            <Play className="w-4 h-4" /> Run Analysis
+          </button>
         </div>
       )}
     </div>

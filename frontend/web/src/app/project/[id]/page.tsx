@@ -15,7 +15,7 @@ import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
 import CodeEnforcementPanel from "@/components/panels/CodeEnforcementPanel";
 import BuildingDeptPanel from "@/components/panels/BuildingDeptPanel";
-import { ArrowLeft, Shield, Loader2, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Shield, Loader2, CheckCircle2, AlertCircle, RefreshCw, FileText, Clock, Scale, AlertTriangle } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
   return point ? { lng: point.coordinates[0], lat: point.coordinates[1] } : null;
@@ -40,7 +40,6 @@ export default function ProjectDashboard() {
   const [recon, setRecon] = useState<ReconStatus | null>(null);
   const [reconTriggered, setReconTriggered] = useState(false);
 
-  // Fetch project summary
   const fetchProject = useCallback(() => {
     fetch(`/api/v1/projects?id=${id}`, { headers: { "Cache-Control": "no-cache" } })
       .then((r) => r.json())
@@ -52,10 +51,6 @@ export default function ProjectDashboard() {
     fetchProject();
   }, [fetchProject]);
 
-  // ── Auto-trigger full property intelligence recon on project open ──
-  // Runs all 12 agents in parallel. For existing projects that already have
-  // recon data, the endpoint returns immediately ("already completed").
-  // To force re-run, the user can click the Refresh button.
   useEffect(() => {
     if (!id || reconTriggered) return;
     setReconTriggered(true);
@@ -107,7 +102,6 @@ export default function ProjectDashboard() {
           agents: data.results ?? [],
         });
 
-        // Refresh project data to pick up any new evidence/findings/score
         if (!wasSkipped) {
           setTimeout(() => fetchProject(), 1000);
         }
@@ -125,7 +119,6 @@ export default function ProjectDashboard() {
       });
   }, [id, reconTriggered, fetchProject]);
 
-  // Force re-run recon
   const reRunRecon = useCallback(() => {
     setRecon({
       running: true,
@@ -167,59 +160,101 @@ export default function ProjectDashboard() {
       });
   }, [id, fetchProject]);
 
+  const noMapSections = ["vault", "admin", "connectors", "legal", "code-enforcement", "building", "timeline"];
+
   return (
     <div className="h-screen flex flex-col bg-fp-bg overflow-hidden">
-      <header className="h-14 flex items-center px-4 gap-3 glass shrink-0 z-30 border-b border-fp-border">
-        <button
-          onClick={() => router.push("/dashboard")}
-          className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
-          title="Back to map"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <Shield className="w-4 h-4 text-fp-cyan" />
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-fp-text truncate">{project?.name ?? "Loading…"}</div>
-          <div className="text-[11px] text-fp-text-dim truncate">
-            {project?.property.address} · APN {project?.property.apn}
+      {/* ── Header: Case info bar ── */}
+      <header className="shrink-0 border-b border-fp-border bg-fp-surface/40 backdrop-blur-xl">
+        <div className="flex items-center gap-4 px-6 py-3">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="p-2 -ml-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-colors"
+            title="Back to dashboard"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-fp-blue/80 to-fp-cyan/80 flex items-center justify-center">
+              <Shield className="w-3.5 h-3.5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-semibold text-fp-text leading-tight tracking-tight">
+                {project?.property.address ?? "Loading…"}
+              </h1>
+              <div className="flex items-center gap-2 text-[11px] text-fp-text-dim mt-0.5">
+                <span className="capitalize font-medium text-fp-amber">Open Investigation</span>
+                <span className="text-fp-border-hover">·</span>
+                <span>{project?.property.city ?? "Humboldt County"}</span>
+                <span className="text-fp-border-hover">·</span>
+                <span className="font-mono">APN {project?.property.apn ?? "—"}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            {recon && (
+              <div className="flex items-center gap-2 text-xs mr-2">
+                {recon.running ? (
+                  <div className="flex items-center gap-1.5 text-fp-cyan">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span className="hidden sm:inline">Recon running…</span>
+                  </div>
+                ) : recon.failed > 0 ? (
+                  <div className="flex items-center gap-1.5 text-amber-400" title={recon.message}>
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{recon.succeeded}/{recon.agentCount} agents</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-emerald-400" title={recon.message}>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Recon complete</span>
+                  </div>
+                )}
+                <button
+                  onClick={reRunRecon}
+                  disabled={recon.running}
+                  className="p-1 rounded text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 disabled:opacity-50 transition-colors"
+                  title="Re-run full recon"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${recon.running ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Recon status indicator */}
-        {recon && (
-          <div className="flex items-center gap-2 text-xs">
-            {recon.running ? (
-              <div className="flex items-center gap-1.5 text-fp-cyan">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span className="hidden sm:inline">Recon running…</span>
-              </div>
-            ) : recon.failed > 0 ? (
-              <div className="flex items-center gap-1.5 text-amber-400" title={recon.message}>
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{recon.succeeded}/{recon.agentCount} agents</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 text-emerald-400" title={recon.message}>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Recon complete</span>
-              </div>
-            )}
-            <button
-              onClick={reRunRecon}
-              disabled={recon.running}
-              className="p-1 rounded text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 disabled:opacity-50"
-              title="Re-run full recon"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${recon.running ? "animate-spin" : ""}`} />
-            </button>
+        {/* ── Metrics strip ── */}
+        <div className="flex items-center gap-6 px-6 py-2.5 border-t border-fp-border/50 text-xs">
+          <span className="flex items-center gap-1.5">
+            <FileText className="w-3 h-3 text-fp-text-dim" />
+            <span className="text-fp-text-muted">Evidence</span>
+            <span className="font-semibold text-fp-text">{project?.evidenceCount ?? 0}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="w-3 h-3 text-fp-text-dim" />
+            <span className="text-fp-text-muted">Timeline</span>
+            <span className="font-semibold text-fp-text">{project?.openFindingsCount ?? 0}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Scale className="w-3 h-3 text-fp-text-dim" />
+            <span className="text-fp-text-muted">Findings</span>
+            <span className="font-semibold text-fp-text">{project?.openFindingsCount ?? 0}</span>
+          </span>
+          {(project?.criticalFindingsCount ?? 0) > 0 && (
+            <span className="flex items-center gap-1.5">
+              <AlertTriangle className="w-3 h-3 text-fp-red" />
+              <span className="text-fp-text-muted">Critical</span>
+              <span className="font-semibold text-fp-red">{project?.criticalFindingsCount}</span>
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="text-fp-text-muted">Risk</span>
+            <span className={`font-semibold ${(project?.criticalFindingsCount ?? 0) > 0 ? "text-fp-red" : "text-fp-amber"}`}>
+              {(project?.criticalFindingsCount ?? 0) > 0 ? "HIGH" : "MODERATE"}
+            </span>
           </div>
-        )}
-
-        {project?.due_process_score != null && (
-          <div className="text-xs font-medium text-fp-text-muted">
-            Score <span className="text-fp-text">{project.due_process_score}</span>
-          </div>
-        )}
+        </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
@@ -229,9 +264,8 @@ export default function ProjectDashboard() {
           criticalFindingsCount={project?.criticalFindingsCount ?? 0}
         />
 
-        <main className="flex-1 relative overflow-y-auto p-6">
-          {/* MiniMap floats in top-right for sections that need spatial context */}
-          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && section !== "code-enforcement" && section !== "building" && section !== "timeline" && (
+        <main className="flex-1 relative overflow-y-auto p-8">
+          {project?.property.centroid && !noMapSections.includes(section) && (
             <MiniMap
               centroid={toLngLat(project.property.centroid)!}
               geomGeoJSON={(project.property.geom as any) ?? undefined}

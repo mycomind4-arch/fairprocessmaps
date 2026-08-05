@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  Calendar, Loader2, AlertCircle, RefreshCw, Plus, X, Trash2, ChevronDown, ScanLine,
+  Calendar, Loader2, AlertCircle, RefreshCw, Plus, X, Trash2, ChevronDown,
 } from "lucide-react";
 import AgentAnalysisBanner from "@/components/AgentAnalysisBanner";
 
@@ -14,7 +14,26 @@ interface TimelineItem {
   evidence_title: string | null;
 }
 
-function eventTypeColor(type: string) {
+function eventTypeAccent(type: string) {
+  const colors: Record<string, string> = {
+    notice_sent: "fp-accent-left-blue",
+    hearing_held: "fp-accent-left-cyan",
+    appeal_filed: "fp-accent-left-purple",
+    deadline: "fp-accent-left-red",
+    correspondence: "fp-accent-left-gray",
+    inspection: "fp-accent-left-amber",
+    decision: "fp-accent-left-green",
+    fine_imposed: "fp-accent-left-red",
+    lien_filed: "fp-accent-left-red",
+    abatement: "fp-accent-left-amber",
+    evidence_uploaded: "fp-accent-left-blue",
+    intelligence_gathered: "fp-accent-left-purple",
+    other: "fp-accent-left-gray",
+  };
+  return colors[type] ?? "fp-accent-left-gray";
+}
+
+function eventTypeDotColor(type: string) {
   const colors: Record<string, string> = {
     notice_sent: "bg-fp-blue",
     hearing_held: "bg-fp-cyan",
@@ -109,22 +128,26 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
   };
 
   return (
-    <div className="space-y-5 pb-8 max-w-3xl">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 pb-12 max-w-3xl">
+      {/* ── Page Header ── */}
+      <div className="fp-page-header flex items-start justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-fp-text">Timeline</h2>
-          <p className="text-xs text-fp-text-dim mt-0.5">Chronological case events</p>
+          <h2 className="fp-page-title">Timeline</h2>
+          <p className="fp-page-subtitle">
+            Chronological record of evidence, government actions, and investigation events.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={fetchData}
-            className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
+            className="p-2.5 rounded-lg fp-card fp-card-lift text-fp-text-muted hover:text-fp-text"
+            title="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
           >
             {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {showAddForm ? "Cancel" : "Add Event"}
@@ -132,25 +155,25 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      {/* Add Event Form */}
+      {/* ── Add Event Form ── */}
       {showAddForm && (
-        <div className="rounded-xl border border-fp-border bg-fp-surface/60 p-5 space-y-4">
+        <div className="fp-card p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-fp-text-muted mb-1.5">Event Date</label>
+              <label className="block text-xs font-medium text-fp-text-muted mb-2">Event Date</label>
               <input
                 type="date"
                 value={newEvent.event_date}
                 onChange={(e) => setNewEvent({ ...newEvent, event_date: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-fp-bg border border-fp-border text-sm text-fp-text focus:outline-none focus:border-fp-blue/40"
+                className="w-full px-3 py-2.5 rounded-lg bg-fp-bg border border-fp-border text-sm text-fp-text focus:outline-none focus:border-fp-blue/40"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-fp-text-muted mb-1.5">Event Type</label>
+              <label className="block text-xs font-medium text-fp-text-muted mb-2">Event Type</label>
               <select
                 value={newEvent.event_type}
                 onChange={(e) => setNewEvent({ ...newEvent, event_type: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-fp-bg border border-fp-border text-sm text-fp-text focus:outline-none focus:border-fp-blue/40 appearance-none cursor-pointer"
+                className="w-full px-3 py-2.5 rounded-lg bg-fp-bg border border-fp-border text-sm text-fp-text focus:outline-none focus:border-fp-blue/40 appearance-none cursor-pointer"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23889099' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
                   backgroundRepeat: "no-repeat",
@@ -165,19 +188,19 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-fp-text-muted mb-1.5">Description (optional)</label>
+            <label className="block text-xs font-medium text-fp-text-muted mb-2">Description (optional)</label>
             <textarea
               value={newEvent.description}
               onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
               placeholder="Describe what happened…"
               rows={2}
-              className="w-full px-3 py-2 rounded-lg bg-fp-bg border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue/40 resize-none"
+              className="w-full px-3 py-2.5 rounded-lg bg-fp-bg border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue/40 resize-none"
             />
           </div>
           <button
             onClick={handleAdd}
             disabled={!newEvent.event_date || adding}
-            className="px-4 py-2 rounded-lg bg-fp-cyan text-white text-sm font-medium hover:bg-fp-cyan/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2.5 rounded-lg bg-fp-cyan text-white text-sm font-medium hover:bg-fp-cyan/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {adding ? "Adding…" : "Add to Timeline"}
           </button>
@@ -197,16 +220,17 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
         </div>
       )}
 
+      {/* ── Timeline cards ── */}
       {!loading && items.length > 0 && (
-        <div className="relative pl-6">
+        <div className="relative pl-8">
           {/* Vertical line */}
-          <div className="absolute left-2 top-2 bottom-2 w-px bg-fp-border" />
+          <div className="absolute left-[10px] top-2 bottom-2 w-px bg-fp-border" />
           <div className="space-y-4">
             {items.map((item) => (
               <div key={item.id} className="relative group">
                 {/* Dot */}
-                <div className={`absolute -left-[18px] top-3 w-3 h-3 rounded-full ${eventTypeColor(item.event_type)} ring-4 ring-fp-bg`} />
-                <div className="rounded-xl border border-fp-border bg-fp-surface/40 p-4 hover:border-fp-blue/30 transition-colors">
+                <div className={`absolute -left-[22px] top-5 w-3 h-3 rounded-full ${eventTypeDotColor(item.event_type)} ring-4 ring-fp-bg`} />
+                <div className={`fp-card ${eventTypeAccent(item.event_type)} p-5 fp-card-lift`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-fp-text capitalize">
                       {item.event_type.replace(/_/g, " ")}
@@ -223,10 +247,10 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
                     </div>
                   </div>
                   {item.description && (
-                    <p className="text-sm text-fp-text-muted mt-1">{item.description}</p>
+                    <p className="text-sm text-fp-text-muted mt-2 leading-relaxed">{item.description}</p>
                   )}
                   {item.evidence_title && (
-                    <div className="text-[11px] text-fp-text-dim mt-2 flex items-center gap-1">
+                    <div className="text-[11px] text-fp-text-dim mt-3 flex items-center gap-1.5">
                       <ChevronDown className="w-3 h-3" />
                       Source: {item.evidence_title}
                     </div>
@@ -238,17 +262,17 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
         </div>
       )}
 
+      {/* ── Empty state ── */}
       {!loading && items.length === 0 && !error && (
-        <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-12 text-center">
-          <Calendar className="w-10 h-10 text-fp-text-dim mx-auto mb-4" />
-          <h3 className="text-sm font-medium text-fp-text">No timeline events</h3>
-          <p className="text-xs text-fp-text-dim mt-1 mb-4">
-            Add events like notices, hearings, and decisions to build your case timeline.
-            The due-process analyzer evaluates these events automatically.
+        <div className="fp-card p-16 text-center" style={{ borderStyle: "dashed" }}>
+          <Calendar className="w-10 h-10 text-fp-text-dim mx-auto mb-5" />
+          <h3 className="text-sm font-medium text-fp-text">No timeline events have been recorded yet.</h3>
+          <p className="text-xs text-fp-text-dim mt-1.5 mb-6 max-w-sm mx-auto">
+            Add events manually or import evidence — dates from documents will be automatically extracted to build the timeline.
           </p>
           <button
             onClick={() => setShowAddForm(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
           >
             <Plus className="w-4 h-4" /> Add First Event
           </button>

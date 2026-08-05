@@ -89,26 +89,24 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
   };
 
   return (
-    <div className="space-y-5 pb-8 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 pb-12 max-w-5xl">
+      {/* ── Page Header ── */}
+      <div className="fp-page-header flex items-start justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-fp-text">Document Vault</h2>
-          <p className="text-xs text-fp-text-dim mt-0.5">
-            Evidence files, extracted text, and AI analysis
-          </p>
+          <h2 className="fp-page-title">Document Vault</h2>
+          <p className="fp-page-subtitle">Evidence files, extracted text, and AI analysis.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={fetchData}
-            className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
+            className="p-2.5 rounded-lg fp-card fp-card-lift text-fp-text-muted hover:text-fp-text"
             title="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
             onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
           >
             <Upload className="w-4 h-4" /> Upload
           </button>
@@ -123,7 +121,7 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1.5">
           {["all", "upload", "building_dept", "code_enforcement", "ai_research"].map((f) => (
             <button
@@ -171,7 +169,7 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
           {filtered.map((item) => (
             <div
               key={item.id}
-              className="rounded-xl border border-fp-border bg-fp-surface/40 p-4 hover:border-fp-blue/30 transition-colors cursor-pointer group"
+              className="fp-card fp-card-lift p-5 cursor-pointer group"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -207,10 +205,10 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
 
       {/* Empty state */}
       {!loading && filtered.length === 0 && !error && (
-        <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-12 text-center">
+        <div className="fp-card p-12 text-center" style={{ borderStyle: "dashed" }}>
           <FolderArchive className="w-10 h-10 text-fp-text-dim mx-auto mb-4" />
-          <h3 className="text-sm font-medium text-fp-text">No documents in vault</h3>
-          <p className="text-xs text-fp-text-dim mt-1 mb-4">
+          <h3 className="text-sm font-medium text-fp-text">No documents have been uploaded yet.</h3>
+          <p className="text-xs text-fp-text-dim mt-1.5 mb-6">
             Upload PDFs, photos, or correspondence to build your evidence file.
           </p>
           <button

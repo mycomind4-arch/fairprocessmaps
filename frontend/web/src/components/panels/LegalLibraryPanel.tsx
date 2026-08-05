@@ -85,13 +85,11 @@ export default function LegalLibraryPanel() {
   }, []);
 
   return (
-    <div className="space-y-5 pb-8 max-w-5xl">
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-semibold text-fp-text">Legal &amp; Law Library</h2>
-        <p className="text-xs text-fp-text-dim mt-0.5">
-          California code enforcement statutes, case law, and due process requirements
-        </p>
+    <div className="space-y-6 pb-12 max-w-5xl">
+      {/* ── Page Header ── */}
+      <div className="fp-page-header">
+        <h2 className="fp-page-title">Legal Library</h2>
+        <p className="fp-page-subtitle">California code enforcement statutes, case law, and due process requirements.</p>
       </div>
 
       {/* Tab switcher */}
@@ -126,12 +124,12 @@ export default function LegalLibraryPanel() {
         <>
           {/* Search */}
           <div className="relative">
-            <Search className="w-4 h-4 text-fp-text-dim absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-5 h-5 text-fp-text-dim absolute left-4 top-1/2 -translate-y-1/2" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search statutes, cases, keywords…"
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-fp-surface border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-cyan transition-colors"
+              className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-fp-surface border border-fp-border text-base text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-cyan transition-colors"
             />
           </div>
 
@@ -175,7 +173,7 @@ export default function LegalLibraryPanel() {
               return (
                 <div
                   key={ref.id}
-                  className="rounded-xl border border-fp-border bg-fp-surface/40 overflow-hidden transition-colors hover:border-fp-border-hover"
+                  className="fp-card overflow-hidden hover:border-fp-border-hover"
                 >
                   <button
                     onClick={() => toggle(ref.id)}
@@ -268,7 +266,7 @@ export default function LegalLibraryPanel() {
               return (
                 <div
                   key={statute.ref}
-                  className="rounded-xl border border-fp-border bg-fp-surface/40 overflow-hidden transition-colors hover:border-fp-border-hover"
+                  className="fp-card overflow-hidden hover:border-fp-border-hover"
                 >
                   <button
                     onClick={() => toggle(id)}

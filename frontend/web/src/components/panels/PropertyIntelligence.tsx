@@ -58,10 +58,10 @@ function FieldRow({
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-4">
+    <div className="fp-card p-6">
       <div className="text-[10px] uppercase tracking-wider text-fp-text-dim font-medium">{label}</div>
-      <div className="text-2xl font-semibold text-fp-text mt-1">{value}</div>
-      {sub && <div className="text-[11px] text-fp-text-dim mt-0.5">{sub}</div>}
+      <div className="text-2xl font-semibold text-fp-text mt-2">{value}</div>
+      {sub && <div className="text-[11px] text-fp-text-dim mt-1">{sub}</div>}
     </div>
   );
 }
@@ -89,10 +89,10 @@ function AgentSection({
   title, icon: Icon, children,
 }: { title: string; icon: typeof MapPin; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-fp-border bg-fp-surface/40 p-5">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="fp-card p-6">
+      <div className="flex items-center gap-2 mb-4">
         <Icon className="w-4 h-4 text-fp-cyan" />
-        <h3 className="text-sm font-medium text-fp-text">{title}</h3>
+        <h3 className="fp-section-title">{title}</h3>
       </div>
       {children}
     </div>
@@ -155,19 +155,19 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
   const recon = intel?.raw_data || {};
 
   return (
-    <div className="space-y-5 pb-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 pb-12">
+      {/* ── Page Header ── */}
+      <div className="fp-page-header flex items-start justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-fp-text">Property Intelligence</h2>
-          <p className="text-xs text-fp-text-dim mt-0.5">
+          <h2 className="fp-page-title">Property Intelligence</h2>
+          <p className="fp-page-subtitle">
             Full reconnaissance report for APN {data.apn}
             {intel?.fetched_at && ` · Last recon: ${intel.fetched_at.slice(0, 16).replace("T", " ")}`}
           </p>
         </div>
         <button
           onClick={fetchData}
-          className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
+          className="p-2.5 rounded-lg fp-card fp-card-lift text-fp-text-muted hover:text-fp-text"
           title="Refresh data"
         >
           <RefreshCw className="w-4 h-4" />
@@ -175,7 +175,7 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-4">
         <StatCard label="Projects" value={data.projectCount ?? 0} sub="enforcement cases" />
         <StatCard label="Evidence" value={data.evidenceCount ?? 0} sub="documents" />
         <StatCard label="Timeline" value={data.timelineCount ?? 0} sub="events logged" />

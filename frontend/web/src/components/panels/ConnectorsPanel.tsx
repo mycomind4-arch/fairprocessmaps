@@ -124,22 +124,23 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-fp-accent" />
+        <Loader2 className="h-6 w-6 animate-spin text-fp-blue" />
         <span className="ml-2 text-fp-text-muted">Loading connectors…</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 pb-12">
+      {/* ── Page Header ── */}
+      <div className="fp-page-header flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-fp-text">Connectors & Skills</h2>
-          <p className="text-sm text-fp-text-muted mt-0.5">County data integrations, scraping pipelines, and AI analysis tools</p>
+          <h2 className="fp-page-title">Connectors</h2>
+          <p className="fp-page-subtitle">County data integrations, scraping pipelines, and AI analysis tools.</p>
         </div>
         <button
           onClick={() => setShowCatalog(true)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-fp-accent px-3 py-1.5 text-sm font-medium text-black hover:bg-fp-accent/90 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-fp-blue px-4 py-2.5 text-sm font-medium text-white hover:bg-fp-blue/90 transition-colors"
         >
           <Plus className="h-4 w-4" />
           Add Connector
@@ -148,30 +149,30 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3">
-        <div className="rounded-lg border border-fp-border bg-fp-card p-4">
+        <div className="fp-card p-6">
           <div className="flex items-center justify-between">
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             <span className="text-2xl font-semibold text-fp-text">{connectedCount}</span>
           </div>
           <p className="text-xs text-fp-text-muted mt-1">Connected</p>
         </div>
-        <div className="rounded-lg border border-fp-border bg-fp-card p-4">
+        <div className="fp-card p-6">
           <div className="flex items-center justify-between">
             <Loader2 className="h-4 w-4 text-amber-500" />
             <span className="text-2xl font-semibold text-fp-text">{pendingCount}</span>
           </div>
           <p className="text-xs text-fp-text-muted mt-1">Pending</p>
         </div>
-        <div className="rounded-lg border border-fp-border bg-fp-card p-4">
+        <div className="fp-card p-6">
           <div className="flex items-center justify-between">
             <XCircle className="h-4 w-4 text-red-500" />
             <span className="text-2xl font-semibold text-fp-text">{errorCount}</span>
           </div>
           <p className="text-xs text-fp-text-muted mt-1">Errors</p>
         </div>
-        <div className="rounded-lg border border-fp-border bg-fp-card p-4">
+        <div className="fp-card p-6">
           <div className="flex items-center justify-between">
-            <Plug className="h-4 w-4 text-fp-accent" />
+            <Plug className="h-4 w-4 text-fp-blue" />
             <span className="text-2xl font-semibold text-fp-text">{connectors.length}</span>
           </div>
           <p className="text-xs text-fp-text-muted mt-1">Total</p>
@@ -180,13 +181,13 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
 
       {/* Connector List */}
       {connectors.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-fp-border p-12 text-center">
-          <Plug className="mx-auto h-10 w-10 text-fp-text-muted/40" />
-          <p className="mt-3 text-sm font-medium text-fp-text">No connectors configured</p>
-          <p className="text-xs text-fp-text-muted mt-1">Add a data source, scraper, or AI tool to start pulling county data automatically.</p>
+        <div className="fp-card p-12 text-center" style={{ borderStyle: "dashed" }}>
+          <Plug className="mx-auto h-10 w-10 text-fp-text-dim mb-4" />
+          <p className="text-sm font-medium text-fp-text">No connectors configured yet.</p>
+          <p className="text-xs text-fp-text-dim mt-1.5 mb-6">Add a data source, scraper, or AI tool to start pulling county data automatically.</p>
           <button
             onClick={() => setShowCatalog(true)}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-fp-accent px-3 py-1.5 text-sm font-medium text-black hover:bg-fp-accent/90 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-fp-blue px-4 py-2.5 text-sm font-medium text-white hover:bg-fp-blue/90 transition-colors"
           >
             <Plus className="h-4 w-4" />
             Browse Catalog
@@ -200,10 +201,10 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
               <button
                 key={c.id}
                 onClick={() => setSelectedConnector(c)}
-                className="w-full flex items-center gap-3 rounded-lg border border-fp-border bg-fp-card p-3 hover:border-fp-accent/30 transition-colors text-left"
+                className="w-full flex items-center gap-4 fp-card fp-card-lift p-4 text-left"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-fp-bg">
-                  <Icon className="h-5 w-5 text-fp-accent" />
+                  <Icon className="h-5 w-5 text-fp-blue" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -235,10 +236,10 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
               return (
                 <div
                   key={item.name}
-                  className="flex items-center gap-3 rounded-lg border border-fp-border bg-fp-card p-3"
+                  className="flex items-center gap-3 rounded-lg border border-fp-border bg-fp-surface/40 p-3"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-fp-bg">
-                    <Icon className="h-5 w-5 text-fp-accent" />
+                    <Icon className="h-5 w-5 text-fp-blue" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -250,7 +251,7 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
                   <button
                     disabled={alreadyAdded}
                     onClick={() => addConnector(item)}
-                    className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-fp-accent text-black hover:bg-fp-accent/90"
+                    className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-fp-blue text-black hover:bg-fp-blue/90"
                   >
                     {alreadyAdded ? "Added" : "Add"}
                   </button>
@@ -288,7 +289,7 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
             <div className="flex items-center gap-2 pt-2">
               <button
                 onClick={() => toggleStatus(selectedConnector.id)}
-                className="inline-flex items-center gap-1.5 rounded-md bg-fp-accent px-3 py-1.5 text-sm font-medium text-black hover:bg-fp-accent/90 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-md bg-fp-blue px-3 py-1.5 text-sm font-medium text-black hover:bg-fp-blue/90 transition-colors"
               >
                 <Zap className="h-4 w-4" />
                 {selectedConnector.status === "connected" ? "Disconnect" : "Connect"}
@@ -328,7 +329,7 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-xl border border-fp-border bg-fp-card p-6 max-h-[80vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-xl border border-fp-border bg-fp-surface/40 p-6 max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">

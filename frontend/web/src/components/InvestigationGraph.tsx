@@ -38,12 +38,12 @@ function layoutHierarchical(
   const positions = new Map<string, { x: number; y: number }>();
   if (nodes.length === 0) return positions;
 
-  const W = 800;
-  const H = 400;
+  const W = 1200;
+  const H = 600;
 
   // Layer 0: Case node at top center
   const caseNode = nodes.find(n => n.id === caseId);
-  if (caseNode) positions.set(caseNode.id, { x: W / 2, y: 30 });
+  if (caseNode) positions.set(caseNode.id, { x: W / 2, y: 50 });
 
   // Layer 1: Property below case
   const propertyEdges = edges.filter(e =>
@@ -55,18 +55,18 @@ function layoutHierarchical(
     ? propertyIds.map(id => nodes.find(n => n.id === id)).filter(Boolean) as GraphNode[]
     : [];
   for (let i = 0; i < propertyNodes.length; i++) {
-    positions.set(propertyNodes[i].id, { x: W / 2, y: 90 });
+    positions.set(propertyNodes[i].id, { x: W / 2, y: 140 });
   }
 
   // Layer 2: Evidence, Findings — children of case
   const evidenceNodes = nodes.filter(n => n.type === "evidence");
   const findingNodes = nodes.filter(n => n.type === "finding");
   const layer2Nodes = [...evidenceNodes, ...findingNodes];
-  const layer2Spacing = Math.min(120, (W - 100) / Math.max(layer2Nodes.length, 1));
+  const layer2Spacing = Math.min(160, (W - 120) / Math.max(layer2Nodes.length, 1));
   const layer2Start = (W - (layer2Nodes.length - 1) * layer2Spacing) / 2;
   for (let i = 0; i < layer2Nodes.length; i++) {
     if (!positions.has(layer2Nodes[i].id)) {
-      positions.set(layer2Nodes[i].id, { x: layer2Start + i * layer2Spacing, y: 170 });
+      positions.set(layer2Nodes[i].id, { x: layer2Start + i * layer2Spacing, y: 260 });
     }
   }
 
@@ -77,22 +77,22 @@ function layoutHierarchical(
   const ceNodes = nodes.filter(n => n.type === "ce_case");
   const eventNodes = nodes.filter(n => n.type === "event");
   const layer3Nodes = [...permitNodes, ...ceNodes, ...eventNodes];
-  const layer3Spacing = Math.min(100, (W - 80) / Math.max(layer3Nodes.length, 1));
+  const layer3Spacing = Math.min(140, (W - 100) / Math.max(layer3Nodes.length, 1));
   const layer3Start = (W - (layer3Nodes.length - 1) * layer3Spacing) / 2;
   for (let i = 0; i < layer3Nodes.length; i++) {
     if (!positions.has(layer3Nodes[i].id)) {
-      positions.set(layer3Nodes[i].id, { x: layer3Start + i * layer3Spacing, y: 240 });
+      positions.set(layer3Nodes[i].id, { x: layer3Start + i * layer3Spacing, y: 400 });
     }
   }
 
   // Layer 4: Authority chain (statute, official, department, authority, owner)
   const authorityTypes = ["statute", "official", "department", "authority", "owner"];
   const authorityNodes = nodes.filter(n => authorityTypes.includes(n.type));
-  const layer4Spacing = Math.min(90, (W - 60) / Math.max(authorityNodes.length, 1));
+  const layer4Spacing = Math.min(120, (W - 80) / Math.max(authorityNodes.length, 1));
   const layer4Start = (W - (authorityNodes.length - 1) * layer4Spacing) / 2;
   for (let i = 0; i < authorityNodes.length; i++) {
     if (!positions.has(authorityNodes[i].id)) {
-      positions.set(authorityNodes[i].id, { x: layer4Start + i * layer4Spacing, y: 310 });
+      positions.set(authorityNodes[i].id, { x: layer4Start + i * layer4Spacing, y: 520 });
     }
   }
 
@@ -100,7 +100,7 @@ function layoutHierarchical(
   for (const node of nodes) {
     if (!positions.has(node.id)) {
       const idx = Array.from(positions.keys()).length;
-      positions.set(node.id, { x: 50 + (idx * 60) % (W - 100), y: 360 });
+      positions.set(node.id, { x: 50 + (idx * 60) % (W - 100), y: 560 });
     }
   }
 
@@ -135,7 +135,7 @@ export default function InvestigationGraph({
 
   return (
     <div className="w-full h-full overflow-hidden relative">
-      <svg viewBox="0 0 800 400" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox="0 0 1200 600" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
         {/* Edges */}
         {edges.map((edge, i) => {
           const source = positions.get(edge.source);

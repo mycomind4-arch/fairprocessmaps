@@ -133,16 +133,16 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
   const totalValuation = permits.reduce((sum, p) => sum + (p.valuation ?? 0), 0);
 
   return (
-    <div className="space-y-5 pb-8 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 pb-12 max-w-5xl">
+      {/* ── Page Header ── */}
+      <div className="fp-page-header flex items-start justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-fp-text">Building Department</h2>
-          <p className="text-xs text-fp-text-dim mt-0.5">Permits, inspections, and building compliance</p>
+          <h2 className="fp-page-title">Building Department</h2>
+          <p className="fp-page-subtitle">Permits, inspections, and building compliance.</p>
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           Add Permit
@@ -150,7 +150,7 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-4">
         <StatTile label="Active Permits" value={activeCount} icon={Building2} />
         <StatTile label="Expired" value={expiredCount} icon={AlertTriangle} danger={expiredCount > 0} />
         <StatTile label="Inspections" value={inspectionsTotal} icon={ClipboardCheck} />
@@ -161,11 +161,11 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
       {loading ? (
         <div className="text-sm text-fp-text-dim text-center py-12">Loading permits…</div>
       ) : permits.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-12 text-center">
+        <div className="fp-card p-12 text-center" style={{ borderStyle: "dashed" }}>
           <Building2 className="w-10 h-10 text-fp-text-dim mx-auto mb-4" />
-          <h3 className="text-sm font-medium text-fp-text">No permits on file</h3>
-          <p className="text-xs text-fp-text-dim mt-1 max-w-sm mx-auto">
-            Add a building permit to track inspections, compliance, and valuation.
+          <h3 className="text-sm font-medium text-fp-text">No permits have been imported yet.</h3>
+          <p className="text-xs text-fp-text-dim mt-1.5 max-w-sm mx-auto">
+            Import permit records or add one manually to track inspections, compliance, and valuation.
           </p>
           <button
             onClick={() => setShowAdd(true)}
@@ -210,12 +210,12 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
 // ── Stat Tile ──
 function StatTile({ label, value, icon: Icon, danger }: { label: string; value: string | number; icon: typeof Building2; danger?: boolean }) {
   return (
-    <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-3">
-      <div className="flex items-center gap-1.5 mb-1">
+    <div className="fp-card p-5">
+      <div className="flex items-center gap-1.5 mb-2">
         <Icon className={`w-3.5 h-3.5 ${danger ? "text-fp-red" : "text-fp-text-dim"}`} />
-        <span className="text-[11px] text-fp-text-dim font-medium">{label}</span>
+        <span className="text-[10px] uppercase tracking-wider text-fp-text-dim font-medium">{label}</span>
       </div>
-      <span className={`text-lg font-semibold ${danger ? "text-fp-red" : "text-fp-text"}`}>{value}</span>
+      <span className={`text-xl font-semibold ${danger ? "text-fp-red" : "text-fp-text"}`}>{value}</span>
     </div>
   );
 }
@@ -234,7 +234,7 @@ function PermitCard({ permit, onClick }: { permit: Permit; onClick: () => void }
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-xl border border-fp-border bg-fp-surface/40 p-4 text-left hover:border-fp-border-hover transition-colors"
+      className="w-full fp-card fp-card-lift p-5 text-left"
     >
       {/* Top row */}
       <div className="flex items-start justify-between gap-3 mb-2">

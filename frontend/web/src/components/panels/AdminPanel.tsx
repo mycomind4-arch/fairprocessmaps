@@ -156,7 +156,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-fp-accent" />
+        <Loader2 className="h-6 w-6 animate-spin text-fp-blue" />
         <span className="ml-2 text-fp-text-muted">Loading admin settings…</span>
       </div>
     );
@@ -165,15 +165,15 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
   if (!settings) return null;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-semibold text-fp-text">Admin</h2>
-        <p className="text-sm text-fp-text-muted mt-0.5">Project settings, user management, and system configuration</p>
+    <div className="space-y-6 pb-12">
+      {/* ── Page Header ── */}
+      <div className="fp-page-header">
+        <h2 className="fp-page-title">Administration</h2>
+        <p className="fp-page-subtitle">Project settings, user management, and system configuration.</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-fp-border">
+      <div className="flex gap-1 border-b border-fp-border mb-6">
         {([
           { id: "general", label: "General", icon: Settings },
           { id: "members", label: "Members", icon: Users },
@@ -187,7 +187,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
                 activeTab === tab.id
-                  ? "text-fp-accent border-fp-accent"
+                  ? "text-fp-blue border-fp-blue"
                   : "text-fp-text-muted border-transparent hover:text-fp-text"
               }`}
             >
@@ -206,7 +206,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             <input
               value={settings.name}
               onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-              className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
+              className="w-full rounded-lg border border-fp-border bg-fp-bg px-3 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none"
               placeholder="Project name"
             />
           </div>
@@ -217,7 +217,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
               <select
                 value={settings.type}
                 onChange={(e) => setSettings({ ...settings, type: e.target.value })}
-                className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
+                className="w-full rounded-lg border border-fp-border bg-fp-bg px-3 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none"
               >
                 <option>Code Enforcement</option>
                 <option>Permit Dispute</option>
@@ -231,7 +231,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
               <select
                 value={settings.status}
                 onChange={(e) => setSettings({ ...settings, status: e.target.value })}
-                className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
+                className="w-full rounded-lg border border-fp-border bg-fp-bg px-3 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none"
               >
                 <option>Open</option>
                 <option>In Progress</option>
@@ -247,7 +247,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             <textarea
               value={settings.description}
               onChange={(e) => setSettings({ ...settings, description: e.target.value })}
-              className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none min-h-[80px]"
+              className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-blue focus:outline-none min-h-[80px]"
               placeholder="Brief description of this project"
             />
           </div>
@@ -258,7 +258,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
               <input
                 value={settings.jurisdiction}
                 onChange={(e) => setSettings({ ...settings, jurisdiction: e.target.value })}
-                className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
+                className="w-full rounded-lg border border-fp-border bg-fp-bg px-3 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none"
               />
             </div>
             <div>
@@ -267,15 +267,15 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
                 type="number"
                 value={settings.auto_expire_days}
                 onChange={(e) => setSettings({ ...settings, auto_expire_days: parseInt(e.target.value) || 180 })}
-                className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
+                className="w-full rounded-lg border border-fp-border bg-fp-bg px-3 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none"
               />
             </div>
           </div>
 
           {/* Notifications */}
-          <div className="rounded-lg border border-fp-border bg-fp-card p-4 space-y-3">
+          <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-4 space-y-3">
             <div className="flex items-center gap-2 text-sm font-medium text-fp-text">
-              <Activity className="h-4 w-4 text-fp-accent" />
+              <Activity className="h-4 w-4 text-fp-blue" />
               Notification Settings
             </div>
             {[
@@ -288,7 +288,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
                   type="checkbox"
                   checked={settings[item.key]}
                   onChange={(e) => setSettings({ ...settings, [item.key]: e.target.checked })}
-                  className="mt-0.5 h-4 w-4 rounded border-fp-border accent-fp-accent"
+                  className="mt-0.5 h-4 w-4 rounded border-fp-border accent-fp-blue"
                 />
                 <div>
                   <p className="text-sm text-fp-text">{item.label}</p>
@@ -303,7 +303,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             <button
               onClick={saveSettings}
               disabled={saving}
-              className="inline-flex items-center gap-1.5 rounded-md bg-fp-accent px-4 py-2 text-sm font-medium text-black hover:bg-fp-accent/90 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-fp-blue px-4 py-2 text-sm font-medium text-black hover:bg-fp-blue/90 transition-colors disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : savedFlash ? <Check className="h-4 w-4" /> : null}
               {saving ? "Saving…" : savedFlash ? "Saved!" : "Save Changes"}
@@ -319,7 +319,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             <p className="text-sm text-fp-text-muted">{members.length} member{members.length !== 1 ? "s" : ""}</p>
             <button
               onClick={() => setShowInvite(true)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-fp-accent px-3 py-1.5 text-sm font-medium text-black hover:bg-fp-accent/90 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md bg-fp-blue px-3 py-1.5 text-sm font-medium text-black hover:bg-fp-blue/90 transition-colors"
             >
               <Plus className="h-4 w-4" />
               Invite Member
@@ -328,8 +328,8 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
 
           <div className="space-y-2">
             {members.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 rounded-lg border border-fp-border bg-fp-card p-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-fp-bg text-sm font-medium text-fp-accent">
+              <div key={m.id} className="flex items-center gap-3 rounded-lg border border-fp-border bg-fp-surface/40 p-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-fp-bg text-sm font-medium text-fp-blue">
                   {m.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1">
@@ -356,9 +356,9 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
       {/* Data Tab */}
       {activeTab === "data" && (
         <div className="space-y-4 max-w-2xl">
-          <div className="rounded-lg border border-fp-border bg-fp-card p-4">
+          <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Download className="h-4 w-4 text-fp-accent" />
+              <Download className="h-4 w-4 text-fp-blue" />
               <span className="text-sm font-medium text-fp-text">Export Project Data</span>
             </div>
             <p className="text-xs text-fp-text-muted mb-3">
@@ -366,16 +366,16 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             </p>
             <button
               onClick={exportData}
-              className="inline-flex items-center gap-1.5 rounded-md border border-fp-border bg-fp-bg px-3 py-1.5 text-sm font-medium text-fp-text hover:border-fp-accent/30 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md border border-fp-border bg-fp-bg px-3 py-1.5 text-sm font-medium text-fp-text hover:border-fp-blue/30 transition-colors"
             >
               <Download className="h-4 w-4" />
               Export as JSON
             </button>
           </div>
 
-          <div className="rounded-lg border border-fp-border bg-fp-card p-4">
+          <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Database className="h-4 w-4 text-fp-accent" />
+              <Database className="h-4 w-4 text-fp-blue" />
               <span className="text-sm font-medium text-fp-text">Storage Usage</span>
             </div>
             <div className="space-y-2">
@@ -385,9 +385,9 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             </div>
           </div>
 
-          <div className="rounded-lg border border-fp-border bg-fp-card p-4">
+          <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Key className="h-4 w-4 text-fp-accent" />
+              <Key className="h-4 w-4 text-fp-blue" />
               <span className="text-sm font-medium text-fp-text">API Access</span>
             </div>
             <p className="text-xs text-fp-text-muted mb-2">Use this project's API endpoints to integrate with external tools.</p>
@@ -450,7 +450,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
       {/* Invite Modal */}
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowInvite(false)}>
-          <div className="w-full max-w-md rounded-xl border border-fp-border bg-fp-card p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md rounded-xl border border-fp-border bg-fp-surface/40 p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-fp-text">Invite Member</h3>
               <button onClick={() => setShowInvite(false)} className="text-fp-text-muted hover:text-fp-text">
@@ -464,7 +464,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
+                  className="w-full rounded-lg border border-fp-border bg-fp-bg px-3 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none"
                   placeholder="colleague@example.com"
                 />
               </div>
@@ -473,7 +473,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as "editor" | "viewer")}
-                  className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
+                  className="w-full rounded-lg border border-fp-border bg-fp-bg px-3 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none"
                 >
                   <option value="viewer">Viewer — read-only access</option>
                   <option value="editor">Editor — can add/edit evidence and cases</option>
@@ -481,7 +481,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
               </div>
               <button
                 onClick={addMember}
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-fp-accent px-4 py-2 text-sm font-medium text-black hover:bg-fp-accent/90 transition-colors"
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-fp-blue px-4 py-2 text-sm font-medium text-black hover:bg-fp-blue/90 transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 Send Invite
@@ -496,7 +496,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
 
 function RoleBadge({ role }: { role: "admin" | "editor" | "viewer" }) {
   const config = {
-    admin: { color: "text-fp-accent bg-fp-accent/10", label: "Admin" },
+    admin: { color: "text-fp-blue bg-fp-blue/10", label: "Admin" },
     editor: { color: "text-emerald-500 bg-emerald-950/40", label: "Editor" },
     viewer: { color: "text-fp-text-muted bg-fp-bg", label: "Viewer" },
   };

@@ -6,8 +6,9 @@
   --color-fp-surface: #0d1424;
   --color-fp-surface-2: #131c30;
   --color-fp-glass: rgba(19, 28, 48, 0.6);
-  --color-fp-border: rgba(56, 78, 122, 0.25);
-  --color-fp-border-hover: rgba(56, 78, 122, 0.45);
+  --color-fp-border: rgba(56, 78, 122, 0.18);
+  --color-fp-border-hover: rgba(56, 78, 122, 0.35);
+  --color-fp-border-subtle: rgba(56, 78, 122, 0.1);
 
   --color-fp-blue: #3b82f6;
   --color-fp-cyan: #06b6d4;
@@ -16,21 +17,38 @@
   --color-fp-amber: #f59e0b;
   --color-fp-green: #10b981;
   --color-fp-purple: #a78bfa;
+  --color-fp-orange: #f97316;
 
   --color-fp-text: #e2e8f0;
   --color-fp-text-muted: #94a3b8;
   --color-fp-text-dim: #64748b;
 
-  --radius-glass: 14px;
+  --radius-glass: 12px;
+
+  /* ── 8px spacing system ── */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
 
   /* ── Animations ── */
-  --animate-fade-in: fade-in 0.4s ease-out forwards;
-  --animate-slide-up: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  --animate-slide-down: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  --animate-slide-right: slide-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  --animate-scale-in: scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fade-in: fade-in 0.2s ease-out forwards;
+  --animate-slide-up: slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-down: slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-right: slide-right 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-scale-in: scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-card-lift: card-lift 0.18s ease-out forwards;
+  --animate-timeline-highlight: timeline-highlight 0.18s ease-out forwards;
+
+  /* ── Shadow system ── */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.12);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes fade-in {
@@ -39,22 +57,22 @@
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slide-down {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slide-right {
-  from { opacity: 0; transform: translateX(20px); }
+  from { opacity: 0; transform: translateX(12px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.96); }
+  from { opacity: 0; transform: scale(0.98); }
   to { opacity: 1; transform: scale(1); }
 }
 
@@ -64,8 +82,18 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
-  50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.35); }
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.1); }
+  50% { box-shadow: 0 0 28px rgba(59, 130, 246, 0.25); }
+}
+
+@keyframes card-lift {
+  from { transform: translateY(0); box-shadow: var(--shadow-card); }
+  to { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+}
+
+@keyframes timeline-highlight {
+  from { background-color: var(--color-fp-surface); }
+  to { background-color: rgba(59, 130, 246, 0.08); }
 }
 
 /* ── Base styles ── */
@@ -102,6 +130,58 @@ html, body {
 .glass-hover:hover {
   background: rgba(19, 28, 48, 0.8);
   border-color: var(--color-fp-border-hover);
+}
+
+/* ── Card utility ── */
+.fp-card {
+  border: 1px solid var(--color-fp-border);
+  background: rgba(13, 20, 36, 0.4);
+  border-radius: var(--radius-glass);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.fp-card-hover:hover {
+  border-color: var(--color-fp-border-hover);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
+}
+
+/* ── Page header utility ── */
+.fp-page-header {
+  padding-bottom: 24px;
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--color-fp-border);
+}
+
+.fp-page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-fp-text);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.fp-page-subtitle {
+  font-size: 13px;
+  color: var(--color-fp-text-dim);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+/* ── Section title utility ── */
+.fp-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-fp-text);
+  letter-spacing: -0.01em;
+}
+
+/* ── Metadata text ── */
+.fp-meta {
+  font-size: 11px;
+  color: var(--color-fp-text-dim);
+  letter-spacing: 0.01em;
 }
 
 /* ── Gradient text ── */
@@ -193,11 +273,11 @@ html, body {
 }
 
 .vis-time-axis .vis-grid.vis-minor {
-  border-color: rgba(56, 78, 122, 0.1) !important;
+  border-color: rgba(56, 78, 122, 0.08) !important;
 }
 
 .vis-time-axis .vis-grid.vis-major {
-  border-color: rgba(56, 78, 122, 0.2) !important;
+  border-color: rgba(56, 78, 122, 0.15) !important;
 }
 
 .vis-panel.vis-center, .vis-panel.vis-left, .vis-panel.vis-right {
@@ -225,3 +305,62 @@ select option {
   background: var(--color-fp-surface);
   color: var(--color-fp-text);
 }
+
+/* ── Table styles ── */
+.fp-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.fp-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-fp-text-dim);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-fp-border);
+  background: rgba(13, 20, 36, 0.6);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.fp-table td {
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--color-fp-text);
+  border-bottom: 1px solid var(--color-fp-border-subtle);
+  transition: background 0.15s ease;
+}
+
+.fp-table tr:hover td {
+  background: rgba(19, 28, 48, 0.4);
+}
+
+.fp-table td[data-align="right"],
+.fp-table th[data-align="right"] {
+  text-align: right;
+}
+
+/* ── Subtle card lift on hover ── */
+.fp-card-lift {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.fp-card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* ── Colored left border accents (for timeline cards etc.) ── */
+.fp-accent-left { border-left: 3px solid var(--color-fp-border); }
+.fp-accent-left-blue { border-left: 3px solid var(--color-fp-blue); }
+.fp-accent-left-cyan { border-left: 3px solid var(--color-fp-cyan); }
+.fp-accent-left-amber { border-left: 3px solid var(--color-fp-amber); }
+.fp-accent-left-red { border-left: 3px solid var(--color-fp-red); }
+.fp-accent-left-green { border-left: 3px solid var(--color-fp-green); }
+.fp-accent-left-purple { border-left: 3px solid var(--color-fp-purple); }
+.fp-accent-left-gray { border-left: 3px solid var(--color-fp-text-dim); }
