@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { runAnalysisAgents } from "@/lib/analysis-agents";
 import { runAnalysis, RULES } from "@/lib/auto-triggers";
-import { emitEvent, createRelationship } from "@/lib/event-store";
+import { emitEvent, createRelationship, findingFingerprint } from "@/lib/event-store";
 
 export const runtime = "nodejs";
 
@@ -50,7 +50,6 @@ export async function POST(req: NextRequest) {
     const { env } = getCloudflareContext();
     const db = env.DB;
 
-    // Get property ID for the project
     const project = await db
       .prepare("SELECT property_id FROM projects WHERE id = ?")
       .bind(projectId)
@@ -59,6 +58,21 @@ export async function POST(req: NextRequest) {
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404, headers: { "Cache-Control": "no-store" } });
     }
+
+    // ── Snapshot existing findings BEFORE analysis (for dedup) ──
+    const existingFindings = await db
+      .prepare("SELECT id, rule, evidence_id, detail FROM due_process_findings WHERE project_id = ?")
+      .bind(projectId)
+      .all();
+
+    const existingFingerprints = new Set(
+      (existingFindings.results || []).map((f: any) => findingFingerprint({
+        project_id: projectId,
+        rule: f.rule,
+        evidence_id: f.evidence_id,
+        detail: f.detail,
+      }))
+    );
 
     // ── Emit analysis.started event ──
     await emitEvent(db, {
@@ -96,71 +110,68 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // ── Create relationships for findings ──
-    // Each finding → supported_by → evidence (if evidence_id exists)
-    // Each finding → mandated_by → statute (if rule references a statute)
-    try {
-      const findings = await db
-        .prepare("SELECT id, rule, evidence_id FROM due_process_findings WHERE project_id = ? AND status = 'open'")
-        .bind(projectId)
-        .all();
+    // ── Query findings AFTER analysis ──
+    const allFindings = await db
+      .prepare("SELECT id, rule, rule_name, severity, detail, evidence_id FROM due_process_findings WHERE project_id = ? AND status = 'open'")
+      .bind(projectId)
+      .all();
 
-      for (const finding of (findings.results || []) as any[]) {
-        if (finding.evidence_id) {
-          await createRelationship(db, {
-            case_id: projectId,
-            source_type: "finding",
-            source_id: finding.id,
-            target_type: "evidence",
-            target_id: finding.evidence_id,
-            relationship_type: "supported_by",
-          });
-        }
-        // Map rule to statute reference where possible
-        const statuteMap: Record<string, string> = {
-          notice_timing: "HCC § 351-12",
-          hearing_right: "HCC § 311-3",
-          appeal_pathway: "CA Gov Code § 65905",
-          abatement_without_notice: "HCC § 311-3",
-          permit_review_right: "CA Gov Code § 65852.2",
-        };
-        const statuteRef = statuteMap[finding.rule];
-        if (statuteRef) {
-          await createRelationship(db, {
-            case_id: projectId,
-            source_type: "finding",
-            source_id: finding.id,
-            target_type: "statute",
-            target_id: statuteRef,
-            relationship_type: "mandated_by",
-          });
-        }
-      }
-    } catch {
-      // Relationship creation is best-effort
-    }
+    // ── Filter to ONLY new findings (not in the before-snapshot) ──
+    const newFindings = (allFindings.results || []).filter((f: any) => {
+      const fp = findingFingerprint({
+        project_id: projectId,
+        rule: f.rule,
+        evidence_id: f.evidence_id,
+        detail: f.detail,
+      });
+      return !existingFingerprints.has(fp);
+    });
 
-    // ── Emit finding.created events ──
-    try {
-      const newFindings = await db
-        .prepare("SELECT id, rule, rule_name, severity, detail, evidence_id FROM due_process_findings WHERE project_id = ? AND status = 'open'")
-        .bind(projectId)
-        .all();
+    // ── Create relationships ONLY for new findings ──
+    const statuteMap: Record<string, string> = {
+      notice_timing: "HCC § 351-12",
+      hearing_right: "HCC § 311-3",
+      appeal_pathway: "CA Gov Code § 65905",
+      abatement_without_notice: "HCC § 311-3",
+      permit_review_right: "CA Gov Code § 65852.2",
+    };
 
-      for (const finding of (newFindings.results || []) as any[]) {
-        await emitEvent(db, {
+    for (const finding of newFindings as any[]) {
+      if (finding.evidence_id) {
+        await createRelationship(db, {
           case_id: projectId,
-          event_type: "finding.created",
-          entity_type: "finding",
-          entity_id: finding.id,
-          actor_type: "ai_agent",
-          severity: finding.severity === "critical" ? "critical" : finding.severity === "warning" ? "warning" : "info",
-          title: `${finding.rule_name || finding.rule}: ${finding.detail?.slice(0, 100) || "Finding generated"}`,
-          payload: { rule: finding.rule, severity: finding.severity, evidence_id: finding.evidence_id },
+          source_type: "finding",
+          source_id: finding.id,
+          target_type: "evidence",
+          target_id: finding.evidence_id,
+          relationship_type: "supported_by",
         });
       }
-    } catch {
-      // Best-effort
+      const statuteRef = statuteMap[finding.rule];
+      if (statuteRef) {
+        await createRelationship(db, {
+          case_id: projectId,
+          source_type: "finding",
+          source_id: finding.id,
+          target_type: "statute",
+          target_id: statuteRef,
+          relationship_type: "mandated_by",
+        });
+      }
+    }
+
+    // ── Emit finding.created ONLY for new findings ──
+    for (const finding of newFindings as any[]) {
+      await emitEvent(db, {
+        case_id: projectId,
+        event_type: "finding.created",
+        entity_type: "finding",
+        entity_id: finding.id,
+        actor_type: "ai_agent",
+        severity: finding.severity === "critical" ? "critical" : finding.severity === "warning" ? "warning" : "info",
+        title: `${finding.rule_name || finding.rule}: ${finding.detail?.slice(0, 100) || "Finding generated"}`,
+        payload: { rule: finding.rule, severity: finding.severity, evidence_id: finding.evidence_id },
+      });
     }
 
     return NextResponse.json({
@@ -175,6 +186,7 @@ export async function POST(req: NextRequest) {
       totalFindings: analysisResult.totalFindings,
       criticalFindings: analysisResult.criticalFindings,
       warningFindings: analysisResult.warningFindings,
+      newFindingsEmitted: newFindings.length,
       guardrail: "You identify evidentiary status. You do not render legal conclusions.",
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
@@ -204,7 +216,6 @@ export async function PATCH(req: NextRequest) {
       .bind(body.status, findingId, projectId)
       .run();
 
-    // ── Emit finding.resolved event ──
     await emitEvent(db, {
       case_id: projectId,
       event_type: "finding.resolved",
