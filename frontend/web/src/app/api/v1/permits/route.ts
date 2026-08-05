@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { emitEvent } from "@/lib/event-store";
 
 export const runtime = "nodejs";
 
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+    const projectId = body.project_id as string;
 
     // Auto-compute expiry (180 days from issue for most permits)
     let expiredDate = (body.expired_date as string) || null;
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
       )
       .bind(
         id,
-        (body.project_id as string),
+        projectId,
         (body.permit_number as string) || null,
         (body.permit_type as string),
         (body.permit_status as string) || "pending",
@@ -86,6 +88,41 @@ export async function POST(req: NextRequest) {
         now
       )
       .run();
+
+    // ── Emit events to the Event Store ──
+    await emitEvent(db, {
+      case_id: projectId,
+      event_type: "permit.created",
+      entity_type: "permit",
+      entity_id: id,
+      actor_type: "user",
+      title: `Permit created: ${body.permit_type || "Building"}`,
+      payload: { permit_number: body.permit_number, permit_type: body.permit_type, permit_status: body.permit_status },
+    });
+
+    if (body.issued_date) {
+      await emitEvent(db, {
+        case_id: projectId,
+        event_type: "permit.issued",
+        entity_type: "permit",
+        entity_id: id,
+        actor_type: "user",
+        title: `Permit issued: ${body.permit_number || body.permit_type || "permit"}`,
+        payload: { issued_date: body.issued_date, permit_number: body.permit_number },
+      });
+    }
+    if (expiredDate) {
+      await emitEvent(db, {
+        case_id: projectId,
+        event_type: "permit.expired",
+        entity_type: "permit",
+        entity_id: id,
+        actor_type: "system",
+        severity: "warning",
+        title: `Permit expires: ${expiredDate}`,
+        payload: { expired_date: expiredDate, permit_number: body.permit_number },
+      });
+    }
 
     const created = await db
       .prepare("SELECT * FROM building_permits WHERE id = ?")
@@ -109,6 +146,10 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json() as Record<string, unknown>;
     const { env } = getCloudflareContext();
     const db = env.DB;
+
+    // Get existing record for project_id and change detection
+    const existing = await db.prepare("SELECT * FROM building_permits WHERE id = ?").bind(id).first() as any;
+    const projectId = existing?.project_id;
 
     const fields: string[] = [];
     const values: unknown[] = [];
@@ -136,6 +177,43 @@ export async function PATCH(req: NextRequest) {
     values.push(id);
 
     await db.prepare(`UPDATE building_permits SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+
+    // ── Emit events for specific changes ──
+    if (projectId) {
+      if (body.issued_date && body.issued_date !== existing?.issued_date) {
+        await emitEvent(db, {
+          case_id: projectId,
+          event_type: "permit.issued",
+          entity_type: "permit",
+          entity_id: id,
+          actor_type: "user",
+          title: `Permit issued: ${existing?.permit_number || "permit"}`,
+          payload: { issued_date: body.issued_date },
+        });
+      }
+      if (body.finalized_date && body.finalized_date !== existing?.finalized_date) {
+        await emitEvent(db, {
+          case_id: projectId,
+          event_type: "permit.finalized",
+          entity_type: "permit",
+          entity_id: id,
+          actor_type: "user",
+          title: `Permit finalized: ${existing?.permit_number || "permit"}`,
+          payload: { finalized_date: body.finalized_date },
+        });
+      }
+      if (body.last_inspection_date && body.last_inspection_date !== existing?.last_inspection_date) {
+        await emitEvent(db, {
+          case_id: projectId,
+          event_type: "permit.inspection",
+          entity_type: "permit",
+          entity_id: id,
+          actor_type: "user",
+          title: `Inspection: ${body.last_inspection_result || "result unknown"}`,
+          payload: { inspection_date: body.last_inspection_date, result: body.last_inspection_result },
+        });
+      }
+    }
 
     const updated = await db
       .prepare("SELECT * FROM building_permits WHERE id = ?")
