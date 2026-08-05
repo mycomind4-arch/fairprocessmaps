@@ -38,7 +38,7 @@ export default function Dashboard() {
     if (!loading) {
       fetch("/api/v1/projects/list", { headers: { "Cache-Control": "no-cache" } })
         .then((r) => r.json())
-        .then((d) => {
+        .then((d: any) => {
           setProjects(d.items ?? []);
           setFetching(false);
         })

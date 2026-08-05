@@ -75,7 +75,7 @@ export default function ProjectDashboard() {
       headers: { "Cache-Control": "no-cache" },
     })
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: any) => {
         if (data.error) {
           setRecon({
             running: false,
@@ -142,7 +142,7 @@ export default function ProjectDashboard() {
       headers: { "Cache-Control": "no-cache" },
     })
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: any) => {
         setRecon({
           running: false,
           agentCount: data.agentCount ?? 12,

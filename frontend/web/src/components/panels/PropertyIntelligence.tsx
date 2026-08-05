@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   MapPin, Building2, Ruler, FileText, Landmark,
   Calendar, Hash, Database, Loader2, AlertCircle, RefreshCw,
-  Waves, Flame, Tsunami, Mountain, Plane, TreePine, Home,
+  Waves, Flame, Activity, Mountain, Plane, TreePine, Home,
   ShieldAlert, ShieldCheck, ShieldX, ScrollText,
 } from "lucide-react";
 
@@ -67,15 +67,14 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
 }
 
 function HazardFlag({
-  icon: Icon, label, present, detail,
-}: { icon: typeof Waves; label: string; present: boolean | null; detail?: string | null }) {
-  const Icon = present ? ShieldAlert : present === false ? ShieldCheck : ShieldX;
+  label, present, detail,
+}: { label: string; present: boolean | null; detail?: string | null }) {
+  const StatusIcon = present ? ShieldAlert : present === false ? ShieldCheck : ShieldX;
   const color = present ? "text-fp-red border-fp-red/30 bg-fp-red/5" : present === false ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/5" : "text-fp-text-dim border-fp-border bg-fp-surface/20";
-  const SmallIcon = present ? Icon : present === false ? Icon : Icon;
 
   return (
     <div className={`flex items-start gap-2.5 rounded-lg border p-3 ${color}`}>
-      <SmallIcon className="w-4 h-4 shrink-0 mt-0.5" />
+      <StatusIcon className="w-4 h-4 shrink-0 mt-0.5" />
       <div className="min-w-0">
         <div className="text-xs font-medium">{label}</div>
         <div className="text-[11px] opacity-80 mt-0.5">
@@ -110,7 +109,6 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
     setLoading(true);
     setError(null);
     try {
-      // Fetch both property data and intelligence cache in parallel
       const [propRes, intelRes] = await Promise.all([
         fetch(`/api/v1/properties?id=${propertyId}`, { headers: { "Cache-Control": "no-cache" } }),
         fetch(`/api/v1/intelligence/data?propertyId=${propertyId}`, { headers: { "Cache-Control": "no-cache" } }),
@@ -123,7 +121,7 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
       if (intelRes.ok) {
         setIntel(await intelRes.json());
       } else if (intelRes.status === 404) {
-        setIntel(null); // No recon data yet
+        setIntel(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load property data");
@@ -211,15 +209,15 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
       {/* Environmental Hazards */}
       <AgentSection title="Environmental Hazards" icon={ShieldAlert}>
         <div className="grid grid-cols-3 gap-3">
-          <HazardFlag icon={Waves} label="Coastal Zone" present={recon.coastal_zone?.in_coastal_zone} detail={recon.coastal_zone?.coastal_basis} />
-          <HazardFlag icon={Waves} label="FEMA Flood Zone" present={recon.flood?.in_flood_zone} detail={recon.flood?.flood_zone_code ? `Zone ${recon.flood.flood_zone_code}` : null} />
-          <HazardFlag icon={Flame} label="Fire Hazard" present={recon.fire?.fire_hazard_severity ? true : null} detail={recon.fire?.fire_hazard_severity} />
-          <HazardFlag icon={Tsunami} label="Tsunami Zone" present={recon.tsunami?.in_tsunami_zone} />
-          <HazardFlag icon={Mountain} label="Earthquake Fault" present={recon.seismic?.in_earthquake_fault_zone} />
-          <HazardFlag icon={Mountain} label="Liquefaction" present={recon.seismic?.liquefaction_zone ? true : null} detail={recon.seismic?.liquefaction_zone} />
-          <HazardFlag icon={Mountain} label="Landslide Risk" present={recon.seismic?.landslide_feature ? true : null} detail={recon.seismic?.landslide_feature} />
-          <HazardFlag icon={Waves} label="Sea Level Rise" present={recon.sea_level_rise?.sea_level_rise_risk} />
-          <HazardFlag icon={Plane} label="Airport Compatibility" present={recon.airport?.in_airport_zone} detail={recon.airport?.airport_zone} />
+          <HazardFlag label="Coastal Zone" present={recon.coastal_zone?.in_coastal_zone} detail={recon.coastal_zone?.coastal_basis} />
+          <HazardFlag label="FEMA Flood Zone" present={recon.flood?.in_flood_zone} detail={recon.flood?.flood_zone_code ? `Zone ${recon.flood.flood_zone_code}` : null} />
+          <HazardFlag label="Fire Hazard" present={recon.fire?.fire_hazard_severity ? true : null} detail={recon.fire?.fire_hazard_severity} />
+          <HazardFlag label="Tsunami Zone" present={recon.tsunami?.in_tsunami_zone} />
+          <HazardFlag label="Earthquake Fault" present={recon.seismic?.in_earthquake_fault_zone} />
+          <HazardFlag label="Liquefaction" present={recon.seismic?.liquefaction_zone ? true : null} detail={recon.seismic?.liquefaction_zone} />
+          <HazardFlag label="Landslide Risk" present={recon.seismic?.landslide_feature ? true : null} detail={recon.seismic?.landslide_feature} />
+          <HazardFlag label="Sea Level Rise" present={recon.sea_level_rise?.sea_level_rise_risk} />
+          <HazardFlag label="Airport Compatibility" present={recon.airport?.in_airport_zone} detail={recon.airport?.airport_zone} />
         </div>
         {/* FEMA flood details */}
         {recon.flood?.in_flood_zone && (
@@ -259,9 +257,9 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
       {/* Natural Resources */}
       <AgentSection title="Natural Resources" icon={TreePine}>
         <div className="grid grid-cols-3 gap-3">
-          <HazardFlag icon={TreePine} label="Wetlands" present={recon.natural_resources?.has_wetlands} />
-          <HazardFlag icon={ScrollText} label="Williamson Act" present={recon.natural_resources?.williamson_act} detail={recon.natural_resources?.williamson_act_acres ? `${recon.natural_resources.williamson_act_acres} acres` : null} />
-          <HazardFlag icon={TreePine} label="Streamside Area" present={recon.natural_resources?.has_streamside_area} />
+          <HazardFlag label="Wetlands" present={recon.natural_resources?.has_wetlands} />
+          <HazardFlag label="Williamson Act" present={recon.natural_resources?.williamson_act} detail={recon.natural_resources?.williamson_act_acres ? `${recon.natural_resources.williamson_act_acres} acres` : null} />
+          <HazardFlag label="Streamside Area" present={recon.natural_resources?.has_streamside_area} />
         </div>
       </AgentSection>
 
@@ -303,7 +301,7 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
         </div>
       )}
 
-      {/* AI-Enriched Intelligence (future agents) */}
+      {/* Recon Not Yet Run */}
       {!intel && (
         <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-5">
           <div className="flex items-center gap-2 mb-3">
