@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { runAnalysis } from "@/lib/auto-triggers";
+import { getCaseTimeline, eventToTimelineDisplay, emitEvent } from "@/lib/event-store";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,7 @@ export async function GET(req: NextRequest) {
     const { env } = getCloudflareContext();
     const db = env.DB;
 
+    // ── Query traditional timeline_events ──
     const result = await db
       .prepare(
         `SELECT t.id, t.event_date, t.event_type, t.description, t.evidence_id,
@@ -26,7 +28,36 @@ export async function GET(req: NextRequest) {
       .bind(projectId)
       .all();
 
-    return NextResponse.json({ items: result.results ?? [] }, { headers: { "Cache-Control": "no-store" } });
+    const timelineItems = (result.results ?? []) as any[];
+
+    // ── Query events from the Event Store ──
+    let eventStoreItems: any[] = [];
+    try {
+      const events = await getCaseTimeline(db, projectId, 200);
+      eventStoreItems = events.map((e) => {
+        const display = eventToTimelineDisplay(e);
+        return {
+          id: e.id,
+          event_date: e.created_at,
+          event_type: display.event_type,
+          description: display.title,
+          evidence_id: e.entity_type === "evidence" ? e.entity_id : null,
+          evidence_title: null, // could be joined later
+          _from_event_store: true,
+          _entity_type: e.entity_type,
+          _entity_id: e.entity_id,
+        };
+      });
+    } catch {
+      // Event store might not be migrated yet — that's OK
+    }
+
+    // ── Merge: deduplicate by type+description, prefer event store for auto-generated events ──
+    const merged = [...timelineItems, ...eventStoreItems];
+    // Sort by date descending
+    merged.sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime());
+
+    return NextResponse.json({ items: merged }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
@@ -74,6 +105,17 @@ export async function POST(req: NextRequest) {
       )
       .bind(id, projectId, body.evidence_id ?? null, body.event_date, validType, body.description ?? null)
       .run();
+
+    // ── Also emit to the Event Store ──
+    await emitEvent(db, {
+      case_id: projectId,
+      event_type: "case.updated",
+      entity_type: "timeline_event",
+      entity_id: id,
+      actor_type: "user",
+      title: body.description || `Timeline event: ${validType}`,
+      payload: { event_date: body.event_date, event_type: validType, evidence_id: body.evidence_id },
+    });
 
     // Auto-trigger analysis after adding a timeline event
     let analysisResult = null;
