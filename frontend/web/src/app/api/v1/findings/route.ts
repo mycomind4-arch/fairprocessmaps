@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { runAnalysisAgents } from "@/lib/analysis-agents";
 import { runAnalysis, RULES } from "@/lib/auto-triggers";
+import { emitEvent, createRelationship } from "@/lib/event-store";
 
 export const runtime = "nodejs";
 
@@ -59,6 +60,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Project not found" }, { status: 404, headers: { "Cache-Control": "no-store" } });
     }
 
+    // ── Emit analysis.started event ──
+    await emitEvent(db, {
+      case_id: projectId,
+      event_type: "analysis.started",
+      entity_type: "analysis",
+      entity_id: projectId,
+      actor_type: "ai_agent",
+    });
+
     // Run the new multi-agent analysis system
     const analysisResult = await runAnalysisAgents({
       projectId,
@@ -67,8 +77,91 @@ export async function POST(req: NextRequest) {
     });
 
     // Also run the legacy rule-based analysis (for backward compatibility)
-    // This catches timeline-based rules that the agents don't cover
     const legacyResult = await runAnalysis(projectId);
+
+    // ── Emit analysis.completed event ──
+    await emitEvent(db, {
+      case_id: projectId,
+      event_type: "analysis.completed",
+      entity_type: "analysis",
+      entity_id: projectId,
+      actor_type: "ai_agent",
+      title: `Analysis complete: ${analysisResult.totalFindings} findings (${analysisResult.criticalFindings} critical)`,
+      payload: {
+        score: legacyResult.score,
+        total_findings: analysisResult.totalFindings,
+        critical_findings: analysisResult.criticalFindings,
+        warning_findings: analysisResult.warningFindings,
+        agent_count: analysisResult.results.length,
+      },
+    });
+
+    // ── Create relationships for findings ──
+    // Each finding → supported_by → evidence (if evidence_id exists)
+    // Each finding → mandated_by → statute (if rule references a statute)
+    try {
+      const findings = await db
+        .prepare("SELECT id, rule, evidence_id FROM due_process_findings WHERE project_id = ? AND status = 'open'")
+        .bind(projectId)
+        .all();
+
+      for (const finding of (findings.results || []) as any[]) {
+        if (finding.evidence_id) {
+          await createRelationship(db, {
+            case_id: projectId,
+            source_type: "finding",
+            source_id: finding.id,
+            target_type: "evidence",
+            target_id: finding.evidence_id,
+            relationship_type: "supported_by",
+          });
+        }
+        // Map rule to statute reference where possible
+        const statuteMap: Record<string, string> = {
+          notice_timing: "HCC § 351-12",
+          hearing_right: "HCC § 311-3",
+          appeal_pathway: "CA Gov Code § 65905",
+          abatement_without_notice: "HCC § 311-3",
+          permit_review_right: "CA Gov Code § 65852.2",
+        };
+        const statuteRef = statuteMap[finding.rule];
+        if (statuteRef) {
+          await createRelationship(db, {
+            case_id: projectId,
+            source_type: "finding",
+            source_id: finding.id,
+            target_type: "statute",
+            target_id: statuteRef,
+            relationship_type: "mandated_by",
+          });
+        }
+      }
+    } catch {
+      // Relationship creation is best-effort
+    }
+
+    // ── Emit finding.created events ──
+    try {
+      const newFindings = await db
+        .prepare("SELECT id, rule, rule_name, severity, detail, evidence_id FROM due_process_findings WHERE project_id = ? AND status = 'open'")
+        .bind(projectId)
+        .all();
+
+      for (const finding of (newFindings.results || []) as any[]) {
+        await emitEvent(db, {
+          case_id: projectId,
+          event_type: "finding.created",
+          entity_type: "finding",
+          entity_id: finding.id,
+          actor_type: "ai_agent",
+          severity: finding.severity === "critical" ? "critical" : finding.severity === "warning" ? "warning" : "info",
+          title: `${finding.rule_name || finding.rule}: ${finding.detail?.slice(0, 100) || "Finding generated"}`,
+          payload: { rule: finding.rule, severity: finding.severity, evidence_id: finding.evidence_id },
+        });
+      }
+    } catch {
+      // Best-effort
+    }
 
     return NextResponse.json({
       score: legacyResult.score,
@@ -110,6 +203,17 @@ export async function PATCH(req: NextRequest) {
       .prepare("UPDATE due_process_findings SET status = ? WHERE id = ? AND project_id = ?")
       .bind(body.status, findingId, projectId)
       .run();
+
+    // ── Emit finding.resolved event ──
+    await emitEvent(db, {
+      case_id: projectId,
+      event_type: "finding.resolved",
+      entity_type: "finding",
+      entity_id: findingId,
+      actor_type: "user",
+      title: `Finding ${body.status}`,
+      payload: { status: body.status },
+    });
 
     return NextResponse.json({ updated: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
