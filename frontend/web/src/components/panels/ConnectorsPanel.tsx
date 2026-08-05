@@ -158,14 +158,14 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
         </div>
         <div className="fp-card p-6">
           <div className="flex items-center justify-between">
-            <Loader2 className="h-4 w-4 text-amber-500" />
+            <Loader2 className="h-4 w-4 text-fp-amber" />
             <span className="text-2xl font-semibold text-fp-text">{pendingCount}</span>
           </div>
           <p className="text-xs text-fp-text-muted mt-1">Pending</p>
         </div>
         <div className="fp-card p-6">
           <div className="flex items-center justify-between">
-            <XCircle className="h-4 w-4 text-red-500" />
+            <XCircle className="h-4 w-4 text-fp-red" />
             <span className="text-2xl font-semibold text-fp-text">{errorCount}</span>
           </div>
           <p className="text-xs text-fp-text-muted mt-1">Errors</p>
@@ -296,7 +296,7 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
               </button>
               <button
                 onClick={() => removeConnector(selectedConnector.id)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-red-800/40 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-950/30 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-md border border-fp-red/40 px-3 py-1.5 text-sm font-medium text-fp-red hover:bg-fp-red/10 transition-colors"
               >
                 <Trash2 className="h-4 w-4" />
                 Remove
@@ -313,8 +313,8 @@ function StatusBadge({ status }: { status: Connector["status"] }) {
   const config = {
     connected: { color: "text-emerald-500 bg-emerald-950/40", label: "Connected", icon: CheckCircle2 },
     disconnected: { color: "text-fp-text-muted bg-fp-bg", label: "Disconnected", icon: XCircle },
-    error: { color: "text-red-500 bg-red-950/40", label: "Error", icon: XCircle },
-    pending: { color: "text-amber-500 bg-amber-950/40", label: "Pending", icon: Loader2 },
+    error: { color: "text-fp-red bg-fp-red/10", label: "Error", icon: XCircle },
+    pending: { color: "text-fp-amber bg-fp-amber/10", label: "Pending", icon: Loader2 },
   };
   const { color, label, icon: Icon } = config[status];
   return (

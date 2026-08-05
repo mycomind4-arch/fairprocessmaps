@@ -201,7 +201,7 @@ export default function ProjectDashboard() {
                     <span className="hidden sm:inline">Recon running…</span>
                   </div>
                 ) : recon.failed > 0 ? (
-                  <div className="flex items-center gap-1.5 text-amber-400" title={recon.message}>
+                  <div className="flex items-center gap-1.5 text-fp-amber" title={recon.message}>
                     <AlertCircle className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">{recon.succeeded}/{recon.agentCount} agents</span>
                   </div>

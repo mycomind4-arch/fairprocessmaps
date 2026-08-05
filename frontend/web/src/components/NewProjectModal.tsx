@@ -118,7 +118,7 @@ export default function NewProjectModal({ propertyId, propertyLabel, onClose, on
               ))}
             </select>
             {error && (
-              <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400">
+              <div className="mb-3 px-3 py-2 rounded-lg bg-fp-red/10 border border-fp-red/30 text-xs text-fp-red">
                 {error}
               </div>
             )}

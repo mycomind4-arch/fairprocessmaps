@@ -342,7 +342,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
                 {m.role !== "admin" && (
                   <button
                     onClick={() => removeMember(m.id)}
-                    className="text-fp-text-muted hover:text-red-500 transition-colors"
+                    className="text-fp-text-muted hover:text-fp-red transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -401,10 +401,10 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
       {/* Danger Zone Tab */}
       {activeTab === "danger" && (
         <div className="space-y-4 max-w-2xl">
-          <div className="rounded-lg border border-red-800/30 bg-red-950/10 p-4">
+          <div className="rounded-lg border border-fp-red/30 bg-fp-red/10 p-4">
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-              <span className="text-sm font-medium text-red-500">Delete Project</span>
+              <AlertTriangle className="h-4 w-4 text-fp-red" />
+              <span className="text-sm font-medium text-fp-red">Delete Project</span>
             </div>
             <p className="text-xs text-fp-text-muted mb-3">
               Permanently delete this project and all associated data including evidence, cases, permits, and timeline events. This action cannot be undone.
@@ -412,14 +412,14 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             {!showDeleteConfirm ? (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-red-800/40 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-950/30 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-md border border-red-800/40 px-3 py-1.5 text-sm font-medium text-fp-red hover:bg-red-950/30 transition-colors"
               >
                 <Trash2 className="h-4 w-4" />
                 Delete Project
               </button>
             ) : (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-red-500">Are you absolutely sure?</p>
+                <p className="text-sm font-medium text-fp-red">Are you absolutely sure?</p>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
@@ -435,7 +435,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
                       localStorage.removeItem(`fairprocess_connectors_${projectId}`);
                       window.location.href = "/";
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-fp-red px-3 py-1.5 text-sm font-medium text-fp-text hover:bg-fp-red/90 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                     Yes, Delete Forever

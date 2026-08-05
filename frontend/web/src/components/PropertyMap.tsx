@@ -406,10 +406,10 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
 
       {/* Map loading overlay */}
       {mapLoading && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-fp-bg/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
-            <span className="text-sm text-slate-400">Loading map…</span>
+            <span className="text-sm text-fp-text-dim">Loading map…</span>
           </div>
         </div>
       )}
@@ -423,7 +423,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
             className={`px-3 py-1.5 text-xs font-medium rounded-lg backdrop-blur-md border transition-all capitalize ${
               baseLayer === layer
                 ? "bg-cyan-500/30 border-cyan-400/50 text-cyan-100 shadow-[0_0_12px_rgba(34,211,238,0.3)]"
-                : "bg-slate-900/60 border-slate-700/50 text-slate-300 hover:bg-slate-800/60"
+                : "bg-fp-surface/60 border-fp-border text-fp-text-muted hover:bg-fp-surface-2"
             }`}
           >
             {layer}
@@ -433,8 +433,8 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
           onClick={() => setShowParcels(!showParcels)}
           className={`px-3 py-1.5 text-xs font-medium rounded-lg backdrop-blur-md border transition-all mt-1 ${
             showParcels
-              ? "bg-blue-500/30 border-blue-400/50 text-blue-100 shadow-[0_0_12px_rgba(59,130,246,0.3)]"
-              : "bg-slate-900/60 border-slate-700/50 text-slate-300 hover:bg-slate-800/60"
+              ? "bg-fp-blue/30 border-fp-blue/50 text-fp-text shadow-[0_0_12px_rgba(59,130,246,0.3)]"
+              : "bg-fp-surface/60 border-fp-border text-fp-text-muted hover:bg-fp-surface-2"
           }`}
         >
           Parcel Lines
@@ -444,7 +444,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
       {/* Zoom hint for parcel lines */}
       {showParcels && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-          <div className="px-3 py-1.5 text-xs text-slate-400 bg-slate-900/70 backdrop-blur-md border border-slate-700/40 rounded-lg">
+          <div className="px-3 py-1.5 text-xs text-fp-text-dim bg-fp-bg/70 backdrop-blur-md border border-fp-border rounded-lg">
             Zoom in to see parcel boundaries
           </div>
         </div>
@@ -452,7 +452,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
 
       {/* Loading indicator for parcel lookup */}
       {loadingParcel && (
-        <div className="absolute top-3 right-16 z-10 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-lg px-3 py-1.5 text-xs text-slate-300 animate-pulse">
+        <div className="absolute top-3 right-16 z-10 bg-fp-bg/80 backdrop-blur-md border border-fp-border rounded-lg px-3 py-1.5 text-xs text-fp-text-muted animate-pulse">
           Looking up parcel…
         </div>
       )}
