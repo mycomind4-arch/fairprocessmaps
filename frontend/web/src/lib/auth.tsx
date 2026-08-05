@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (res.ok) return res.json();
         return null;
       })
-      .then((data) => {
+      .then((data: any) => {
         if (!cancelled) {
           setUser(data?.user ?? null);
           setLoading(false);
@@ -67,11 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json().catch(() => ({})) as any;
       throw new Error(data.error ?? "Login failed");
     }
 
-    const data = await res.json();
+    const data = await res.json() as any;
     setUser(data.user);
   };
 

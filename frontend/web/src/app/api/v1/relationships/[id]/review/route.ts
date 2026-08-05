@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { requireAuth, requireAuthz } from "@/lib/security/middleware";
+import { requireAuth } from "@/lib/security/middleware";
+import { authorize } from "@/lib/security/authorization";
 
 export const runtime = "nodejs";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const auth = await requireAuth(req);
     if (!auth.ok) return auth.response;
 
-    const authz = requireAuthz(auth.user, "relationship.review");
+    const authz = authorize(auth.user, "relationship.review");
     if (!authz.allowed) {
       return NextResponse.json(
         { ok: false, data: null, error: { code: "FORBIDDEN", message: authz.reason ?? "Insufficient permissions" } },
@@ -20,7 +22,7 @@ export async function PATCH(
       );
     }
 
-    const body = await req.json();
+    const body = await req.json() as { status: string; review_reason?: string };
     const { status, review_reason } = body;
 
     if (!["accepted", "rejected", "superseded"].includes(status)) {
@@ -38,7 +40,7 @@ export async function PATCH(
       `UPDATE relationships
        SET status = ?, reviewed_by = ?, reviewed_by_type = ?, reviewed_at = datetime('now'), review_reason = ?
        WHERE id = ? AND status = 'pending_review'`,
-    ).bind(status, auth.user.id, auth.user.actor_type || "human", review_reason || null, params.id).run();
+    ).bind(status, auth.user.id, auth.user.actor_type || "human", review_reason || null, id).run();
 
     if (!result.success) {
       return NextResponse.json(
@@ -48,7 +50,7 @@ export async function PATCH(
     }
 
     return NextResponse.json(
-      { ok: true, data: { id: params.id, status }, error: null },
+      { ok: true, data: { id: id, status }, error: null },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {

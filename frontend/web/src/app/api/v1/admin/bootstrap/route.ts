@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const { env } = getCloudflareContext();
 
     // Layer 1: Environment token check
-    const expectedToken = (env as Record<string, string>).BOOTSTRAP_TOKEN;
+    const expectedToken = (env as unknown as Record<string, string>).BOOTSTRAP_TOKEN;
     if (!expectedToken) {
       return NextResponse.json(
         { error: "Bootstrap is not configured — set BOOTSTRAP_TOKEN environment variable" },

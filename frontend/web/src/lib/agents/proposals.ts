@@ -36,7 +36,7 @@ export async function listProposals(
 
   const stmt = db.prepare(sql).bind(...binds);
   const result = await stmt.all();
-  return (result.results ?? []).map(row => row as Record<string, unknown> as AgentProposal);
+  return (result.results ?? []).map(row => row as unknown as AgentProposal);
 }
 
 // ── Review Proposal ─────────────────────────────────────────────────────────

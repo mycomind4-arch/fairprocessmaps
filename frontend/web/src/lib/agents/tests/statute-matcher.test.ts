@@ -45,7 +45,7 @@ async function testMissingNoticeMatch() {
     jurisdiction: "Humboldt County",
     property: { apn: "", address: "", city: "", zoning: "" },
     timeline: [],
-    evidence: [{ id: "evi_001", title: "Notice of Violation", doc_type: "notice", file_url: null, uploaded_at: "2026-01-01" }],
+    evidence: [{ id: "evi_001", title: "Notice of Violation", doc_type: "notice", status: "active", source: "county_portal" }],
     findings: [{
       id: "finding_1",
       rule: "missing_notice",

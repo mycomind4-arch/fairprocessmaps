@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       evidenceId: body.evidence_id,
       eventDate: body.event_date,
       eventType: validType,
-      description: body.description ?? null,
+      description: body.description ?? "",
       actor,
     });
 
