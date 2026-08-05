@@ -361,3 +361,31 @@ npx wrangler d1 execute fairprocess --remote --file=database/d1/migrations/004_t
   outputs. Agents that fail any test case cannot deploy to production.
   Forbidden: "violation occurred", confidence=1.0, legal conclusions.
 - **Total**: 35 API routes, 12 migrations.
+
+## Phase 3.2: Timeline Anomaly Agent (2026-08-05)
+
+- **Output validators added**: Two validators run BEFORE proposals are
+  persisted. Capability validator checks the proposal type is in the
+  agent's allowed_outputs. Neutrality validator scans all text fields
+  for forbidden phrases (violation, illegal, unlawful, etc.) and
+  enforces confidence ceiling (max 0.95). Rejected proposals are logged
+  to audit log and not persisted.
+- **Machine-enforced capabilities**: Each agent type has a
+  DEFAULT_CAPABILITIES config with allowed_outputs, forbidden_outputs,
+  and forbidden_phrases. The runtime enforces these — the agent does
+  not enforce its own rules.
+- **Timeline Anomaly Agent implemented**: Pure rules engine (no LLM).
+  Seven detection rules: notice period check, hearing-before-service
+  inversion, compliance deadline passed, missing notice service date,
+  missing compliance deadline, timeline gaps (>90 days), permit
+  expired without finalization.
+- **Hybrid approach**: Rules engine detects temporal conditions
+  deterministically. All language is neutral — "Timeline shows X days
+  between notice and hearing" not "The county violated notice
+  requirements."
+- **Agent registered** in registry. Agent run route now functional
+  for agent_type=timeline_anomaly.
+- **Test suite**: 6 test cases, 24 assertions, all passing. Tests
+  verify required outputs, forbidden outputs (no "violation",
+  "illegal", etc.), and no false positives on compliant/empty cases.
+- **Total**: 35 API routes, 12 migrations.

@@ -89,7 +89,7 @@ Before adding a route, verify:
 | `/api/v1/entities/{type}/{id}/history` | GET | yes | event.read | yes¹ | no | no |
 | `/api/v1/relationships/{id}/review` | PATCH | yes | relationship.review | yes² | yes | yes |
 
-### Phase 3.1 Routes (Implemented)
+### Phase 3.1-3.2 Routes (Implemented)
 
 | Route | Method | Auth | Permission | Org Scoped | Event Actor | Audit Event |
 |---|---|---|---|---|---|---|

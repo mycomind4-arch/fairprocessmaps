@@ -14,6 +14,7 @@
 
 import { agentActor, emitAuditEvent } from "@/lib/security/events";
 import type { AgentInputSnapshot, AgentProposalDraft, AgentResult } from "./types";
+import { validateAgentOutput } from "./validator";
 
 // ── Build Input Snapshot ────────────────────────────────────────────────────
 //
@@ -112,8 +113,8 @@ export async function runAgent(
   projectId: string,
   organizationId: string,
   agentExecute: (input: AgentInputSnapshot) => Promise<AgentResult>,
-  agentMeta: { agent_id: string; agent_version: string; model_version: string | null },
-): Promise<{ run_id: string; proposal_count: number; proposals: { id: string; proposal_type: string }[] }> {
+  agentMeta: { agent_id: string; agent_version: string; model_version: string | null; agent_type: string },
+): Promise<{ run_id: string; proposal_count: number; proposals: { id: string; proposal_type: string }[]; rejected_count: number; rejected_reasons: string[] }> {
   // 1. Build snapshot
   const snapshot = await buildInputSnapshot(db, projectId, organizationId);
   if (!snapshot) throw new Error("Case not found or not accessible");
@@ -168,9 +169,29 @@ export async function runAgent(
     throw err;
   }
 
-  // 6. Persist proposals
+  // 6. Validate agent output — capability + neutrality checks
+  const validation = validateAgentOutput(result.proposals, agentMeta.agent_type);
+
+  if (validation.rejected_proposals.length > 0) {
+    // Log rejected proposals to audit log
+    for (const rejected of validation.rejected_proposals) {
+      await emitAuditEvent({
+        db,
+        actor,
+        action: "agent.proposal.rejected_by_validator",
+        resourceType: "agent_run",
+        resourceId: runId,
+        detail: `[${rejected.validator}] ${rejected.reason}`,
+      });
+    }
+  }
+
+  // Only persist proposals that passed validation
+  const validProposals = validation.accepted_proposals;
+
+  // 7. Persist proposals
   const persistedProposals: { id: string; proposal_type: string }[] = [];
-  for (const draft of result.proposals) {
+  for (const draft of validProposals) {
     const proposalId = crypto.randomUUID();
     await db.prepare(
       `INSERT INTO agent_proposals
@@ -200,25 +221,27 @@ export async function runAgent(
     persistedProposals.push({ id: proposalId, proposal_type: draft.proposal_type });
   }
 
-  // 7. Complete run
+  // 8. Complete run
   await db.prepare(
     `UPDATE agent_runs SET status = 'completed', completed_at = datetime('now'), proposal_count = ?
      WHERE id = ?`,
-  ).bind(result.proposals.length, runId).run();
+  ).bind(validProposals.length, runId).run();
 
-  // 8. Emit audit event
+  // 9. Emit audit event
   await emitAuditEvent({
     db,
     actor,
     action: "agent.run.completed",
     resourceType: "agent_run",
     resourceId: runId,
-    detail: `Agent ${agentMeta.agent_id} completed with ${result.proposals.length} proposals`,
+    detail: `Agent ${agentMeta.agent_id} completed: ${validProposals.length} proposals persisted, ${validation.rejected_proposals.length} rejected by validators`,
   });
 
   return {
     run_id: runId,
-    proposal_count: result.proposals.length,
+    proposal_count: validProposals.length,
     proposals: persistedProposals,
+    rejected_count: validation.rejected_proposals.length,
+    rejected_reasons: validation.rejected_proposals.map(r => `[${r.validator}] ${r.reason}`),
   };
 }

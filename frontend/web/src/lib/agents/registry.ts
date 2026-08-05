@@ -1,25 +1,22 @@
 /**
- * Agent Registry — Phase 3.1
+ * Agent Registry — Phase 3.2
  *
  * Maps agent_type → agent implementation.
  *
- * Phase 3.1: infrastructure only. No agents are registered.
- * Phase 3.2: timeline_anomaly agent registered
- * Phase 3.3: statute_matcher agent registered
- * Phase 3.4: evidence_extractor agent registered
- * Phase 3.5: authority_mapper agent registered
+ * Registered agents:
+ *   Phase 3.2: timeline_anomaly (Timeline Anomaly Detector)
  *
- * To register an agent:
- *   1. Implement the Agent interface in lib/agents/{name}.ts
- *   2. Import it here and add to the REGISTRY map
- *   3. Create an agent_definitions row (via migration or bootstrap)
+ * Coming soon:
+ *   Phase 3.3: statute_matcher (Statute Matcher)
+ *   Phase 3.4: evidence_extractor (Evidence Extractor)
+ *   Phase 3.5: authority_mapper (Authority Mapper)
  */
 
 import type { Agent, AgentType } from "./types";
+import { TIMELINE_ANOMALY_AGENT } from "./timeline-anomaly";
 
-// Phase 3.1: no agents registered yet
 const REGISTRY: Partial<Record<AgentType, Agent>> = {
-  // Phase 3.2: timeline_anomaly will be registered here
+  timeline_anomaly: TIMELINE_ANOMALY_AGENT,
   // Phase 3.3: statute_matcher will be registered here
   // Phase 3.4: evidence_extractor will be registered here
   // Phase 3.5: authority_mapper will be registered here

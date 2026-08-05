@@ -74,6 +74,7 @@ export async function POST(
         agent_id: def.id as string,
         agent_version: def.version as string,
         model_version: (def.model_version as string) || null,
+        agent_type: def.agent_type as string,
       },
     );
 

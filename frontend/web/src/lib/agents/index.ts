@@ -13,3 +13,12 @@ export {
 export {
   listProposals, reviewProposal, getAgentFeedbackStats,
 } from "./proposals";
+
+export {
+  validateAgentOutput, validateCapability, validateNeutrality,
+  type AgentCapabilities, type ValidationResult,
+} from "./validator";
+
+export {
+  TIMELINE_ANOMALY_AGENT,
+} from "./timeline-anomaly";
