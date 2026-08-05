@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const { env } = getCloudflareContext();
     const db = env.DB;
 
-    // ── Query traditional timeline_events ──
+    // ── Query legacy timeline_events (historical data) ──
     const result = await db
       .prepare(
         `SELECT t.id, t.event_date, t.event_type, t.description, t.evidence_id,
@@ -28,9 +28,9 @@ export async function GET(req: NextRequest) {
       .bind(projectId)
       .all();
 
-    const timelineItems = (result.results ?? []) as any[];
+    const legacyItems = (result.results ?? []) as any[];
 
-    // ── Query events from the Event Store ──
+    // ── Query events from the Event Store (canonical source) ──
     let eventStoreItems: any[] = [];
     try {
       const events = await getCaseTimeline(db, projectId, 200);
@@ -38,24 +38,37 @@ export async function GET(req: NextRequest) {
         const display = eventToTimelineDisplay(e);
         return {
           id: e.id,
-          event_date: e.created_at,
+          event_date: display.event_date, // Uses event_date (action date) with created_at fallback
           event_type: display.event_type,
           description: display.title,
           evidence_id: e.entity_type === "evidence" ? e.entity_id : null,
-          evidence_title: null, // could be joined later
+          evidence_title: null,
           _from_event_store: true,
           _entity_type: e.entity_type,
           _entity_id: e.entity_id,
         };
       });
     } catch {
-      // Event store might not be migrated yet — that's OK
+      // Event store might not be migrated yet
     }
 
-    // ── Merge: deduplicate by type+description, prefer event store for auto-generated events ──
-    const merged = [...timelineItems, ...eventStoreItems];
-    // Sort by date descending
-    merged.sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime());
+    // ── Deduplicate: if the same (event_type + description) exists in both sources,
+    //    prefer the event store version (it has richer metadata). ──
+    const eventStoreKeys = new Set(
+      eventStoreItems.map((e) => `${e.event_type}::${e.description}`)
+    );
+    const dedupedLegacy = legacyItems.filter((l) => {
+      const key = `${l.event_type}::${l.description}`;
+      return !eventStoreKeys.has(key);
+    });
+
+    // ── Merge and sort by event_date (action date) descending ──
+    const merged = [...dedupedLegacy, ...eventStoreItems];
+    merged.sort((a, b) => {
+      const dateA = new Date(a.event_date).getTime() || 0;
+      const dateB = new Date(b.event_date).getTime() || 0;
+      return dateB - dateA;
+    });
 
     return NextResponse.json({ items: merged }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
@@ -89,7 +102,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "event_date and event_type are required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
-    // Normalize event_type to lowercase, default to "other" if not in valid list
     const eventType = body.event_type.toLowerCase().replace(/\s+/g, "_");
     const validType = VALID_EVENT_TYPES.includes(eventType) ? eventType : "other";
 
@@ -98,6 +110,7 @@ export async function POST(req: NextRequest) {
 
     const id = crypto.randomUUID();
 
+    // Still create timeline_events row (user-facing manual events continue to use legacy table)
     await db
       .prepare(
         `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description)
@@ -106,18 +119,18 @@ export async function POST(req: NextRequest) {
       .bind(id, projectId, body.evidence_id ?? null, body.event_date, validType, body.description ?? null)
       .run();
 
-    // ── Also emit to the Event Store ──
+    // ── Also emit to the Event Store with the user-specified event_date ──
     await emitEvent(db, {
       case_id: projectId,
       event_type: "case.updated",
       entity_type: "timeline_event",
       entity_id: id,
       actor_type: "user",
+      event_date: body.event_date,
       title: body.description || `Timeline event: ${validType}`,
       payload: { event_date: body.event_date, event_type: validType, evidence_id: body.evidence_id },
     });
 
-    // Auto-trigger analysis after adding a timeline event
     let analysisResult = null;
     try {
       analysisResult = await runAnalysis(projectId);
@@ -148,7 +161,6 @@ export async function DELETE(req: NextRequest) {
       .bind(eventId, projectId)
       .run();
 
-    // Re-run analysis after deleting an event
     let analysisResult = null;
     try {
       analysisResult = await runAnalysis(projectId);
