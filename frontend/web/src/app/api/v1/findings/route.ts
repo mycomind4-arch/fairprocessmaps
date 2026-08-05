@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { runAnalysisAgents } from "@/lib/analysis-agents";
 import { runAnalysis, RULES } from "@/lib/auto-triggers";
 
 export const runtime = "nodejs";
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST — run analysis on demand
+// POST — run full analysis agents (statute matching + discrepancy detection + timeline + facts)
 export async function POST(req: NextRequest) {
   try {
     const projectId = req.nextUrl.searchParams.get("projectId");
@@ -45,9 +46,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "projectId is required" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
-    const result = await runAnalysis(projectId);
+    const { env } = getCloudflareContext();
+    const db = env.DB;
 
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+    // Get property ID for the project
+    const project = await db
+      .prepare("SELECT property_id FROM projects WHERE id = ?")
+      .bind(projectId)
+      .first();
+
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404, headers: { "Cache-Control": "no-store" } });
+    }
+
+    // Run the new multi-agent analysis system
+    const analysisResult = await runAnalysisAgents({
+      projectId,
+      propertyId: project.property_id as string,
+      db,
+    });
+
+    // Also run the legacy rule-based analysis (for backward compatibility)
+    // This catches timeline-based rules that the agents don't cover
+    const legacyResult = await runAnalysis(projectId);
+
+    return NextResponse.json({
+      score: legacyResult.score,
+      summary: analysisResult.summary,
+      agentCount: analysisResult.results.length,
+      results: analysisResult.results.map(r => ({
+        agent: r.agent,
+        status: r.status,
+        message: r.message,
+      })),
+      totalFindings: analysisResult.totalFindings,
+      criticalFindings: analysisResult.criticalFindings,
+      warningFindings: analysisResult.warningFindings,
+      guardrail: "You identify evidentiary status. You do not render legal conclusions.",
+    }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     return NextResponse.json({ error: String(err), stack: (err as Error)?.stack }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }

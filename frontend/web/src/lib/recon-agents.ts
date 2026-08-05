@@ -10,6 +10,7 @@
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { RECORDS_AGENTS } from "./recon-agents-records";
+import { runAnalysisAgents } from "./analysis-agents";
 
 // ── ArcGIS endpoints ──
 
@@ -785,6 +786,21 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
     evidenceId,
     `Full property intelligence recon completed: ${succeeded}/${ALL_AGENTS.length} agents succeeded (${failed} failed, ${noData} no data). Data gathered from Humboldt County GIS: parcel, zoning, coastal zone, flood, fire, tsunami, seismic, sea level rise, airport, jurisdiction, natural resources, ADU eligibility.`,
   ).run();
+
+  // Step 7: Run analysis agents (fact extraction, timeline, statute matching, discrepancy)
+  // This auto-populates the timeline, discrepancies, and due process findings from all collected data
+  try {
+    const analysisResult = await runAnalysisAgents({
+      projectId,
+      propertyId: project.property_id as string,
+      db,
+    });
+    
+    // Add analysis summary to intelligence summary
+    intelligenceSummary += \`\n\n=== ANALYSIS AGENTS ===\n\${analysisResult.summary}\`;
+  } catch (analysisErr: any) {
+    intelligenceSummary += \`\n\n=== ANALYSIS AGENTS ===\nAnalysis agents encountered an error: \${analysisErr?.message || "unknown"}\`;
+  }
 
   return {
     success: true,
