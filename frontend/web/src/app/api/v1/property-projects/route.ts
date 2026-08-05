@@ -53,9 +53,9 @@ export async function POST(req: NextRequest) {
 
     const created = await env.DB.prepare("SELECT * FROM projects WHERE id = ?").bind(projectId).first();
 
-    // ── Auto-trigger intelligence + analysis ──
-    // Run both in the background via waitUntil so the response returns immediately.
-    // If waitUntil isn't available, run inline (adds ~2s latency).
+    // ── Auto-trigger full 12-agent recon + analysis ──
+    // runIntelligence now delegates to runRecon() which runs all agents in parallel.
+    // Analysis runs after recon completes.
     const autoTrigger = Promise.allSettled([
       runIntelligence(projectId),
       runAnalysis(projectId),

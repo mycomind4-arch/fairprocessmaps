@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import {
   MapPin, Building2, Ruler, FileText, Landmark,
   Calendar, Hash, Database, Loader2, AlertCircle, RefreshCw,
+  Waves, Flame, Tsunami, Mountain, Plane, TreePine, Home,
+  ShieldAlert, ShieldCheck, ShieldX, ScrollText,
 } from "lucide-react";
 
 interface PropertyData {
@@ -23,6 +25,21 @@ interface PropertyData {
   projectCount?: number;
   evidenceCount?: number;
   timelineCount?: number;
+}
+
+interface IntelligenceData {
+  id: string;
+  property_id: string;
+  apn: string;
+  zoning: string | null;
+  general_plan: string | null;
+  acres: number | null;
+  coastal_zone: string | null;
+  flood_zone: string | null;
+  fire_responsibility: string | null;
+  legal_description: string | null;
+  raw_data: Record<string, any>;
+  fetched_at: string;
 }
 
 function FieldRow({
@@ -49,8 +66,43 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   );
 }
 
+function HazardFlag({
+  icon: Icon, label, present, detail,
+}: { icon: typeof Waves; label: string; present: boolean | null; detail?: string | null }) {
+  const Icon = present ? ShieldAlert : present === false ? ShieldCheck : ShieldX;
+  const color = present ? "text-fp-red border-fp-red/30 bg-fp-red/5" : present === false ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/5" : "text-fp-text-dim border-fp-border bg-fp-surface/20";
+  const SmallIcon = present ? Icon : present === false ? Icon : Icon;
+
+  return (
+    <div className={`flex items-start gap-2.5 rounded-lg border p-3 ${color}`}>
+      <SmallIcon className="w-4 h-4 shrink-0 mt-0.5" />
+      <div className="min-w-0">
+        <div className="text-xs font-medium">{label}</div>
+        <div className="text-[11px] opacity-80 mt-0.5">
+          {present === true ? (detail || "In hazard zone") : present === false ? "Not in hazard zone" : "No data"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AgentSection({
+  title, icon: Icon, children,
+}: { title: string; icon: typeof MapPin; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-fp-border bg-fp-surface/40 p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <Icon className="w-4 h-4 text-fp-cyan" />
+        <h3 className="text-sm font-medium text-fp-text">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export default function PropertyIntelligence({ propertyId }: { propertyId: string }) {
   const [data, setData] = useState<PropertyData | null>(null);
+  const [intel, setIntel] = useState<IntelligenceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,15 +110,21 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/properties?id=${propertyId}`, {
-        headers: { "Cache-Control": "no-cache" },
-      });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`Failed to load: ${res.status} ${txt.slice(0, 200)}`);
+      // Fetch both property data and intelligence cache in parallel
+      const [propRes, intelRes] = await Promise.all([
+        fetch(`/api/v1/properties?id=${propertyId}`, { headers: { "Cache-Control": "no-cache" } }),
+        fetch(`/api/v1/intelligence/data?propertyId=${propertyId}`, { headers: { "Cache-Control": "no-cache" } }),
+      ]);
+
+      if (propRes.ok) {
+        setData(await propRes.json());
       }
-      const json = await res.json();
-      setData(json as PropertyData);
+
+      if (intelRes.ok) {
+        setIntel(await intelRes.json());
+      } else if (intelRes.status === 404) {
+        setIntel(null); // No recon data yet
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load property data");
     } finally {
@@ -96,6 +154,8 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
     );
   }
 
+  const recon = intel?.raw_data || {};
+
   return (
     <div className="space-y-5 pb-8">
       {/* Header */}
@@ -103,7 +163,8 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
         <div>
           <h2 className="text-lg font-semibold text-fp-text">Property Intelligence</h2>
           <p className="text-xs text-fp-text-dim mt-0.5">
-            Public records & parcel data for APN {data.apn}
+            Full reconnaissance report for APN {data.apn}
+            {intel?.fetched_at && ` · Last recon: ${intel.fetched_at.slice(0, 16).replace("T", " ")}`}
           </p>
         </div>
         <button
@@ -123,86 +184,140 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
         <StatCard label="Acres" value={data.acres ? data.acres.toFixed(2) : "—"} sub="parcel size" />
       </div>
 
-      {/* Property identity card */}
-      <div className="rounded-xl border border-fp-border bg-fp-surface/40 p-5">
-        <h3 className="text-sm font-medium text-fp-text mb-1">Parcel Identity</h3>
+      {/* Parcel Identity */}
+      <AgentSection title="Parcel Identity" icon={Hash}>
         <div className="grid grid-cols-2 gap-x-8">
           <div>
             <FieldRow icon={Hash} label="APN" value={data.apn} />
             <FieldRow icon={MapPin} label="Address" value={data.address} />
-            <FieldRow icon={Landmark} label="County" value={data.county} />
             <FieldRow icon={Building2} label="City" value={data.city} />
+            <FieldRow icon={Ruler} label="Zoning" value={data.zoning} />
           </div>
           <div>
-            <FieldRow icon={Ruler} label="Zoning" value={data.zoning} />
-            <FieldRow icon={Calendar} label="Created" value={data.created_at?.slice(0, 10)} />
-            <FieldRow icon={Calendar} label="Updated" value={data.updated_at?.slice(0, 10)} />
-            <FieldRow
-              icon={MapPin}
-              label="Coordinates"
-              value={data.centroid_lat != null && data.centroid_lng != null
-                ? `${data.centroid_lat.toFixed(6)}, ${data.centroid_lng.toFixed(6)}`
-                : null}
-            />
+            <FieldRow icon={Landmark} label="General Plan" value={recon.zoning?.general_plan || intel?.general_plan} />
+            <FieldRow icon={Calendar} label="Last Transfer" value={recon.parcel?.TRANDATE ? new Date(recon.parcel.TRANDATE).toISOString().slice(0,10) : "—"} />
+            <FieldRow icon={Calendar} label="Year Built" value={recon.parcel?.YEAR_BUILT?.trim() || "—"} />
+            <FieldRow icon={FileText} label="Book/Page" value={recon.parcel?.BKPG || "—"} />
           </div>
         </div>
-      </div>
-
-      {/* Legal description card */}
-      {data.legal_desc && (
-        <div className="rounded-xl border border-fp-border bg-fp-surface/40 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <FileText className="w-4 h-4 text-fp-cyan" />
-            <h3 className="text-sm font-medium text-fp-text">Legal Description</h3>
+        {data.legal_desc && (
+          <div className="mt-3 pt-3 border-t border-fp-border/40">
+            <div className="text-[10px] uppercase tracking-wider text-fp-text-dim font-medium mb-1">Legal Description</div>
+            <p className="text-sm text-fp-text-muted leading-relaxed">{data.legal_desc}</p>
           </div>
-          <p className="text-sm text-fp-text-muted leading-relaxed">{data.legal_desc}</p>
+        )}
+      </AgentSection>
+
+      {/* Environmental Hazards */}
+      <AgentSection title="Environmental Hazards" icon={ShieldAlert}>
+        <div className="grid grid-cols-3 gap-3">
+          <HazardFlag icon={Waves} label="Coastal Zone" present={recon.coastal_zone?.in_coastal_zone} detail={recon.coastal_zone?.coastal_basis} />
+          <HazardFlag icon={Waves} label="FEMA Flood Zone" present={recon.flood?.in_flood_zone} detail={recon.flood?.flood_zone_code ? `Zone ${recon.flood.flood_zone_code}` : null} />
+          <HazardFlag icon={Flame} label="Fire Hazard" present={recon.fire?.fire_hazard_severity ? true : null} detail={recon.fire?.fire_hazard_severity} />
+          <HazardFlag icon={Tsunami} label="Tsunami Zone" present={recon.tsunami?.in_tsunami_zone} />
+          <HazardFlag icon={Mountain} label="Earthquake Fault" present={recon.seismic?.in_earthquake_fault_zone} />
+          <HazardFlag icon={Mountain} label="Liquefaction" present={recon.seismic?.liquefaction_zone ? true : null} detail={recon.seismic?.liquefaction_zone} />
+          <HazardFlag icon={Mountain} label="Landslide Risk" present={recon.seismic?.landslide_feature ? true : null} detail={recon.seismic?.landslide_feature} />
+          <HazardFlag icon={Waves} label="Sea Level Rise" present={recon.sea_level_rise?.sea_level_rise_risk} />
+          <HazardFlag icon={Plane} label="Airport Compatibility" present={recon.airport?.in_airport_zone} detail={recon.airport?.airport_zone} />
+        </div>
+        {/* FEMA flood details */}
+        {recon.flood?.in_flood_zone && (
+          <div className="mt-3 pt-3 border-t border-fp-border/40 grid grid-cols-3 gap-x-4 text-xs">
+            <div><span className="text-fp-text-dim">FIRM Panel:</span> <span className="text-fp-text">{recon.flood.firm_panel || "—"}</span></div>
+            <div><span className="text-fp-text-dim">Eff. Date:</span> <span className="text-fp-text">{recon.flood.eff_date || "—"}</span></div>
+            <div><span className="text-fp-text-dim">Floodway:</span> <span className="text-fp-text">{recon.flood.floodway ? "Yes" : "No"}</span></div>
+          </div>
+        )}
+      </AgentSection>
+
+      {/* Fire Details */}
+      {recon.fire && (
+        <AgentSection title="Fire Hazard Details" icon={Flame}>
+          <div className="grid grid-cols-3 gap-x-8">
+            <FieldRow icon={Flame} label="Severity" value={recon.fire.fire_hazard_severity} />
+            <FieldRow icon={ShieldAlert} label="Responsibility" value={recon.fire.fire_responsibility} />
+            <FieldRow icon={Hash} label="FHSZ Code" value={recon.fire.fire_hazard_code} />
+          </div>
+        </AgentSection>
+      )}
+
+      {/* Jurisdiction */}
+      <AgentSection title="Jurisdiction & Districts" icon={Landmark}>
+        <div className="grid grid-cols-2 gap-x-8">
+          <div>
+            <FieldRow icon={Building2} label="Jurisdiction" value={recon.jurisdiction?.in_city_limits ? "City" : "County"} />
+            <FieldRow icon={Hash} label="Supervisor District" value={recon.jurisdiction?.supervisor_district} />
+          </div>
+          <div>
+            <FieldRow icon={Building2} label="School District" value={recon.jurisdiction?.school_district} />
+            <FieldRow icon={Flame} label="Fire District" value={recon.jurisdiction?.fire_district} />
+          </div>
+        </div>
+      </AgentSection>
+
+      {/* Natural Resources */}
+      <AgentSection title="Natural Resources" icon={TreePine}>
+        <div className="grid grid-cols-3 gap-3">
+          <HazardFlag icon={TreePine} label="Wetlands" present={recon.natural_resources?.has_wetlands} />
+          <HazardFlag icon={ScrollText} label="Williamson Act" present={recon.natural_resources?.williamson_act} detail={recon.natural_resources?.williamson_act_acres ? `${recon.natural_resources.williamson_act_acres} acres` : null} />
+          <HazardFlag icon={TreePine} label="Streamside Area" present={recon.natural_resources?.has_streamside_area} />
+        </div>
+      </AgentSection>
+
+      {/* ADU Eligibility */}
+      {recon.adu && (
+        <AgentSection title="ADU Eligibility" icon={Home}>
+          <div className="grid grid-cols-2 gap-x-8">
+            <FieldRow icon={Home} label="ADU Status" value={recon.adu.adu_status} />
+            <FieldRow icon={FileText} label="Trigger" value={recon.adu.adu_trigger} />
+          </div>
+        </AgentSection>
+      )}
+
+      {/* Zoning Details */}
+      {recon.zoning && (recon.zoning.zoning_q || recon.zoning.community_plan) && (
+        <AgentSection title="Zoning & Planning Details" icon={ScrollText}>
+          <div className="grid grid-cols-2 gap-x-8">
+            <FieldRow icon={Ruler} label="Q Overlay" value={recon.zoning.zoning_q} />
+            <FieldRow icon={ScrollText} label="Q Description" value={recon.zoning.zoning_q_description} />
+            <FieldRow icon={Landmark} label="Community Plan" value={recon.zoning.community_plan} />
+            <FieldRow icon={MapPin} label="Planning Area" value={recon.zoning.planning_area} />
+          </div>
+        </AgentSection>
+      )}
+
+      {/* Recon Status */}
+      {intel && (
+        <div className="rounded-xl border border-fp-border bg-fp-surface/20 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Database className="w-4 h-4 text-fp-cyan" />
+            <h3 className="text-sm font-medium text-fp-text">Recon Status</h3>
+          </div>
+          <div className="text-xs text-fp-text-muted">
+            Intelligence cache last updated: {intel.fetched_at?.replace("T", " ").slice(0, 19)}
+            {" · "}
+            {Object.keys(recon).length} agents with data
+            {recon.parcel?.geom_geojson && " · Parcel geometry stored"}
+          </div>
         </div>
       )}
 
-      {/* Geometry info */}
-      {data.geom_geojson && (
-        <div className="rounded-xl border border-fp-border bg-fp-surface/40 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Database className="w-4 h-4 text-fp-cyan" />
-            <h3 className="text-sm font-medium text-fp-text">Parcel Geometry</h3>
+      {/* AI-Enriched Intelligence (future agents) */}
+      {!intel && (
+        <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-md bg-fp-blue/20 flex items-center justify-center">
+              <span className="text-[10px] font-bold text-fp-blue">AI</span>
+            </div>
+            <h3 className="text-sm font-medium text-fp-text">Recon Not Yet Run</h3>
           </div>
-          <p className="text-xs text-fp-text-muted">
-            Boundary polygon stored in GeoJSON format.
-            {" "}
-            {data.geom_geojson.includes("Polygon")
-              ? "Multi-coordinate parcel boundary available for map rendering."
-              : "Point representation."}
+          <p className="text-xs text-fp-text-dim">
+            Property intelligence recon will run automatically when you open this project.
+            If it hasn't started yet, try refreshing the page or click the recon button in the header.
           </p>
         </div>
       )}
-
-      {/* AI Intelligence placeholder */}
-      <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-6 h-6 rounded-md bg-fp-blue/20 flex items-center justify-center">
-            <span className="text-[10px] font-bold text-fp-blue">AI</span>
-          </div>
-          <h3 className="text-sm font-medium text-fp-text">AI-Enriched Intelligence</h3>
-        </div>
-        <div className="space-y-2">
-          {[
-            { label: "Owner & Title History", desc: "Recorded deeds, transfers, liens" },
-            { label: "Assessed Value & Tax Status", desc: "Current assessment, delinquency" },
-            { label: "Comparable Properties", desc: "Nearby parcels with similar zoning" },
-            { label: "Permit History", desc: "Building permits, code cases" },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center justify-between py-1.5">
-              <div>
-                <div className="text-sm text-fp-text">{item.label}</div>
-                <div className="text-[11px] text-fp-text-dim">{item.desc}</div>
-              </div>
-              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-fp-surface-2 text-fp-text-dim">
-                Pending
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
