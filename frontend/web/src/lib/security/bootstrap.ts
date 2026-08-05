@@ -10,7 +10,7 @@
  *   await bootstrapAdmin(db, {
  *     email: "admin@example.com",
  *     name: "Initial Admin",
- *     password: "securePassword123",
+ *     password: process.env.BOOTSTRAP_PASSWORD  // set via env var, never hardcode,
  *     organizationName: "FairProcess Internal",
  *   });
  */
