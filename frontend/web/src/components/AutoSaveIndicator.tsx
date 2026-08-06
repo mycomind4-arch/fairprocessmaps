@@ -13,25 +13,25 @@ export function AutoSaveIndicator({
 }) {
   if (saving) {
     return (
-      <div className="flex items-center gap-1.5 text-[11px] text-fp-text-dim animate-[fade-in_0.2s_ease-out]">
-        <Loader2 className="w-3 h-3 animate-spin" />
-        Saving…
+      <div className="flex items-center gap-2 text-xs font-medium text-fp-blue animate-[fade-in_0.2s_ease-out]">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        <span>Saving changes…</span>
       </div>
     );
   }
   if (saved) {
     return (
-      <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 animate-[fade-in_0.2s_ease-out]">
-        <Check className="w-3 h-3" />
-        Saved
+      <div className="flex items-center gap-2 text-xs font-medium text-fp-green animate-[fade-in_0.2s_ease-out]">
+        <Check className="w-3.5 h-3.5" />
+        <span>All changes saved</span>
       </div>
     );
   }
   if (error) {
     return (
-      <div className="flex items-center gap-1.5 text-[11px] text-fp-red animate-[fade-in_0.2s_ease-out]">
-        <AlertCircle className="w-3 h-3" />
-        {error}
+      <div className="flex items-center gap-2 text-xs font-medium text-fp-red animate-[fade-in_0.2s_ease-out]">
+        <AlertCircle className="w-3.5 h-3.5" />
+        <span>{error}</span>
       </div>
     );
   }

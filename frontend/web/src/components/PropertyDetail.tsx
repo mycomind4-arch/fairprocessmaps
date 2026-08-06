@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  MapPin, Building2, User, DollarSign, Ruler, Calendar,
-  FileText, AlertTriangle, ChevronRight, Upload,
+  MapPin, AlertTriangle, ChevronRight, Upload, FileText, Calendar
 } from "lucide-react";
 import { api } from "@/lib/api";
 import ScoreRing from "@/components/ScoreRing";
@@ -40,163 +39,173 @@ export default function PropertyDetail({ propertyId, onShowPanel }: PropertyDeta
 
   if (loading) {
     return (
-      <div className="p-4 space-y-3">
-        <div className="shimmer h-6 rounded w-3/4" />
+      <div className="p-6 space-y-4">
+        <div className="shimmer h-8 rounded-[14px] w-3/4" />
         <div className="shimmer h-4 rounded w-1/2" />
-        <div className="shimmer h-24 rounded-xl" />
+        <div className="shimmer h-32 rounded-[14px]" />
       </div>
     );
   }
 
   if (!property) {
-    return <div className="p-4 text-sm text-fp-text-dim">Property not found.</div>;
+    return <div className="p-6 text-sm text-fp-text-dim">Property record not found.</div>;
   }
 
   const criticalCount = report?.flags.filter((f) => f.severity === "critical").length ?? 0;
   const warningCount = report?.flags.filter((f) => f.severity === "warning").length ?? 0;
 
   return (
-    <div className="p-4 space-y-4 animate-[fade-in_0.3s_ease-out]">
+    <div className="p-6 space-y-6">
       {/* Address header */}
-      <div>
-        <div className="flex items-start gap-2.5">
-          <div className="w-9 h-9 rounded-xl glass flex items-center justify-center shrink-0">
-            <MapPin className="w-4.5 h-4.5 text-fp-cyan" />
+      <div className="glass rounded-[14px] p-6 border-fp-border shadow-lg shadow-black/20 space-y-3">
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-[14px] bg-fp-blue/15 border border-fp-blue/30 flex items-center justify-center shrink-0">
+            <MapPin className="w-5 h-5 text-fp-blue" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-fp-text leading-tight">{property.address}</h2>
+            <h1 className="text-2xl font-semibold tracking-tight text-fp-text">{property.address}</h1>
             <p className="text-sm text-fp-text-muted mt-0.5">{property.city}, {property.state} {property.zip_code}</p>
-            <p className="text-xs text-fp-text-dim mt-1 font-mono">Parcel: {property.parcel_id}</p>
+            <div className="text-xs uppercase tracking-wider text-fp-text-dim mt-2 font-mono">
+              PARCEL APN: {property.parcel_id}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Due-process score card */}
       {report && (
-        <div className="glass rounded-2xl p-4 flex items-center gap-4 animate-[scale-in_0.25s_ease-out]">
+        <div className="glass rounded-[14px] p-6 border-fp-border shadow-lg shadow-black/20 flex items-center gap-6">
           <ScoreRing score={report.overall_score} size="md" label="Score" />
-          <div className="flex-1 space-y-1.5">
-            <div className="text-xs text-fp-text-dim uppercase tracking-wider">Due-Process Analysis</div>
+          <div className="flex-1 space-y-2">
+            <div className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Due-Process Analysis</div>
             {criticalCount > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-fp-red">
-                <AlertTriangle className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-2 text-xs text-fp-red font-medium">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
                 {criticalCount} critical flag{criticalCount !== 1 ? "s" : ""}
               </div>
             )}
             {warningCount > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-fp-amber">
-                <AlertTriangle className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-2 text-xs text-fp-amber font-medium">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
                 {warningCount} warning{warningCount !== 1 ? "s" : ""}
               </div>
             )}
             {criticalCount === 0 && warningCount === 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-fp-green">
-                <span className="w-1.5 h-1.5 rounded-full bg-fp-green" />
-                No discrepancies detected
+              <div className="flex items-center gap-2 text-xs text-fp-green font-medium">
+                <span className="w-2 h-2 rounded-full bg-fp-green" />
+                No procedural flags detected
               </div>
             )}
-            {report.summary && <p className="text-xs text-fp-text-muted mt-1">{report.summary}</p>}
+            {report.summary && <p className="text-sm text-fp-text-muted mt-1 leading-relaxed">{report.summary}</p>}
           </div>
         </div>
       )}
 
-      {/* Property attributes */}
-      <div className="glass rounded-xl p-4 space-y-2.5">
-        {property.property_type && (
-          <div className="flex items-center gap-2.5 text-sm">
-            <Building2 className="w-4 h-4 text-fp-text-dim shrink-0" />
-            <span className="text-fp-text-dim">Type</span>
-            <span className="text-fp-text ml-auto capitalize">{property.property_type}</span>
-          </div>
-        )}
+      {/* Grouped Owner & Property Specifications */}
+      <div className="glass rounded-[14px] p-6 border-fp-border shadow-lg shadow-black/20 space-y-4">
+        <h2 className="text-base font-semibold text-fp-text">Property Specifications</h2>
+
         {property.owner_name && (
-          <div className="flex items-center gap-2.5 text-sm">
-            <User className="w-4 h-4 text-fp-text-dim shrink-0" />
-            <span className="text-fp-text-dim">Owner</span>
-            <span className="text-fp-text ml-auto truncate">{property.owner_name}</span>
+          <div className="p-4 rounded-[14px] bg-fp-surface-2/60 border border-fp-border/60">
+            <div className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Owner of Record</div>
+            <div className="text-sm font-semibold text-fp-text mt-1">{property.owner_name}</div>
           </div>
         )}
-        {property.assessed_value != null && (
-          <div className="flex items-center gap-2.5 text-sm">
-            <DollarSign className="w-4 h-4 text-fp-text-dim shrink-0" />
-            <span className="text-fp-text-dim">Assessed</span>
-            <span className="text-fp-text ml-auto tabular-nums">${property.assessed_value.toLocaleString()}</span>
-          </div>
-        )}
-        {property.lot_size_sqft != null && (
-          <div className="flex items-center gap-2.5 text-sm">
-            <Ruler className="w-4 h-4 text-fp-text-dim shrink-0" />
-            <span className="text-fp-text-dim">Lot</span>
-            <span className="text-fp-text ml-auto tabular-nums">{property.lot_size_sqft.toLocaleString()} sqft</span>
-          </div>
-        )}
-        {property.year_built != null && (
-          <div className="flex items-center gap-2.5 text-sm">
-            <Calendar className="w-4 h-4 text-fp-text-dim shrink-0" />
-            <span className="text-fp-text-dim">Built</span>
-            <span className="text-fp-text ml-auto">{property.year_built}</span>
-          </div>
-        )}
-        {property.zoning && (
-          <div className="flex items-center gap-2.5 text-sm">
-            <span className="text-fp-text-dim w-4 shrink-0" />
-            <span className="text-fp-text-dim">Zoning</span>
-            <span className="text-fp-text ml-auto">{property.zoning}</span>
-          </div>
-        )}
+
+        <div className="space-y-3 pt-2">
+          {property.property_type && (
+            <div className="flex justify-between items-center py-2 border-b border-fp-border/40 text-sm">
+              <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Property Type</span>
+              <span className="text-fp-text capitalize">{property.property_type}</span>
+            </div>
+          )}
+          {property.assessed_value != null && (
+            <div className="flex justify-between items-center py-2 border-b border-fp-border/40 text-sm">
+              <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Assessed Value</span>
+              <span className="font-mono text-fp-text">${property.assessed_value.toLocaleString()}</span>
+            </div>
+          )}
+          {property.lot_size_sqft != null && (
+            <div className="flex justify-between items-center py-2 border-b border-fp-border/40 text-sm">
+              <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Lot Size</span>
+              <span className="font-mono text-fp-text">{property.lot_size_sqft.toLocaleString()} sq ft</span>
+            </div>
+          )}
+          {property.year_built != null && (
+            <div className="flex justify-between items-center py-2 border-b border-fp-border/40 text-sm">
+              <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Year Built</span>
+              <span className="font-mono text-fp-text">{property.year_built}</span>
+            </div>
+          )}
+          {property.zoning && (
+            <div className="flex justify-between items-center py-2 border-b border-fp-border/40 text-sm">
+              <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Zoning</span>
+              <span className="text-fp-text font-medium">{property.zoning}</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Quick stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => onShowPanel("evidence")} className="glass glass-hover rounded-xl p-3.5 transition-all text-left group animate-[slide-up_0.3s_ease-out]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-fp-purple/15 flex items-center justify-center">
-              <FileText className="w-4.5 h-4.5 text-fp-purple" />
+      {/* Quick stats buttons */}
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          onClick={() => onShowPanel("evidence")}
+          className="glass rounded-[14px] p-6 border-fp-border shadow-lg shadow-black/20 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 text-left group"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-10 h-10 rounded-[14px] bg-fp-blue/15 border border-fp-blue/30 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-fp-blue" />
             </div>
-            <div>
-              <div className="text-lg font-bold text-fp-text tabular-nums">{evidenceCount}</div>
-              <div className="text-[10px] text-fp-text-dim uppercase tracking-wider">Evidence</div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-fp-text-dim ml-auto group-hover:text-fp-text transition-colors" />
+            <ChevronRight className="w-4 h-4 text-fp-text-dim group-hover:text-fp-text transition-colors" />
           </div>
+          <div className="text-2xl font-semibold text-fp-text mt-3">{evidenceCount}</div>
+          <div className="text-xs uppercase tracking-wider text-fp-text-dim font-medium mt-0.5">Evidence Vault</div>
         </button>
-        <button onClick={() => onShowPanel("timeline")} className="glass glass-hover rounded-xl p-3.5 transition-all text-left group animate-[slide-up_0.3s_ease-out]" style={{ animationDelay: "50ms" }}>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-fp-amber/15 flex items-center justify-center">
-              <Calendar className="w-4.5 h-4.5 text-fp-amber" />
+
+        <button
+          onClick={() => onShowPanel("timeline")}
+          className="glass rounded-[14px] p-6 border-fp-border shadow-lg shadow-black/20 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 text-left group"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-10 h-10 rounded-[14px] bg-fp-amber/15 border border-fp-amber/30 flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-fp-amber" />
             </div>
-            <div>
-              <div className="text-lg font-bold text-fp-text tabular-nums">{timelineCount}</div>
-              <div className="text-[10px] text-fp-text-dim uppercase tracking-wider">Events</div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-fp-text-dim ml-auto group-hover:text-fp-text transition-colors" />
+            <ChevronRight className="w-4 h-4 text-fp-text-dim group-hover:text-fp-text transition-colors" />
           </div>
+          <div className="text-2xl font-semibold text-fp-text mt-3">{timelineCount}</div>
+          <div className="text-xs uppercase tracking-wider text-fp-text-dim font-medium mt-0.5">Timeline Events</div>
         </button>
       </div>
 
-      {/* Upload shortcut */}
-      <button onClick={() => onShowPanel("upload")} className="w-full flex items-center justify-center gap-2 text-sm text-fp-cyan border border-fp-cyan/20 rounded-xl py-2.5 hover:bg-fp-cyan/10 transition-all glass">
+      {/* Upload shortcut button */}
+      <button
+        onClick={() => onShowPanel("upload")}
+        className="w-full glass hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 rounded-[14px] p-4 text-sm font-medium text-fp-blue hover:text-white border border-fp-blue/30 bg-fp-blue/10 flex items-center justify-center gap-2"
+      >
         <Upload className="w-4 h-4" />
-        Upload new evidence
+        Upload New Evidence Document
       </button>
 
       {/* Due-process flags */}
       {report && report.flags.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider">Due-Process Flags</h3>
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold text-fp-text">Due-Process Flags</h2>
           {report.flags.map((flag, idx) => (
-            <div key={idx} className={`rounded-xl border p-3 glass animate-[slide-up_0.3s_ease-out]`} style={{ animationDelay: `${idx * 50}ms` }}>
-              <div className="flex items-start gap-2.5">
-                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                  flag.severity === "critical" ? "bg-fp-red/15" : flag.severity === "warning" ? "bg-fp-amber/15" : "bg-fp-surface-2"
+            <div
+              key={idx}
+              className="glass rounded-[14px] p-6 border-fp-border shadow-lg shadow-black/20 space-y-2"
+            >
+              <div className="flex items-start gap-3">
+                <div className={`w-8 h-8 rounded-[14px] flex items-center justify-center shrink-0 ${
+                  flag.severity === "critical" ? "bg-fp-red/15 border border-fp-red/30 text-fp-red" : "bg-fp-amber/15 border border-fp-amber/30 text-fp-amber"
                 }`}>
-                  <AlertTriangle className={`w-3.5 h-3.5 ${flag.severity === "critical" ? "text-fp-red" : "text-fp-amber"}`} />
+                  <AlertTriangle className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-fp-text">{flag.rule_name}</div>
-                  <div className="text-xs text-fp-text-muted mt-0.5">{flag.description}</div>
+                  <div className="text-sm font-semibold text-fp-text">{flag.rule_name}</div>
+                  <div className="text-sm text-fp-text-muted mt-1 leading-relaxed">{flag.description}</div>
                   {flag.suggested_action && (
-                    <div className="text-xs text-fp-cyan mt-1.5 flex items-start gap-1">
+                    <div className="text-xs text-fp-blue mt-2 flex items-start gap-1 font-medium">
                       <span>→</span>
                       <span>{flag.suggested_action}</span>
                     </div>
@@ -205,21 +214,6 @@ export default function PropertyDetail({ propertyId, onShowPanel }: PropertyDeta
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Recommendations */}
-      {report && report.recommendations && report.recommendations.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider">Recommendations</h3>
-          <div className="glass rounded-xl p-3 space-y-1.5">
-            {report.recommendations.map((rec, idx) => (
-              <div key={idx} className="text-xs text-fp-text-muted flex items-start gap-2">
-                <span className="text-fp-cyan shrink-0">→</span>
-                <span>{rec}</span>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>

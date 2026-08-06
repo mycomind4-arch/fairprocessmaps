@@ -21,7 +21,7 @@ export default function DueProcessBadge({ propertyId }: DueProcessBadgeProps) {
 
   if (!propertyId || loading) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-fp-text-dim">
+      <div className="flex items-center gap-2 text-sm text-fp-text-dim">
         <Shield className="w-4 h-4" />
         <span>{loading ? "Analyzing..." : "No property selected"}</span>
       </div>
@@ -32,18 +32,18 @@ export default function DueProcessBadge({ propertyId }: DueProcessBadgeProps) {
   const critical = report.flags?.filter((f) => f.severity === "critical").length || 0;
   const warning = report.flags?.filter((f) => f.severity === "warning").length || 0;
 
-  let Icon = ShieldCheck, colorClass = "text-fp-green", bgClass = "bg-fp-green/10 border-fp-green/20", glowClass = "";
-  if (critical > 0) { Icon = ShieldX; colorClass = "text-fp-red"; bgClass = "bg-fp-red/10 border-fp-red/20"; glowClass = "shadow-fp-red/20"; }
+  let Icon = ShieldCheck, colorClass = "text-fp-green", bgClass = "bg-fp-green/10 border-fp-green/20";
+  if (critical > 0) { Icon = ShieldX; colorClass = "text-fp-red"; bgClass = "bg-fp-red/10 border-fp-red/20"; }
   else if (warning > 0) { Icon = ShieldAlert; colorClass = "text-fp-amber"; bgClass = "bg-fp-amber/10 border-fp-amber/20"; }
 
   return (
-    <div className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border ${bgClass} ${colorClass} shadow-lg ${glowClass} animate-[scale-in_0.25s_ease-out]`}>
+    <div className={`flex items-center gap-2 text-sm px-4 py-2 rounded-full border ${bgClass} ${colorClass} transition-all duration-200 hover:-translate-y-0.5`}>
       <Icon className="w-4 h-4" />
       <span className="font-medium tabular-nums">
         {report.overall_score}
-        {critical > 0 && <span className="text-fp-red"> · {critical} critical</span>}
-        {warning > 0 && <span className="text-fp-amber"> · {warning} warn</span>}
-        {critical === 0 && warning === 0 && " · clear"}
+        {critical > 0 && <span className="text-fp-red ml-1">· {critical} critical</span>}
+        {warning > 0 && <span className="text-fp-amber ml-1">· {warning} warn</span>}
+        {critical === 0 && warning === 0 && <span className="ml-1">· clear</span>}
       </span>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import type { TimelineEntry } from "@/lib/graph/types";
+import { FileText, Bot, Server, Building2 } from "lucide-react";
 
 interface Props {
   events: TimelineEntry[];
@@ -14,58 +15,65 @@ const SEVERITY_STYLES: Record<string, string> = {
   info: "border-l-fp-blue",
 };
 
-const ACTOR_ICONS: Record<string, string> = {
-  human: "👤",
-  agent: "🤖",
-  system: "⚙",
-  government_source: "🏛",
+const ACTOR_ICONS: Record<string, typeof FileText> = {
+  human: FileText,
+  agent: Bot,
+  system: Server,
+  government_source: Building2,
 };
 
 export default function TimelineList({ events, selectedEvent, onEventClick }: Props) {
   if (events.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-fp-text-dim text-sm py-8">
-        No timeline events yet
+      <div className="flex-1 flex flex-col items-center justify-center py-16 px-6 text-center">
+        <FileText className="w-8 h-8 text-fp-text-dim mx-auto mb-4" />
+        <h3 className="text-sm font-medium text-fp-text">No timeline events yet</h3>
+        <p className="text-xs text-fp-text-dim mt-2 max-w-xs">
+          Timeline events are generated automatically as evidence and enforcement actions are recorded.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
+    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
       {events.map((entry) => {
         const isSelected = selectedEvent === entry.id;
         const severityClass = SEVERITY_STYLES[entry.severity] || SEVERITY_STYLES.info;
+        const ActorIcon = ACTOR_ICONS[entry.actor.type] || FileText;
 
         return (
           <button
             key={entry.id}
             onClick={() => onEventClick(entry)}
-            className={`w-full text-left p-2.5 rounded-lg border-l-2 transition-all ${
+            className={`w-full text-left p-4 rounded-[14px] border-l-4 transition-all duration-200 ${
               isSelected
-                ? "bg-fp-blue/10 " + severityClass
-                : "hover:bg-fp-surface-2 " + severityClass + " border-l-transparent"
+                ? "bg-fp-blue/10 " + severityClass + " shadow-lg shadow-black/20"
+                : "hover:bg-fp-surface-2 " + severityClass + " border-l-transparent hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/10"
             }`}
           >
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-2">
               <span className="text-xs text-fp-text-dim font-mono">{entry.date}</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-fp-surface-2 text-fp-text-muted">
-                {ACTOR_ICONS[entry.actor.type] || "•"} {entry.actor.type}
+              <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg bg-fp-surface-2 text-fp-text-muted">
+                <ActorIcon className="w-3 h-3" />
+                {entry.actor.type}
               </span>
               {entry.agent_version && (
-                <span className="text-[10px] text-fp-purple">v{entry.agent_version}</span>
+                <span className="text-xs text-fp-text-dim">v{entry.agent_version}</span>
               )}
             </div>
             <div className="text-sm text-fp-text font-medium leading-tight">
               {entry.type_label}
             </div>
             {entry.description && (
-              <div className="text-xs text-fp-text-dim mt-0.5 line-clamp-2">
+              <div className="text-xs text-fp-text-dim mt-1 line-clamp-2">
                 {entry.description}
               </div>
             )}
             {entry.evidence_id && (
-              <div className="text-[10px] text-fp-cyan mt-1">
-                📎 Evidence: {entry.evidence_id.slice(0, 8)}…
+              <div className="flex items-center gap-1 text-xs text-fp-blue mt-2">
+                <FileText className="w-3 h-3" />
+                Evidence: {entry.evidence_id.slice(0, 8)}…
               </div>
             )}
           </button>

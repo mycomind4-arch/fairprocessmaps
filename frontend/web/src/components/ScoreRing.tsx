@@ -39,21 +39,16 @@ export default function ScoreRing({ score, size = "md", label }: ScoreRingProps)
   const offset = score == null ? 0 : circumference - (score / 100) * circumference;
 
   const color = score == null
-    ? "#475569"
+    ? "#64748b"
     : score >= 80
     ? "#10b981"
     : score >= 50
     ? "#f59e0b"
     : "#ef4444";
 
-  const glow = score == null
-    ? "0 0 0 transparent"
-    : `0 0 20px ${color}40`;
-
   return (
     <div className="relative flex items-center justify-center" style={{ width: s.box, height: s.box }}>
       <svg width={s.box} height={s.box} className="-rotate-90">
-        {/* Track */}
         <circle
           cx={s.box / 2}
           cy={s.box / 2}
@@ -62,7 +57,6 @@ export default function ScoreRing({ score, size = "md", label }: ScoreRingProps)
           stroke="rgba(56, 78, 122, 0.2)"
           strokeWidth={s.stroke}
         />
-        {/* Progress */}
         <circle
           cx={s.box / 2}
           cy={s.box / 2}
@@ -74,8 +68,7 @@ export default function ScoreRing({ score, size = "md", label }: ScoreRingProps)
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           style={{
-            transition: "stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.3s",
-            filter: `drop-shadow(${glow})`,
+            transition: "stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.2s",
           }}
         />
       </svg>
@@ -84,7 +77,7 @@ export default function ScoreRing({ score, size = "md", label }: ScoreRingProps)
           <>
             <span className={`${s.font} font-bold text-fp-text tabular-nums`}>{displayScore}</span>
             {size !== "sm" && (
-              <span className="text-[10px] text-fp-text-dim -mt-1">/ 100</span>
+              <span className="text-xs text-fp-text-dim">/ 100</span>
             )}
           </>
         ) : (
@@ -92,7 +85,7 @@ export default function ScoreRing({ score, size = "md", label }: ScoreRingProps)
         )}
       </div>
       {label && size !== "sm" && (
-        <span className="absolute -bottom-5 text-[10px] text-fp-text-dim uppercase tracking-wider whitespace-nowrap">
+        <span className="absolute -bottom-6 text-xs text-fp-text-dim uppercase tracking-wide whitespace-nowrap">
           {label}
         </span>
       )}

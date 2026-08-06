@@ -127,7 +127,7 @@ export default function InvestigationGraph({
 
   if (nodes.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-fp-text-dim text-sm">
+      <div className="h-full flex flex-col items-center justify-center gap-4 py-16">
         No nodes to display
       </div>
     );
@@ -152,7 +152,7 @@ export default function InvestigationGraph({
             <g key={`edge-${i}`}>
               <line
                 x1={source.x} y1={source.y} x2={target.x} y2={target.y}
-                stroke={isRejected ? "#ef4444" : isHovered ? "#06b6d4" : isSemantic ? "#a78bfa" : "#3b82f6"}
+                stroke={isRejected ? "#ef4444" : isHovered ? "#3b82f6" : isSemantic ? "#a78bfa" : "#3b82f6"}
                 strokeWidth={isHovered ? 2 : 1}
                 strokeOpacity={isConnected ? (isSemantic ? 0.5 : 0.3) : 0.08}
                 strokeDasharray={isSemantic ? "4 2" : isRejected ? "2 2" : "none"}
@@ -198,10 +198,10 @@ export default function InvestigationGraph({
               onClick={() => onNodeClick(node.id)}
               onMouseEnter={() => setHoveredNode(node.id)}
               onMouseLeave={() => setHoveredNode(null)}
-              style={{ cursor: "pointer", opacity: isDimmed ? 0.25 : 1 }}
+              style={{ cursor: "pointer", opacity: isDimmed ? 0.25 : 1, transition: "opacity 0.2s ease" }}
             >
               {isSelected && (
-                <circle r={radius + 6} fill="none" stroke="#06b6d4" strokeWidth="2" opacity="0.6" />
+                <circle r={radius + 6} fill="none" stroke="#3b82f6" strokeWidth="2" opacity="0.6" />
               )}
               {isHovered && !isSelected && (
                 <circle r={radius + 4} fill="none" stroke="#94a3b8" strokeWidth="1" opacity="0.4" />
@@ -210,7 +210,7 @@ export default function InvestigationGraph({
               <circle
                 r={radius}
                 fill={color.fill}
-                stroke={isSelected ? "#06b6d4" : color.stroke}
+                stroke={isSelected ? "#3b82f6" : color.stroke}
                 strokeWidth={isSelected ? 2.5 : 1.5}
                 opacity={isDimmed ? 0.25 : 1}
               />
@@ -227,7 +227,7 @@ export default function InvestigationGraph({
               )}
 
               <text
-                y={radius + 12} fill="#94a3b8" fontSize="9" textAnchor="middle"
+                y={radius + 12} fill="#94a3b8" fontSize="10" textAnchor="middle"
                 className="pointer-events-none select-none"
               >
                 {color.label}

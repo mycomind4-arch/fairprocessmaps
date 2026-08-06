@@ -133,12 +133,13 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
   const totalValuation = permits.reduce((sum, p) => sum + (p.valuation ?? 0), 0);
 
   return (
-    <div className="space-y-5 pb-8 max-w-5xl">
+    <div className="space-y-8 pb-12 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <h2 className="text-lg font-semibold text-fp-text">Building Department</h2>
-          <p className="text-xs text-fp-text-dim mt-0.5">Permits, inspections, and building compliance</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-fp-text">Building Department</h1>
+          <p className="text-sm text-fp-text-muted mt-1">Permits, inspections, and building compliance</p>
+          <div className="border-t border-fp-border mt-6" />
         </div>
         <button
           onClick={() => setShowAdd(true)}
@@ -150,7 +151,7 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-4">
         <StatTile label="Active Permits" value={activeCount} icon={Building2} />
         <StatTile label="Expired" value={expiredCount} icon={AlertTriangle} danger={expiredCount > 0} />
         <StatTile label="Inspections" value={inspectionsTotal} icon={ClipboardCheck} />
@@ -161,7 +162,7 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
       {loading ? (
         <div className="text-sm text-fp-text-dim text-center py-12">Loading permits…</div>
       ) : permits.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-12 text-center">
+        <div className="rounded-[14px] border border-dashed border-fp-border bg-fp-surface/20 p-16 text-center">
           <Building2 className="w-10 h-10 text-fp-text-dim mx-auto mb-4" />
           <h3 className="text-sm font-medium text-fp-text">No permits on file</h3>
           <p className="text-xs text-fp-text-dim mt-1 max-w-sm mx-auto">
@@ -210,12 +211,12 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
 // ── Stat Tile ──
 function StatTile({ label, value, icon: Icon, danger }: { label: string; value: string | number; icon: typeof Building2; danger?: boolean }) {
   return (
-    <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-3">
+    <div className="rounded-[14px] border border-fp-border bg-fp-surface/40 p-6 transition-all duration-200 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5">
       <div className="flex items-center gap-1.5 mb-1">
         <Icon className={`w-3.5 h-3.5 ${danger ? "text-fp-red" : "text-fp-text-dim"}`} />
-        <span className="text-[11px] text-fp-text-dim font-medium">{label}</span>
+        <span className="text-xs text-fp-text-dim uppercase tracking-wide font-medium">{label}</span>
       </div>
-      <span className={`text-lg font-semibold ${danger ? "text-fp-red" : "text-fp-text"}`}>{value}</span>
+      <span className={`text-xl font-semibold ${danger ? "text-fp-red" : "text-fp-text"}`}>{value}</span>
     </div>
   );
 }
@@ -234,7 +235,7 @@ function PermitCard({ permit, onClick }: { permit: Permit; onClick: () => void }
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-xl border border-fp-border bg-fp-surface/40 p-4 text-left hover:border-fp-border-hover transition-colors"
+      className="w-full rounded-[14px] border border-fp-border bg-fp-surface/40 p-6 text-left hover:border-fp-border-hover hover:shadow-lg hover:shadow-black/20 transition-all duration-200"
     >
       {/* Top row */}
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -704,10 +705,10 @@ function PermitDetailModal({
 // ── Detail Field ──
 function DetailField({ label, value, icon: Icon }: { label: string; value: string; icon: typeof FileText }) {
   return (
-    <div className="rounded-lg border border-fp-border bg-fp-surface/40 p-3">
+    <div className="rounded-[14px] border border-fp-border bg-fp-surface/40 p-6 transition-all duration-200 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5">
       <div className="flex items-center gap-1.5 mb-1">
         <Icon className="w-3 h-3 text-fp-text-dim" />
-        <span className="text-[11px] text-fp-text-dim font-medium">{label}</span>
+        <span className="text-xs text-fp-text-dim uppercase tracking-wide font-medium">{label}</span>
       </div>
       <span className="text-sm text-fp-text">{value}</span>
     </div>
@@ -744,7 +745,7 @@ function EditableField({
       >
         <div className="flex items-center gap-1.5 mb-1">
           <Icon className="w-3 h-3 text-fp-text-dim" />
-          <span className="text-[11px] text-fp-text-dim font-medium">{label}</span>
+          <span className="text-xs text-fp-text-dim uppercase tracking-wide font-medium">{label}</span>
         </div>
         <span className="text-sm text-fp-text">{display}</span>
       </button>
@@ -773,7 +774,7 @@ function EditableField({
 // ── Modal wrapper ──
 function Modal({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title: string }) {
   return (
-    <div role="button" aria-label="Close modal" tabIndex={0} className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose} onKeyDown={(e) => { if (e.key === "Escape" || e.key === "Enter") onClose(); }}>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="bg-fp-surface border border-fp-border rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
