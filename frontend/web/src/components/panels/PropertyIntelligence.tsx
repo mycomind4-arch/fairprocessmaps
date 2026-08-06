@@ -89,6 +89,29 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
   const [intel, setIntel] = useState<IntelligenceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reconRunning, setReconRunning] = useState(false);
+  const [reconResult, setReconResult] = useState<any>(null);
+
+  const runRecon = async () => {
+    setReconRunning(true);
+    setReconResult(null);
+    try {
+      const pathParts = window.location.pathname.split("/");
+      const projectId = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+      const res = await fetch(`/api/v1/intelligence/recon?projectId=${projectId}&force=true`, {
+        method: "POST",
+        headers: { "Cache-Control": "no-cache" },
+      });
+      const result = await res.json();
+      setReconResult(result);
+      if (res.ok) { await fetchData(); }
+      else { setError(result.error || "Recon failed"); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Recon failed");
+    } finally {
+      setReconRunning(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -143,8 +166,11 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
   }
 
   const recon = intel?.raw_data || {};
-  const ownerName = recon.parcel?.OWNER || recon.parcel?.OWNER1 || recon.owner?.owner_name || null;
-  const ownerAddress = recon.parcel?.MAIL_ADD || recon.owner?.mailing_address || null;
+  const ownerName = recon.assessor?.owner_name || recon.parcel?.OWNER || recon.parcel?.OWNER1 || null;
+  const ownerAddress = recon.assessor?.mailing_address || recon.parcel?.MAIL_ADD || null;
+  const taxValue = recon.assessor?.total_value || null;
+  const landValue = recon.assessor?.land_value || null;
+  const improvementValue = recon.assessor?.improvement_value || null;
 
   return (
     <div className="space-y-6 pb-8">
@@ -158,14 +184,25 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
               {intel?.fetched_at && ` · Last scanned: ${intel.fetched_at.slice(0, 16).replace("T", " ")}`}
             </p>
           </div>
-          <button
-            onClick={fetchData}
-            className="px-3 py-2 rounded-lg bg-fp-surface-2 border border-fp-border text-xs text-fp-text hover:bg-fp-surface transition-colors flex items-center gap-2 self-start md:self-auto"
-            title="Refresh reconnaissance"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Refresh Recon
-          </button>
+          <div className="flex gap-2 self-start md:self-auto">
+            <button
+              onClick={fetchData}
+              className="px-3 py-2 rounded-lg bg-fp-surface-2 border border-fp-border text-xs text-fp-text hover:bg-fp-surface transition-colors flex items-center gap-2"
+              title="Refresh cached data"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Refresh
+            </button>
+            <button
+              onClick={runRecon}
+              disabled={reconRunning}
+              className="px-3 py-2 rounded-lg bg-fp-blue text-white text-xs font-medium hover:bg-fp-blue/90 transition-colors flex items-center gap-2 disabled:opacity-50"
+              title="Run full reconnaissance (force re-scan)"
+            >
+              {reconRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              {reconRunning ? "Scanning…" : "Run Recon"}
+            </button>
+          </div>
         </div>
 
         {/* High-visibility APN banner */}
@@ -211,6 +248,33 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
         <StatCard label="Parcel Size" value={data.acres ? `${data.acres.toFixed(2)} acres` : "—"} sub="total acreage" />
       </div>
 
+      {/* Agent Status Dashboard */}
+      {recon?._meta?.agents && (
+        <AgentSection title="Recon Agent Status">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {recon._meta.agents.map((agent: any) => {
+              const statusColor = agent.status === "success"
+                ? "text-fp-green border-fp-green/20 bg-fp-green/5"
+                : agent.status === "no_data"
+                ? "text-fp-text-dim border-fp-border bg-fp-surface/20"
+                : "text-fp-red border-fp-red/20 bg-fp-red/5";
+              return (
+                <div key={agent.name} className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${statusColor}`}>
+                  <span className="font-mono font-semibold uppercase shrink-0">{agent.name}</span>
+                  <span className="opacity-80">{agent.message}</span>
+                </div>
+              );
+            })}
+          </div>
+          {reconResult && (
+            <div className="mt-3 text-xs text-fp-text-muted p-3 rounded-lg bg-fp-surface-2/40 border border-fp-border/60">
+              <span className="font-semibold">Last scan:</span> {reconResult.succeeded ?? 0}/{reconResult.agentCount ?? 0} agents succeeded
+              ({reconResult.failed ?? 0} failed, {reconResult.noData ?? 0} no data)
+            </div>
+          )}
+        </AgentSection>
+      )}
+
       {/* Grouped Owner & Ownership Information */}
       <AgentSection title="Owner & Ownership Details">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -236,7 +300,7 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Tax Value</span>
-              <span className="font-mono text-fp-text">{recon.parcel?.TAX_VALUE ? `$${Number(recon.parcel.TAX_VALUE).toLocaleString()}` : "—"}</span>
+              <span className="font-mono text-fp-text">{taxValue ? `$${taxValue.toLocaleString()}` : "—"}</span>
             </div>
           </div>
         </div>
@@ -306,6 +370,58 @@ export default function PropertyIntelligence({ propertyId }: { propertyId: strin
           <HazardFlag label="Airport Compatibility" present={recon.airport?.in_airport_zone} detail={recon.airport?.airport_zone} />
         </div>
       </AgentSection>
+
+      {/* Parcel Details (expanded data) */}
+      {recon.parcel_details && (
+        <AgentSection title="Parcel Details & Classification">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-fp-border/40">
+                <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Property Type</span>
+                <span className="text-sm text-fp-text">{recon.parcel_details.description || "—"}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-fp-border/40">
+                <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Use Code</span>
+                <span className="font-mono text-sm text-fp-text">{recon.parcel_details.use_code || "—"}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-fp-border/40">
+                <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Jurisdiction</span>
+                <span className="text-sm text-fp-text">{recon.parcel_details.jurisdiction || "—"}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-fp-border/40">
+                <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Zip Code</span>
+                <span className="font-mono text-sm text-fp-text">{recon.parcel_details.zip || "—"}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Building SqFt</span>
+                <span className="font-mono text-sm text-fp-text">{recon.parcel_details.building_sqft ? `${recon.parcel_details.building_sqft.toLocaleString()} sqft` : "—"}</span>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-fp-border/40">
+                <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Community Plan</span>
+                <span className="text-sm text-fp-text">{recon.parcel_details.community_plan || "—"}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-fp-border/40">
+                <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Tax Rate Area</span>
+                <span className="font-mono text-sm text-fp-text">{recon.parcel_details.tax_rate_area || "—"}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-fp-border/40">
+                <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">PLSS (T/R/S)</span>
+                <span className="font-mono text-sm text-fp-text">{recon.parcel_details.township || "—"}/{recon.parcel_details.range || "—"}/{recon.parcel_details.section || "—"}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-fp-border/40">
+                <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Census Tract</span>
+                <span className="font-mono text-sm text-fp-text">{recon.parcel_details.census_tract || "—"}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-xs uppercase tracking-wider text-fp-text-dim font-medium">Inspector District</span>
+                <span className="font-mono text-sm text-fp-text">{recon.parcel_details.inspector_district || "—"}</span>
+              </div>
+            </div>
+          </div>
+        </AgentSection>
+      )}
 
       {/* Recon Status Footer */}
       {intel ? (

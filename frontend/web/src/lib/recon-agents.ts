@@ -51,9 +51,15 @@ function toDashedAPN(apn: string): string {
 }
 
 const PARCEL_FIELDS = [
-  "APN_12", "APN", "FULLADDR", "SITCITY", "ACRES", "LOTSIZE",
-  "ZONING", "GEN_PLAN", "YEAR_BUILT", "LEGAL", "SUPD_DIST",
-  "CZ", "FZ", "FR", "SRA", "TRANDATE", "BKPG", "OLDAPN",
+  "APN_12", "APN", "APN12", "FULLADDR", "SITCITY", "SITZIP",
+  "ACRES", "LOTSIZE", "ZONING", "GEN_PLAN", "YEAR_BUILT", "LEGAL",
+  "SUPD_DIST", "CZ", "CJ", "FZ", "FR", "SRA", "SRAEXMPTD",
+  "TRANDATE", "BKPG", "OLDAPN", "DESCRIPTIO", "USECODE", "JURIS",
+  "AIRPORT", "APRT_NAME", "AQ", "SS", "AOB", "AGPRES", "MS4",
+  "LAT", "LON", "COMMPLAN", "NEIGHCODE", "TRA", "PERIMETER",
+  "TOWNSHIP", "RANGE", "SECTION", "VICINITY", "CENTRCT", "CENBLK",
+  "INSP_DIST", "ZONE_IDX", "CC_333", "FAR77", "MULTI_SIT", "PORTION",
+  "SP_AREA", "NEIGHCODE", "ZONEDATE", "DEVPLAN",
 ];
 
 interface ParcelData {
@@ -267,7 +273,7 @@ const parcelAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
     `Book/Page: ${props.BKPG || "Unknown"}`,
   ].join("\n");
 
-  // Update property record
+  // Update property record with centroid and additional fields
   await ctx.db.prepare(
     `UPDATE properties SET
        address = COALESCE(NULLIF(?, ''), address),
@@ -276,6 +282,8 @@ const parcelAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
        acres = COALESCE(?, acres),
        legal_desc = COALESCE(?, legal_desc),
        geom_geojson = COALESCE(?, geom_geojson),
+       centroid_lat = COALESCE(?, centroid_lat),
+       centroid_lng = COALESCE(?, centroid_lng),
        updated_at = datetime('now')
      WHERE id = ?`
   ).bind(
@@ -285,6 +293,8 @@ const parcelAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
     props.ACRES ? parseFloat(props.ACRES) : null,
     props.LEGAL?.trim() || null,
     ctx.parcel.geometry ? JSON.stringify(ctx.parcel.geometry) : null,
+    props.LAT ? parseFloat(props.LAT) : null,
+    props.LON ? parseFloat(props.LON) : null,
     ctx.propertyId
   ).run();
 
@@ -561,7 +571,162 @@ const aduAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
 
 // ── All Agents Registry ──
 
-export const ALL_AGENTS: { name: string; agent: ReconAgent; description: string }[] = [
+export const // ── Agent 12b: Assessor / Owner Data (Tyler Technologies) ──
+
+const assessorAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
+  const { apn, parcel } = ctx;
+  const cleanAPN = apn.replace(/[-\s]/g, "");
+
+  try {
+    // Try the Humboldt County Assessor property search via Tyler Technologies
+    // This is the county's official property tax/assessment portal
+    const assessorBase = "https://humboldtcountyca-web.tylerhost.net/web";
+    let ownerData: Record<string, any> | null = null;
+    let assessorReachable = false;
+
+    try {
+      // First, get the search page
+      const searchResp = await fetch(`${assessorBase}/search.asp`, {
+        headers: { "User-Agent": "FairProcess-PropertyIntel/1.0" },
+        redirect: "follow",
+      });
+      assessorReachable = searchResp.ok;
+
+      if (searchResp.ok) {
+        const html = await searchResp.text();
+
+        // Try to submit an APN search
+        const formData = new URLSearchParams();
+        formData.append("searchType", "parcel");
+        formData.append("parcelNumber", cleanAPN);
+        formData.append("search", "Search");
+
+        const resultsResp = await fetch(`${assessorBase}/search.asp`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "FairProcess-PropertyIntel/1.0",
+          },
+          body: formData.toString(),
+          redirect: "follow",
+        });
+
+        if (resultsResp.ok) {
+          const resultsHtml = await resultsResp.text();
+
+          // Parse owner and assessment data from the results page
+          // Look for common patterns in Tyler Technologies property search results
+          const ownerMatch = resultsHtml.match(/(?:Owner|Name)[^<]*[:<]\s*<[^>]*>([^<]+)/i);
+          const mailMatch = resultsHtml.match(/(?:Mail|Address)[^<]*[:<]\s*<[^>]*>([^<]+)/i);
+          const taxValueMatch = resultsHtml.match(/(?:Total\s*Value|Assessed\s*Value|Land\s*Value)[^<]*[:<]\s*<[^>]*>\$?([\d,]+)/i);
+          const landValueMatch = resultsHtml.match(/Land\s*Value[^<]*[:<]\s*<[^>]*>\$?([\d,]+)/i);
+          const improvValueMatch = resultsHtml.match(/Improvement\s*Value[^<]*[:<]\s*<[^>]*>\$?([\d,]+)/i);
+
+          if (ownerMatch || taxValueMatch) {
+            ownerData = {
+              owner_name: ownerMatch?.[1]?.trim() || null,
+              mailing_address: mailMatch?.[1]?.trim() || null,
+              total_value: taxValueMatch ? parseFloat(taxValueMatch[1].replace(/,/g, "")) : null,
+              land_value: landValueMatch ? parseFloat(landValueMatch[1].replace(/,/g, "")) : null,
+              improvement_value: improvValueMatch ? parseFloat(improvValueMatch[1].replace(/,/g, "")) : null,
+              source: "Tyler Technologies (County Assessor)",
+              assessor_reachable: true,
+            };
+          }
+        }
+      }
+    } catch (e) {
+      // Assessor lookup failed — not critical, just no owner data
+    }
+
+    // Build owner info from what we have
+    const ownerName = ownerData?.owner_name || parcel?.properties?.OWNER || null;
+    const mailAddress = ownerData?.mailing_address || parcel?.properties?.MAIL_ADD || null;
+    const taxValue = ownerData?.total_value || parcel?.properties?.TAX_VALUE || null;
+
+    if (ownerData || ownerName || mailAddress) {
+      return {
+        agent: "assessor",
+        status: "success",
+        message: `Assessor data: ${ownerName || "Owner not found"} | Value: ${taxValue ? "$" + taxValue.toLocaleString() : "Unknown"}`,
+        data: {
+          owner_name: ownerName,
+          mailing_address: mailAddress,
+          total_value: taxValue,
+          land_value: ownerData?.land_value || null,
+          improvement_value: ownerData?.improvement_value || null,
+          assessor_reachable: assessorReachable,
+          assessor_url: `${assessorBase}/search.asp`,
+          search_apn: cleanAPN,
+        },
+      };
+    }
+
+    return {
+      agent: "assessor",
+      status: "no_data",
+      message: `Assessor data not available from Tyler Technologies. Assessor portal: ${assessorReachable ? "reachable" : "unreachable"}. Owner/tax data may require manual lookup at humboltcountyca-web.tylerhost.net.`,
+      data: {
+        assessor_reachable: assessorReachable,
+        assessor_url: `${assessorBase}/search.asp`,
+        search_apn: cleanAPN,
+      },
+    };
+  } catch (err: any) {
+    return {
+      agent: "assessor",
+      status: "error",
+      message: `Assessor agent error: ${err.message?.slice(0, 100) || "unknown"}`,
+    };
+  }
+};
+
+// ── Agent 12c: Expanded Parcel Details ──
+
+const parcelDetailsAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
+  if (!ctx.parcel) return { agent: "parcel_details", status: "no_data", message: "No parcel data" };
+
+  const props = ctx.parcel.properties;
+
+  return {
+    agent: "parcel_details",
+    status: "success",
+    message: `Details: ${props.DESCRIPTIO || "Unknown use"} | Use Code: ${props.USECODE || "N/A"} | Jurisdiction: ${props.JURIS || "Unknown"} | TRA: ${props.TRA || "N/A"}`,
+    data: {
+      description: props.DESCRIPTIO || null,
+      use_code: props.USECODE || null,
+      jurisdiction: props.JURIS || null,
+      zip: props.SITZIP || null,
+      airport_compatibility: props.AIRPORT === "Y" ? true : props.AIRPORT === "N" ? false : null,
+      airport_name: props.APRT_NAME || null,
+      alquist_priolo: props.AQ === "Y" ? true : props.AQ === "N" ? false : null,
+      slope_stability: props.SS || null,
+      owner_builder: props.AOB === "Y" ? true : false,
+      ag_preserve: props.AGPRES || null,
+      ms4: props.MS4 === "Y" ? true : false,
+      lat: props.LAT ? parseFloat(props.LAT) : null,
+      lng: props.LON ? parseFloat(props.LON) : null,
+      community_plan: props.COMMPLAN || null,
+      neighborhood_code: props.NEIGHCODE || null,
+      tax_rate_area: props.TRA || null,
+      perimeter: props.PERIMETER || null,
+      township: props.TOWNSHIP || null,
+      range: props.RANGE || null,
+      section: props.SECTION || null,
+      inspector_district: props.INSP_DIST || null,
+      zone_index: props.ZONE_IDX || null,
+      building_sqft: props.SP_AREA ? parseFloat(String(props.SP_AREA).replace(/,/g, "")) : null,
+      coastal_jurisdiction: props.CJ || null,
+      multi_situs: props.MULTI_SIT === "T" ? true : false,
+      portion: props.PORTION || null,
+      vicinity: props.VICINITY || null,
+      census_tract: props.CENTRCT || null,
+      census_block: props.CENBLK || null,
+    },
+  };
+};
+
+ALL_AGENTS: { name: string; agent: ReconAgent; description: string }[] = [
   { name: "parcel", agent: parcelAgent, description: "County GIS parcel data (APN, zoning, acres, legal)" },
   { name: "zoning", agent: zoningAgent, description: "Zoning designation & General Plan land use" },
   { name: "coastal_zone", agent: coastalZoneAgent, description: "California Coastal Zone jurisdiction" },
@@ -574,6 +739,8 @@ export const ALL_AGENTS: { name: string; agent: ReconAgent; description: string 
   { name: "jurisdiction", agent: jurisdictionAgent, description: "City/county jurisdiction, districts" },
   { name: "natural_resources", agent: naturalResourcesAgent, description: "Wetlands, Williamson Act, streamside areas" },
   { name: "adu", agent: aduAgent, description: "ADU (Accessory Dwelling Unit) eligibility" },
+  { name: "assessor", agent: assessorAgent, description: "Assessor/owner data from Tyler Technologies" },
+  { name: "parcel_details", agent: parcelDetailsAgent, description: "Expanded parcel details (use code, jurisdiction, census)" },
   ...RECORDS_AGENTS,
 ];
 
@@ -612,10 +779,39 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
 
   // Check if recon was already done (unless forced)
   if (!force) {
+    // Check if previous recon had enough successful agents — if not, allow re-run
+    const existingIntel = await db.prepare(
+      `SELECT raw_data FROM property_intelligence WHERE property_id = ? ORDER BY fetched_at DESC LIMIT 1`
+    ).bind(project.property_id as string).first();
+
+    if (existingIntel?.raw_data) {
+      try {
+        const prevData = JSON.parse(existingIntel.raw_data as string);
+        const prevAgentCount = prevData._meta?.agentCount ?? 0;
+        const prevSucceeded = prevData._meta?.succeeded ?? 0;
+        // Allow re-run if previous run had fewer than 50% agents succeed
+        if (prevAgentCount > 0 && prevSucceeded >= Math.ceil(prevAgentCount * 0.5)) {
+          return {
+            success: true,
+            agentCount: ALL_AGENTS.length,
+            succeeded: 0,
+            failed: 0,
+            noData: 0,
+            results: [],
+            intelligenceSummary: "Recon already completed (use force=true to re-run)",
+          };
+        }
+      } catch {
+        // If we can't parse previous data, fall through to re-run
+      }
+    }
+
+    // Also check evidence record for backward compatibility
     const existing = await db.prepare(
       `SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND doc_type = 'recon_report' AND organization_id = ? LIMIT 1`
     ).bind(projectId, project.organization_id as string).first();
-    if (existing) {
+    if (existing && !existingIntel?.raw_data) {
+      // Only skip if we have evidence AND cached intel data
       return {
         success: true,
         agentCount: ALL_AGENTS.length,
@@ -694,6 +890,15 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
       intelligenceData[result.agent] = result.data;
     }
   }
+  // Store agent status meta so the panel can display which agents ran
+  intelligenceData._meta = {
+    agentCount: ALL_AGENTS.length,
+    succeeded,
+    failed,
+    noData,
+    agents: results.map(r => ({ name: r.agent, status: r.status, message: r.message })),
+    timestamp: new Date().toISOString(),
+  };
 
   const summaryLines: string[] = [
     `FAIRPROCESS PROPERTY INTELLIGENCE RECONNAISSANCE REPORT`,
