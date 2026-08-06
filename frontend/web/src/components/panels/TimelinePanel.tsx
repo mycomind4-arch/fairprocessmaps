@@ -8,6 +8,8 @@ import {
   Building2, Mail, Phone, Camera, Gavel, MapPin, User, BookOpen,
   Sparkles, Activity, Filter,
 } from "lucide-react";
+import ProceduralClock from "./ProceduralClock";
+import InvestigationFeed from "./InvestigationFeed";
 
 // ── Types ──
 interface TimelineItem {
@@ -134,6 +136,8 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
   const [selectedEvent, setSelectedEvent] = useState<TimelineItem | null>(null);
   const [showNarrative, setShowNarrative] = useState(false);
   const [showFindings, setShowFindings] = useState(true);
+  const [showProceduralClock, setShowProceduralClock] = useState(true);
+  const [showFeed, setShowFeed] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -371,6 +375,24 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
               AI Findings
             </button>
             <button
+              onClick={() => setShowProceduralClock(!showProceduralClock)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                showProceduralClock ? "bg-fp-blue/15 text-fp-blue border border-fp-blue/30" : "bg-fp-surface-2 text-fp-text-muted border border-fp-border hover:text-fp-text"
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Procedural Clock
+            </button>
+            <button
+              onClick={() => setShowFeed(!showFeed)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                showFeed ? "bg-fp-blue/15 text-fp-blue border border-fp-blue/30" : "bg-fp-surface-2 text-fp-text-muted border border-fp-border hover:text-fp-text"
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Feed
+            </button>
+            <button
               onClick={fetchData}
               className="p-1.5 rounded-lg bg-fp-surface-2 border border-fp-border text-fp-text-muted hover:text-fp-text transition-colors"
               title="Refresh"
@@ -468,6 +490,19 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
       )}
 
       {/* ═══════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════ */}
+      {/* PROCEDURAL CLOCK — Statutory deadline tracker     */}
+      {/* ═══════════════════════════════════════════════ */}
+      {showProceduralClock && (
+        <ProceduralClock items={items} findings={findings} />
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* INVESTIGATION FEED — Live activity log            */}
+      {/* ═══════════════════════════════════════════════ */}
+      {showFeed && (
+        <InvestigationFeed items={items} findings={findings} />
+      )}
       {/* ADD EVENT FORM                                    */}
       {/* ═══════════════════════════════════════════════ */}
       {showAddForm && (
