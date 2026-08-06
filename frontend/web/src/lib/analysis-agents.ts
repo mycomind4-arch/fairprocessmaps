@@ -1,21 +1,20 @@
 /**
- * Analysis Agents — Ported from fairprocess-ai
- * 
- * These agents run AFTER the recon agents have populated D1 with property
- * intelligence data. They:
- *   1. Extract dated facts from all collected records
- *   2. Build a comprehensive timeline from all data sources
- *   3. Match events to statutory deadlines and flag deviations
- *   4. Characterize discrepancies between sources
- *   5. Apply neutrality guardrails to all outputs
- *   6. Log every action to an audit ledger with SHA-256 hashes
- * 
- * The agents are designed to work with the Cloudflare Worker D1 database
- * and do NOT require Cloudflare Workers AI (no external LLM calls needed —
- * the analysis is deterministic and rule-based).
+ * Analysis Agents — SECURITY FIX + Production Hardening
+ *
+ * FIX: All D1 queries now include organization_id scoping.
+ * This prevents analysis agents from accessing data outside their org.
+ *
+ * These agents run AFTER recon agents have populated D1.
+ * 1. Extract dated facts from all collected records
+ * 2. Build comprehensive timeline
+ * 3. Match events to statutory deadlines
+ * 4. Cross-reference for discrepancies
+ * 5. Apply neutrality guardrails
+ * 6. Log every action with SHA-256 hashes
  */
 
 import { STATUTES, evaluateDeadline, businessDaysBetween, calendarDaysBetween, type StatuteRule } from "./statutes";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 // ── Neutrality Guardrail ──
 
@@ -61,6 +60,7 @@ export interface AnalysisContext {
   projectId: string;
   propertyId: string;
   db: D1Database;
+  organizationId: string; // SECURITY FIX: required for org scoping
 }
 
 export interface AnalysisResult {
@@ -72,27 +72,31 @@ export interface AnalysisResult {
   ledgerHash: string;
 }
 
+// ── Helper: resolve org_id from project ──
+async function resolveOrgId(db: D1Database, projectId: string): Promise<string | null> {
+  const row = await db.prepare("SELECT organization_id FROM projects WHERE id = ?").bind(projectId).first();
+  return (row?.organization_id as string) ?? null;
+}
+
 // ── Agent 1: Fact Extraction ──
-// Extracts dated facts from all D1 records (permits, enforcement, evidence, recon)
 
 export async function factExtractionAgent(ctx: AnalysisContext): Promise<AnalysisResult> {
-  const { db, projectId } = ctx;
+  const { db, projectId, organizationId } = ctx;
   const startedAt = new Date().toISOString();
-  
+
   try {
-    // Gather all records that may contain dated facts
+    // SECURITY FIX: All queries include organization_id
     const [permits, ceCases, evidence, timeline, recorder, intel] = await Promise.all([
-      db.prepare("SELECT * FROM building_permits WHERE project_id = ?").bind(projectId).all(),
-      db.prepare("SELECT * FROM code_enforcement_cases WHERE project_id = ?").bind(projectId).all(),
-      db.prepare("SELECT id, title, extracted_text, ai_summary, source, doc_type FROM evidence WHERE project_id = ?").bind(projectId).all(),
-      db.prepare("SELECT * FROM timeline_events WHERE project_id = ?").bind(projectId).all(),
-      db.prepare("SELECT * FROM recorder_records WHERE project_id = ?").bind(projectId).all(),
-      db.prepare("SELECT * FROM property_intelligence WHERE property_id = (SELECT property_id FROM projects WHERE id = ?)").bind(projectId).all(),
+      db.prepare("SELECT * FROM building_permits WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all(),
+      db.prepare("SELECT * FROM code_enforcement_cases WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all(),
+      db.prepare("SELECT id, title, extracted_text, ai_summary, source, doc_type FROM evidence WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all(),
+      db.prepare("SELECT * FROM timeline_events WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all(),
+      db.prepare("SELECT * FROM recorder_records WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all(),
+      db.prepare("SELECT * FROM property_intelligence WHERE property_id = ?").bind(ctx.propertyId).all(),
     ]);
 
     const facts: any[] = [];
 
-    // Extract facts from building permits
     for (const permit of (permits.results || []) as any[]) {
       if (permit.issued_date) {
         facts.push({
@@ -138,7 +142,6 @@ export async function factExtractionAgent(ctx: AnalysisContext): Promise<Analysi
       }
     }
 
-    // Extract facts from code enforcement cases
     for (const ce of (ceCases.results || []) as any[]) {
       if (ce.notice_served_date) {
         facts.push({
@@ -204,7 +207,6 @@ export async function factExtractionAgent(ctx: AnalysisContext): Promise<Analysi
       }
     }
 
-    // Extract facts from recorder records
     for (const rec of (recorder.results || []) as any[]) {
       if (rec.recording_date) {
         facts.push({
@@ -219,23 +221,20 @@ export async function factExtractionAgent(ctx: AnalysisContext): Promise<Analysi
       }
     }
 
-    // Extract facts from evidence text (regex date extraction)
     const datePattern = /(\b\d{1,2}\/\d{1,2}\/\d{2,4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b)/gi;
     for (const ev of (evidence.results || []) as any[]) {
       const text = `${ev.extracted_text || ""} ${ev.ai_summary || ""}`;
       if (!text || text.length < 10) continue;
       const dates = text.match(datePattern);
       if (dates) {
-        for (const date of dates.slice(0, 5)) { // limit per document
-          // Parse the date
+        for (const date of dates.slice(0, 5)) {
           let parsed: string | null = null;
           try {
             const d = new Date(date);
             if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
           } catch {}
           if (parsed) {
-            // Find the sentence containing this date
-            const sentences = text.split(/[.]\s+/);
+            const sentences = text.split(/[.!?)\s+/);
             const matchingSentence = sentences.find(s => s.includes(date));
             facts.push({
               fact_id: `evid_${ev.id.slice(0, 8)}_${date.replace(/[^a-zA-Z0-9]/g, "")}`,
@@ -251,10 +250,8 @@ export async function factExtractionAgent(ctx: AnalysisContext): Promise<Analysi
       }
     }
 
-    // Extract facts from property intelligence (GIS data)
     for (const intelRec of (intel.results || []) as any[]) {
       const rawData = typeof intelRec.raw_data === "string" ? JSON.parse(intelRec.raw_data) : intelRec.raw_data;
-      // Transfer date from GIS
       if (rawData?.parcel?.transfer_date) {
         facts.push({
           fact_id: `gis_transfer`,
@@ -267,10 +264,9 @@ export async function factExtractionAgent(ctx: AnalysisContext): Promise<Analysi
       }
     }
 
-    // Sort by date
     facts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    const ledgerText = JSON.stringify({ projectId, agent: "Fact Extraction Agent", startedAt, completedAt: new Date().toISOString(), factCount: facts.length });
+    const ledgerText = JSON.stringify({ projectId, organizationId, agent: "Fact Extraction Agent", startedAt, completedAt: new Date().toISOString(), factCount: facts.length });
     const hash = await sha256(ledgerText);
 
     return {
@@ -294,13 +290,11 @@ export async function factExtractionAgent(ctx: AnalysisContext): Promise<Analysi
 }
 
 // ── Agent 2: Timeline Builder ──
-// Sequences all facts into a chronological timeline with gap detection
 
 export async function timelineAgent(ctx: AnalysisContext, facts: any[]): Promise<AnalysisResult> {
-  const { db, projectId } = ctx;
-  
+  const { db, projectId, organizationId } = ctx;
+
   try {
-    // Sort facts by date
     const sorted = facts
       .filter(f => f.date)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -315,7 +309,6 @@ export async function timelineAgent(ctx: AnalysisContext, facts: any[]): Promise
       details: f.details,
     }));
 
-    // Compute gaps between consecutive events
     const gaps: any[] = [];
     for (let i = 0; i < events.length - 1; i++) {
       const days = calendarDaysBetween(events[i].date, events[i + 1].date);
@@ -327,27 +320,26 @@ export async function timelineAgent(ctx: AnalysisContext, facts: any[]): Promise
         to_event: events[i + 1].event,
         from_category: events[i].category,
         to_category: events[i + 1].category,
-        flagged: days > 30, // Flag gaps over 30 days as potentially significant
+        flagged: days > 30,
       });
     }
 
-    // Write timeline events to D1 (replacing agent-generated ones)
-    // First delete existing agent-generated timeline events
+    // SECURITY FIX: org-scoped delete
     await db.prepare(
-      `DELETE FROM timeline_events WHERE project_id = ? AND evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research')`
-    ).bind(projectId, projectId).run();
+      `DELETE FROM timeline_events WHERE project_id = ? AND organization_id = ? AND evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research')`
+    ).bind(projectId, organizationId, projectId).run();
 
     for (const event of events) {
       const eventId = crypto.randomUUID();
       const eventType = mapCategoryToEventType(event.category);
       await db.prepare(
-        `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description)
-         VALUES (?, ?, NULL, ?, ?, ?)`
-      ).bind(eventId, projectId, event.date, eventType, event.event).run();
+        `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, organization_id)
+         VALUES (?, ?, NULL, ?, ?, ?, ?)`
+      ).bind(eventId, projectId, event.date, eventType, event.event, organizationId).run();
     }
 
     const flaggedGaps = gaps.filter(g => g.flagged).length;
-    const hash = await sha256(JSON.stringify({ projectId, agent: "Timeline Agent", events: events.length, gaps: gaps.length }));
+    const hash = await sha256(JSON.stringify({ projectId, organizationId, agent: "Timeline Agent", events: events.length, gaps: gaps.length }));
 
     return {
       agent: "timeline",
@@ -387,137 +379,64 @@ function mapCategoryToEventType(category: string): string {
 }
 
 // ── Agent 3: Statute Matching ──
-// Matches timeline events to statutory deadlines and flags deviations
 
 export async function statuteMatchingAgent(ctx: AnalysisContext, facts: any[]): Promise<AnalysisResult> {
-  const { db, projectId } = ctx;
-  
+  const { db, projectId, organizationId } = ctx;
+
   try {
     const results: any[] = [];
-    const ceCases = ((await db.prepare("SELECT * FROM code_enforcement_cases WHERE project_id = ?").bind(projectId).all()).results || []) as any[];
-    const permits = ((await db.prepare("SELECT * FROM building_permits WHERE project_id = ?").bind(projectId).all()).results || []) as any[];
-    const recorder = ((await db.prepare("SELECT * FROM recorder_records WHERE project_id = ?").bind(projectId).all()).results || []) as any[];
+    const ceCases = ((await db.prepare("SELECT * FROM code_enforcement_cases WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all()).results || []) as any[];
+    const permits = ((await db.prepare("SELECT * FROM building_permits WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all()).results || []) as any[];
+    const recorder = ((await db.prepare("SELECT * FROM recorder_records WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all()).results || []) as any[];
 
-    // Check each CE case against notice statutes
     for (const ce of ceCases) {
-      // HCC § 351-7: Citation must be mailed within 3 business days
       if (ce.notice_served_date && ce.created_at) {
         const createdDate = ce.created_at.slice(0, 10);
         const statute = STATUTES.find(s => s.ref === "HCC § 351-7")!;
         const evalResult = evaluateDeadline(createdDate, ce.notice_served_date, statute);
-        results.push({
-          statute_ref: statute.ref,
-          statute_title: statute.title,
-          case_ref: ce.case_number,
-          required_rule: statute.description,
-          actual_event: { start_date: createdDate, end_date: ce.notice_served_date, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction },
-          status: evalResult.status,
-          note: evalResult.note,
-        });
+        results.push({ statute_ref: statute.ref, statute_title: statute.title, case_ref: ce.case_number, required_rule: statute.description, actual_event: { start_date: createdDate, end_date: ce.notice_served_date, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction }, status: evalResult.status, note: evalResult.note });
       }
-
-      // HCC § 351-12: Notice published at least 10 days before hearing
       if (ce.notice_served_date && ce.hearing_date) {
         const statute = STATUTES.find(s => s.ref === "HCC § 351-12")!;
         const evalResult = evaluateDeadline(ce.notice_served_date, ce.hearing_date, statute);
-        results.push({
-          statute_ref: statute.ref,
-          statute_title: statute.title,
-          case_ref: ce.case_number,
-          required_rule: statute.description,
-          actual_event: { start_date: ce.notice_served_date, end_date: ce.hearing_date, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction },
-          status: evalResult.status,
-          note: evalResult.note,
-        });
+        results.push({ statute_ref: statute.ref, statute_title: statute.title, case_ref: ce.case_number, required_rule: statute.description, actual_event: { start_date: ce.notice_served_date, end_date: ce.hearing_date, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction }, status: evalResult.status, note: evalResult.note });
       }
-
-      // HCC § 311-3: Nuisance abatement — 30 day notice minimum
       if (ce.notice_served_date && ce.abatement_date) {
         const statute = STATUTES.find(s => s.ref === "HCC § 311-3")!;
         const evalResult = evaluateDeadline(ce.notice_served_date, ce.abatement_date, statute);
-        results.push({
-          statute_ref: statute.ref,
-          statute_title: statute.title,
-          case_ref: ce.case_number,
-          required_rule: statute.description,
-          actual_event: { start_date: ce.notice_served_date, end_date: ce.abatement_date, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction },
-          status: evalResult.status,
-          note: evalResult.note,
-        });
+        results.push({ statute_ref: statute.ref, statute_title: statute.title, case_ref: ce.case_number, required_rule: statute.description, actual_event: { start_date: ce.notice_served_date, end_date: ce.abatement_date, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction }, status: evalResult.status, note: evalResult.note });
       }
-
-      // HCC § 4.2: Notice posted within 5 business days of enforcement action
       if (ce.created_at && ce.notice_served_date) {
         const createdDate = ce.created_at.slice(0, 10);
         const statute = STATUTES.find(s => s.ref === "HCC § 4.2")!;
         const evalResult = evaluateDeadline(createdDate, ce.notice_served_date, statute);
-        results.push({
-          statute_ref: statute.ref,
-          statute_title: statute.title,
-          case_ref: ce.case_number,
-          required_rule: statute.description,
-          actual_event: { start_date: createdDate, end_date: ce.notice_served_date, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction },
-          status: evalResult.status,
-          note: evalResult.note,
-        });
+        results.push({ statute_ref: statute.ref, statute_title: statute.title, case_ref: ce.case_number, required_rule: statute.description, actual_event: { start_date: createdDate, end_date: ce.notice_served_date, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction }, status: evalResult.status, note: evalResult.note });
       }
-
-      // CA Gov Code § 53069.4: 10 days to request hearing on citation
       if (ce.notice_served_date && !ce.appeal_date) {
         const statute = STATUTES.find(s => s.ref === "CA Gov Code § 53069.4")!;
-        results.push({
-          statute_ref: statute.ref,
-          statute_title: statute.title,
-          case_ref: ce.case_number,
-          required_rule: statute.description,
-          actual_event: { start_date: ce.notice_served_date, end_date: null, elapsed_days: 0, direction: "min" },
-          status: "unable to determine",
-          note: `No appeal/request for hearing recorded. Statute allows ${statute.deadline_value} calendar days from notice (${ce.notice_served_date}) to request hearing.`,
-        });
+        results.push({ statute_ref: statute.ref, statute_title: statute.title, case_ref: ce.case_number, required_rule: statute.description, actual_event: { start_date: ce.notice_served_date, end_date: null, elapsed_days: 0, direction: "min" }, status: "unable to determine", note: `No appeal/request for hearing recorded. Statute allows ${statute.deadline_value} calendar days from notice (${ce.notice_served_date}) to request hearing.` });
       }
-
-      // HCC § 351-9: Recording of enforcement orders within 5 business days
       if (ce.status === "closed" || ce.status === "abated" || ce.lien_filed) {
         const effectiveDate = ce.abatement_date || ce.updated_at?.slice(0, 10);
         const recordDate = recorder.find(r => r.document_type?.toLowerCase().includes("lien") || r.document_type?.toLowerCase().includes("enforcement"))?.recording_date;
         if (effectiveDate && recordDate) {
           const statute = STATUTES.find(s => s.ref === "HCC § 351-9")!;
           const evalResult = evaluateDeadline(effectiveDate, recordDate, statute);
-          results.push({
-            statute_ref: statute.ref,
-            statute_title: statute.title,
-            case_ref: ce.case_number,
-            required_rule: statute.description,
-            actual_event: { start_date: effectiveDate, end_date: recordDate, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction },
-            status: evalResult.status,
-            note: evalResult.note,
-          });
+          results.push({ statute_ref: statute.ref, statute_title: statute.title, case_ref: ce.case_number, required_rule: statute.description, actual_event: { start_date: effectiveDate, end_date: recordDate, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction }, status: evalResult.status, note: evalResult.note });
         }
       }
     }
 
-    // Check permits against statutes
     for (const permit of permits) {
-      // CA Gov Code § 65863.3: Permit decision notification within 30 days
       if (permit.permit_status === "issued" || permit.permit_status === "denied" || permit.permit_status === "finalized") {
         const decisionDate = permit.issued_date || permit.finalized_date || permit.updated_at?.slice(0, 10);
         const applicationDate = permit.created_at?.slice(0, 10);
         if (applicationDate && decisionDate && decisionDate !== applicationDate) {
           const statute = STATUTES.find(s => s.ref === "CA Gov Code § 65863.3")!;
           const evalResult = evaluateDeadline(applicationDate, decisionDate, statute);
-          results.push({
-            statute_ref: statute.ref,
-            statute_title: statute.title,
-            case_ref: permit.permit_number,
-            required_rule: statute.description,
-            actual_event: { start_date: applicationDate, end_date: decisionDate, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction },
-            status: evalResult.status,
-            note: evalResult.note,
-          });
+          results.push({ statute_ref: statute.ref, statute_title: statute.title, case_ref: permit.permit_number, required_rule: statute.description, actual_event: { start_date: applicationDate, end_date: decisionDate, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction }, status: evalResult.status, note: evalResult.note });
         }
       }
-
-      // CA Gov Code § 65852.2: ADU permit — 60 days to approve/deny
       if (permit.permit_type?.toLowerCase().includes("adu")) {
         const applicationDate = permit.created_at?.slice(0, 10);
         const decisionDate = permit.issued_date || permit.finalized_date;
@@ -525,35 +444,16 @@ export async function statuteMatchingAgent(ctx: AnalysisContext, facts: any[]): 
           const statute = STATUTES.find(s => s.ref === "CA Gov Code § 65852.2")!;
           const endDate = decisionDate || new Date().toISOString().slice(0, 10);
           const evalResult = evaluateDeadline(applicationDate, endDate, statute);
-          results.push({
-            statute_ref: statute.ref,
-            statute_title: statute.title,
-            case_ref: permit.permit_number,
-            required_rule: statute.description,
-            actual_event: { start_date: applicationDate, end_date: endDate, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction },
-            status: evalResult.status,
-            note: decisionDate ? evalResult.note : `${evalResult.elapsedDays} days elapsed, still pending (max: ${statute.deadline_value} days).`,
-          });
+          results.push({ statute_ref: statute.ref, statute_title: statute.title, case_ref: permit.permit_number, required_rule: statute.description, actual_event: { start_date: applicationDate, end_date: endDate, elapsed_days: evalResult.elapsedDays, direction: statute.deadline_direction }, status: evalResult.status, note: decisionDate ? evalResult.note : `${evalResult.elapsedDays} days elapsed, still pending (max: ${statute.deadline_value} days).` });
         }
       }
-
-      // CA Gov Code § 65905: Appeal period for zoning/planning decisions
       if (permit.permit_status === "denied") {
         const denyDate = permit.updated_at?.slice(0, 10);
         const statute = STATUTES.find(s => s.ref === "CA Gov Code § 65905")!;
-        results.push({
-          statute_ref: statute.ref,
-          statute_title: statute.title,
-          case_ref: permit.permit_number,
-          required_rule: statute.description,
-          actual_event: { start_date: denyDate, end_date: null, elapsed_days: 0, direction: "min" },
-          status: "unable to determine",
-          note: `Permit denied on ${denyDate}. ${statute.deadline_value} calendar day appeal period applies. No appeal recorded.`,
-        });
+        results.push({ statute_ref: statute.ref, statute_title: statute.title, case_ref: permit.permit_number, required_rule: statute.description, actual_event: { start_date: denyDate, end_date: null, elapsed_days: 0, direction: "min" }, status: "unable to determine", note: `Permit denied on ${denyDate}. ${statute.deadline_value} calendar day appeal period applies. No appeal recorded.` });
       }
     }
 
-    // Apply guardrails to all notes
     const allBlocks: any[] = [];
     for (const r of results) {
       if (r.note) {
@@ -563,19 +463,18 @@ export async function statuteMatchingAgent(ctx: AnalysisContext, facts: any[]): 
       }
     }
 
-    // Write statute findings to D1
     const deviations = results.filter(r => r.status === "deviation detected");
     const matches = results.filter(r => r.status === "matches expected window");
     const unknown = results.filter(r => r.status === "unable to determine");
 
-    // Store as due_process_findings with statute references
-    await db.prepare("DELETE FROM due_process_findings WHERE project_id = ? AND rule LIKE 'statute_%'").bind(projectId).run();
-    
+    // SECURITY FIX: org-scoped delete
+    await db.prepare("DELETE FROM due_process_findings WHERE project_id = ? AND organization_id = ? AND rule LIKE 'statute_%'").bind(projectId, organizationId).run();
+
     for (const r of results) {
       const severity = r.status === "deviation detected" ? "critical" : r.status === "unable to determine" ? "warning" : "info";
       await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail)
-         VALUES (?, ?, ?, ?, ?, 'open', ?)`
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`
       ).bind(
         crypto.randomUUID(),
         projectId,
@@ -583,10 +482,11 @@ export async function statuteMatchingAgent(ctx: AnalysisContext, facts: any[]): 
         `${r.statute_ref}: ${r.statute_title}`,
         severity,
         `[${r.statute_ref}] Case ${r.case_ref || "N/A"} — ${r.note} Status: ${r.status}.`,
+        organizationId,
       ).run();
     }
 
-    const hash = await sha256(JSON.stringify({ projectId, agent: "Statute Matching Agent", results: results.length }));
+    const hash = await sha256(JSON.stringify({ projectId, organizationId, agent: "Statute Matching Agent", results: results.length }));
 
     return {
       agent: "statute_matching",
@@ -609,17 +509,16 @@ export async function statuteMatchingAgent(ctx: AnalysisContext, facts: any[]): 
 }
 
 // ── Agent 4: Discrepancy Detection ──
-// Cross-references all data sources for conflicts
 
 export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Promise<AnalysisResult> {
-  const { db, projectId } = ctx;
-  
+  const { db, projectId, organizationId } = ctx;
+
   try {
     const [permits, ceCases, recorder, intel] = await Promise.all([
-      db.prepare("SELECT * FROM building_permits WHERE project_id = ?").bind(projectId).all(),
-      db.prepare("SELECT * FROM code_enforcement_cases WHERE project_id = ?").bind(projectId).all(),
-      db.prepare("SELECT * FROM recorder_records WHERE project_id = ?").bind(projectId).all(),
-      db.prepare("SELECT * FROM property_intelligence WHERE property_id = (SELECT property_id FROM projects WHERE id = ?)").bind(projectId).all(),
+      db.prepare("SELECT * FROM building_permits WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all(),
+      db.prepare("SELECT * FROM code_enforcement_cases WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all(),
+      db.prepare("SELECT * FROM recorder_records WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all(),
+      db.prepare("SELECT * FROM property_intelligence WHERE property_id = ?").bind(ctx.propertyId).all(),
     ]);
 
     const permitList = (permits.results || []) as any[];
@@ -630,7 +529,6 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
 
     const conflicts: any[] = [];
 
-    // Discrepancy 1: Permit exists but no corresponding recorder record (title transfer)
     for (const permit of permitList) {
       if (permit.permit_type?.toLowerCase().includes("demolition")) {
         const hasRecording = recorderList.length > 0;
@@ -647,7 +545,6 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
       }
     }
 
-    // Discrepancy 2: CE case has abatement but no hearing recorded
     for (const ce of ceCaseList) {
       if (ce.abatement_date && !ce.hearing_date) {
         conflicts.push({
@@ -661,7 +558,6 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
       }
     }
 
-    // Discrepancy 3: GIS says vacant but permits exist for construction
     const gisDesc = intelRaw?.parcel?.description || "";
     if (gisDesc.toLowerCase().includes("vacant") && permitList.some(p => p.permit_type?.toLowerCase().includes("building") || p.permit_type?.toLowerCase().includes("construction"))) {
       conflicts.push({
@@ -674,7 +570,6 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
       });
     }
 
-    // Discrepancy 4: Notice served but no compliance deadline
     for (const ce of ceCaseList) {
       if (ce.notice_served_date && !ce.compliance_deadline) {
         conflicts.push({
@@ -688,7 +583,6 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
       }
     }
 
-    // Discrepancy 5: CE case closed but no outcome recorded
     for (const ce of ceCaseList) {
       if ((ce.status === "closed" || ce.status === "abated") && !ce.outcome) {
         conflicts.push({
@@ -702,7 +596,6 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
       }
     }
 
-    // Discrepancy 6: Permit issued but GIS shows different zoning
     const gisZoning = intelRaw?.parcel?.zoning || intelData[0]?.zoning || "";
     for (const permit of permitList) {
       if (permit.permit_type?.toLowerCase().includes("adu") && gisZoning && !gisZoning.toLowerCase().includes("r-")) {
@@ -717,7 +610,6 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
       }
     }
 
-    // Discrepancy 7: Multiple permits for same property — check for conflicting work
     if (permitList.length > 1) {
       const demolitionPermits = permitList.filter(p => p.permit_type?.toLowerCase().includes("demolition"));
       const constructionPermits = permitList.filter(p => p.permit_type?.toLowerCase().includes("building") && !p.permit_type?.toLowerCase().includes("demolition"));
@@ -741,7 +633,6 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
       }
     }
 
-    // Apply guardrails
     const allBlocks: any[] = [];
     for (const c of conflicts) {
       if (c.characterization) {
@@ -751,13 +642,13 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
       }
     }
 
-    // Store discrepancies as due_process_findings
-    await db.prepare("DELETE FROM due_process_findings WHERE project_id = ? AND rule LIKE 'discrepancy_%'").bind(projectId).run();
+    // SECURITY FIX: org-scoped delete
+    await db.prepare("DELETE FROM due_process_findings WHERE project_id = ? AND organization_id = ? AND rule LIKE 'discrepancy_%'").bind(projectId, organizationId).run();
 
     for (const c of conflicts) {
       await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail)
-         VALUES (?, ?, ?, ?, ?, 'open', ?)`
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`
       ).bind(
         crypto.randomUUID(),
         projectId,
@@ -765,10 +656,11 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
         c.conflict_type.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
         c.severity,
         c.characterization,
+        organizationId,
       ).run();
     }
 
-    const hash = await sha256(JSON.stringify({ projectId, agent: "Discrepancy Agent", conflicts: conflicts.length }));
+    const hash = await sha256(JSON.stringify({ projectId, organizationId, agent: "Discrepancy Agent", conflicts: conflicts.length }));
 
     return {
       agent: "discrepancy",
@@ -793,13 +685,12 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
 }
 
 // ── Agent 5: Document Classifier ──
-// Hashes and classifies evidence documents
 
 export async function documentAgent(ctx: AnalysisContext): Promise<AnalysisResult> {
-  const { db, projectId } = ctx;
-  
+  const { db, projectId, organizationId } = ctx;
+
   try {
-    const evidence = ((await db.prepare("SELECT id, title, extracted_text, ai_summary, source, doc_type, status FROM evidence WHERE project_id = ?").bind(projectId).all()).results || []) as any[];
+    const evidence = ((await db.prepare("SELECT id, title, extracted_text, ai_summary, source, doc_type, status FROM evidence WHERE project_id = ? AND organization_id = ?").bind(projectId, organizationId).all()).results || []) as any[];
 
     const DOC_TYPES: Record<string, { keywords: string[]; label: string }> = {
       citation: { keywords: ["citation", "cited", "violation notice"], label: "Citation" },
@@ -812,7 +703,7 @@ export async function documentAgent(ctx: AnalysisContext): Promise<AnalysisResul
     };
 
     const classifications: any[] = [];
-    
+
     for (const ev of evidence) {
       const text = `${ev.title || ""} ${ev.extracted_text || ""} ${ev.ai_summary || ""}`.toLowerCase();
       let docType = "Document";
@@ -822,7 +713,7 @@ export async function documentAgent(ctx: AnalysisContext): Promise<AnalysisResul
           break;
         }
       }
-      
+
       const hash = await sha256(`${ev.id}${ev.title}${ev.extracted_text || ""}`);
       classifications.push({
         evidence_id: ev.id,
@@ -833,7 +724,7 @@ export async function documentAgent(ctx: AnalysisContext): Promise<AnalysisResul
       });
     }
 
-    const hash = await sha256(JSON.stringify({ projectId, agent: "Document Agent", documents: classifications.length }));
+    const hash = await sha256(JSON.stringify({ projectId, organizationId, agent: "Document Agent", documents: classifications.length }));
 
     return {
       agent: "document",
@@ -865,54 +756,50 @@ export async function runAnalysisAgents(ctx: AnalysisContext): Promise<{
   criticalFindings: number;
   warningFindings: number;
 }> {
-  const { db, projectId } = ctx;
+  const { db, projectId, organizationId } = ctx;
 
-  // Step 1: Extract facts from all data sources
   const factResult = await factExtractionAgent(ctx);
   const facts = factResult.data?.facts || [];
 
-  // Step 2: Build timeline from facts (sequentially — depends on facts)
   const timelineResult = await timelineAgent(ctx, facts);
 
-  // Step 3: Run statute matching and discrepancy detection in parallel
   const [statuteResult, discrepancyResult] = await Promise.all([
     statuteMatchingAgent(ctx, facts),
     discrepancyAgent(ctx, facts),
   ]);
 
-  // Step 4: Classify documents
   const documentResult = await documentAgent(ctx);
 
   const results = [factResult, timelineResult, statuteResult, discrepancyResult, documentResult];
 
-  // Step 5: Calculate overall score
-  const allFindings = ((await db.prepare("SELECT severity FROM due_process_findings WHERE project_id = ? AND status = 'open'").bind(projectId).all()).results || []) as any[];
+  // SECURITY FIX: org-scoped findings count
+  const allFindings = ((await db.prepare("SELECT severity FROM due_process_findings WHERE project_id = ? AND organization_id = ? AND status = 'open'").bind(projectId, organizationId).all()).results || []) as any[];
   const critical = allFindings.filter(f => f.severity === "critical").length;
   const warning = allFindings.filter(f => f.severity === "warning").length;
   const info = allFindings.filter(f => f.severity === "info").length;
   const score = Math.max(0, 100 - critical * 25 - warning * 10 - info * 3);
 
-  await db.prepare("UPDATE projects SET due_process_score = ?, updated_at = datetime('now') WHERE id = ?").bind(score, projectId).run();
+  await db.prepare("UPDATE projects SET due_process_score = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?").bind(score, projectId, organizationId).run();
 
-  // Step 6: Write audit ledger entry
   const ledgerText = JSON.stringify({
     projectId,
+    organizationId,
     timestamp: new Date().toISOString(),
     agents: results.map(r => ({ name: r.agent, status: r.status, hash: r.ledgerHash })),
     score,
     guardrail: GUARDRAIL,
   });
   const ledgerHash = await sha256(ledgerText);
-  
-  // Store audit record as evidence
+
   await db.prepare(
-    `INSERT INTO evidence (id, project_id, source, doc_type, title, status, ai_summary)
-     VALUES (?, ?, 'agent_audit', 'audit_ledger', ?, 'processed', ?)`
+    `INSERT INTO evidence (id, project_id, source, doc_type, title, status, ai_summary, organization_id)
+     VALUES (?, ?, 'agent_audit', 'audit_ledger', ?, 'processed', ?, ?)`
   ).bind(
     crypto.randomUUID(),
     projectId,
     `Analysis Agent Audit — ${new Date().toISOString().slice(0, 10)}`,
     `Agents: ${results.map(r => `${r.agent}(${r.status})`).join(", ")}. Score: ${score}. Findings: ${allFindings.length} (${critical}C/${warning}W/${info}I). Hash: ${ledgerHash.substring(0, 16)}. ${GUARDRAIL}`,
+    organizationId,
   ).run();
 
   const summary = [

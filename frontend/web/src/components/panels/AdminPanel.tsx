@@ -6,7 +6,6 @@ import {
   Users,
   Database,
   Download,
-  Upload,
   Trash2,
   Plus,
   Shield,
@@ -14,10 +13,7 @@ import {
   Loader2,
   Check,
   X,
-  Key,
-  FileText,
   Activity,
-  Globe,
 } from "lucide-react";
 
 // ── Types ──
@@ -52,7 +48,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("viewer");
-  const [activeTab, setActiveTab] = useState<"general" | "members" | "data" | "danger">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "members" | "permissions" | "organization" | "danger" | "all">("all");
 
   useEffect(() => {
     // Load settings from localStorage
@@ -155,275 +151,361 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-fp-accent" />
-        <span className="ml-2 text-fp-text-muted">Loading admin settings…</span>
+      <div className="flex items-center justify-center py-20 text-fp-text-muted text-sm">
+        <Loader2 className="h-5 w-5 animate-spin text-fp-blue mr-3" />
+        <span>Loading admin settings…</span>
       </div>
     );
   }
 
   if (!settings) return null;
 
+  const showSection = (sec: string) => activeTab === "all" || activeTab === sec;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-12 max-w-4xl">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-fp-text">Admin</h2>
-        <p className="text-sm text-fp-text-muted mt-0.5">Project settings, user management, and system configuration</p>
+        <h2 className="text-2xl font-semibold tracking-tight text-fp-text">Admin Settings</h2>
+        <p className="text-sm text-fp-text-muted mt-1">Project configuration, member access, permissions, and system controls</p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-fp-border">
-        {([
+      {/* Quick Navigation Filter Bar */}
+      <div className="flex items-center gap-2 border-b border-fp-border pb-4 flex-wrap">
+        {[
+          { id: "all", label: "All Sections", icon: Settings },
           { id: "general", label: "General", icon: Settings },
-          { id: "members", label: "Members", icon: Users },
-          { id: "data", label: "Data & Export", icon: Database },
+          { id: "members", label: "Users", icon: Users },
+          { id: "permissions", label: "Permissions", icon: Shield },
+          { id: "organization", label: "Organization", icon: Database },
           { id: "danger", label: "Danger Zone", icon: AlertTriangle },
-        ] as const).map((tab) => {
+        ].map((tab) => {
           const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
-                activeTab === tab.id
-                  ? "text-fp-accent border-fp-accent"
-                  : "text-fp-text-muted border-transparent hover:text-fp-text"
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                isActive
+                  ? tab.id === "danger"
+                    ? "bg-fp-red/15 text-fp-red border border-fp-red/40"
+                    : "bg-fp-blue/15 text-fp-blue border border-fp-blue/40 shadow-sm"
+                  : "text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 border border-transparent"
               }`}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-3.5 w-3.5" />
               {tab.label}
             </button>
           );
         })}
       </div>
 
-      {/* General Tab */}
-      {activeTab === "general" && (
-        <div className="space-y-4 max-w-2xl">
-          <div>
-            <label className="text-xs font-medium text-fp-text-muted mb-1 block">Project Name</label>
-            <input
-              value={settings.name}
-              onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-              className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
-              placeholder="Project name"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-medium text-fp-text-muted mb-1 block">Project Type</label>
-              <select
-                value={settings.type}
-                onChange={(e) => setSettings({ ...settings, type: e.target.value })}
-                className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
-              >
-                <option>Code Enforcement</option>
-                <option>Permit Dispute</option>
-                <option>Zoning Challenge</option>
-                <option>Property Rights</option>
-                <option>General Investigation</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-fp-text-muted mb-1 block">Status</label>
-              <select
-                value={settings.status}
-                onChange={(e) => setSettings({ ...settings, status: e.target.value })}
-                className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
-              >
-                <option>Open</option>
-                <option>In Progress</option>
-                <option>On Hold</option>
-                <option>Closed</option>
-                <option>Archived</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-fp-text-muted mb-1 block">Description</label>
-            <textarea
-              value={settings.description}
-              onChange={(e) => setSettings({ ...settings, description: e.target.value })}
-              className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none min-h-[80px]"
-              placeholder="Brief description of this project"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-medium text-fp-text-muted mb-1 block">Jurisdiction</label>
-              <input
-                value={settings.jurisdiction}
-                onChange={(e) => setSettings({ ...settings, jurisdiction: e.target.value })}
-                className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-fp-text-muted mb-1 block">Auto-expire days (permits)</label>
-              <input
-                type="number"
-                value={settings.auto_expire_days}
-                onChange={(e) => setSettings({ ...settings, auto_expire_days: parseInt(e.target.value) || 180 })}
-                className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Notifications */}
-          <div className="rounded-lg border border-fp-border bg-fp-card p-4 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-fp-text">
-              <Activity className="h-4 w-4 text-fp-accent" />
-              Notification Settings
-            </div>
-            {[
-              { key: "notify_deadlines" as const, label: "Deadline reminders", desc: "Get alerted before permits expire and due process deadlines approach" },
-              { key: "notify_enforcement" as const, label: "Enforcement actions", desc: "Notify when new code enforcement cases are detected" },
-              { key: "notify_permit_changes" as const, label: "Permit changes", desc: "Notify on permit status changes and new applications" },
-            ].map((item) => (
-              <label key={item.key} className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings[item.key]}
-                  onChange={(e) => setSettings({ ...settings, [item.key]: e.target.checked })}
-                  className="mt-0.5 h-4 w-4 rounded border-fp-border accent-fp-accent"
-                />
-                <div>
-                  <p className="text-sm text-fp-text">{item.label}</p>
-                  <p className="text-xs text-fp-text-muted">{item.desc}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-
-          {/* Save button */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={saveSettings}
-              disabled={saving}
-              className="inline-flex items-center gap-1.5 rounded-md bg-fp-accent px-4 py-2 text-sm font-medium text-black hover:bg-fp-accent/90 transition-colors disabled:opacity-50"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : savedFlash ? <Check className="h-4 w-4" /> : null}
-              {saving ? "Saving…" : savedFlash ? "Saved!" : "Save Changes"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Members Tab */}
-      {activeTab === "members" && (
-        <div className="space-y-4 max-w-2xl">
+      {/* SECTION 1: GENERAL */}
+      {showSection("general") && (
+        <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-fp-text-muted">{members.length} member{members.length !== 1 ? "s" : ""}</p>
-            <button
-              onClick={() => setShowInvite(true)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-fp-accent px-3 py-1.5 text-sm font-medium text-black hover:bg-fp-accent/90 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Invite Member
-            </button>
+            <h3 className="text-base font-semibold text-fp-text flex items-center gap-2">
+              <Settings className="w-5 h-5 text-fp-blue" />
+              1. General
+            </h3>
+            <span className="text-xs uppercase tracking-wide text-fp-text-dim">Project Identity</span>
           </div>
 
-          <div className="space-y-2">
-            {members.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 rounded-lg border border-fp-border bg-fp-card p-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-fp-bg text-sm font-medium text-fp-accent">
-                  {m.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-fp-text">{m.name}</span>
-                    <RoleBadge role={m.role} />
-                  </div>
-                  <p className="text-xs text-fp-text-muted">{m.email}</p>
-                </div>
-                {m.role !== "admin" && (
-                  <button
-                    onClick={() => removeMember(m.id)}
-                    className="text-fp-text-muted hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
+          <div className="rounded-[14px] glass p-6 shadow-lg shadow-black/20 space-y-6">
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wide text-fp-text-dim mb-2 block">
+                Project Name
+              </label>
+              <input
+                value={settings.name}
+                onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+                className="w-full rounded-lg border border-fp-border bg-fp-surface px-4 py-2.5 text-sm text-fp-text placeholder:text-fp-text-dim focus:border-fp-blue focus:outline-none focus:ring-1 focus:ring-fp-blue transition-all"
+                placeholder="Enter project name"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wide text-fp-text-dim mb-2 block">
+                Description
+              </label>
+              <textarea
+                value={settings.description}
+                onChange={(e) => setSettings({ ...settings, description: e.target.value })}
+                className="w-full rounded-lg border border-fp-border bg-fp-surface px-4 py-2.5 text-sm text-fp-text placeholder:text-fp-text-dim focus:border-fp-blue focus:outline-none focus:ring-1 focus:ring-fp-blue transition-all min-h-[90px] leading-relaxed"
+                placeholder="Brief summary or case objective"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wide text-fp-text-dim mb-2 block">
+                  Project Type
+                </label>
+                <select
+                  value={settings.type}
+                  onChange={(e) => setSettings({ ...settings, type: e.target.value })}
+                  className="w-full rounded-lg border border-fp-border bg-fp-surface px-4 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none transition-all"
+                >
+                  <option>Code Enforcement</option>
+                  <option>Permit Dispute</option>
+                  <option>Zoning Challenge</option>
+                  <option>Property Rights</option>
+                  <option>General Investigation</option>
+                </select>
               </div>
-            ))}
+
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wide text-fp-text-dim mb-2 block">
+                  Status
+                </label>
+                <select
+                  value={settings.status}
+                  onChange={(e) => setSettings({ ...settings, status: e.target.value })}
+                  className="w-full rounded-lg border border-fp-border bg-fp-surface px-4 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none transition-all"
+                >
+                  <option>Open</option>
+                  <option>In Progress</option>
+                  <option>On Hold</option>
+                  <option>Closed</option>
+                  <option>Archived</option>
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Data Tab */}
-      {activeTab === "data" && (
-        <div className="space-y-4 max-w-2xl">
-          <div className="rounded-lg border border-fp-border bg-fp-card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Download className="h-4 w-4 text-fp-accent" />
-              <span className="text-sm font-medium text-fp-text">Export Project Data</span>
-            </div>
-            <p className="text-xs text-fp-text-muted mb-3">
-              Download all project settings, evidence metadata, and case data as a JSON file. This does not include uploaded document binaries.
-            </p>
-            <button
-              onClick={exportData}
-              className="inline-flex items-center gap-1.5 rounded-md border border-fp-border bg-fp-bg px-3 py-1.5 text-sm font-medium text-fp-text hover:border-fp-accent/30 transition-colors"
-            >
-              <Download className="h-4 w-4" />
-              Export as JSON
-            </button>
+      {/* SECTION 2: USERS */}
+      {showSection("members") && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-fp-text flex items-center gap-2">
+              <Users className="w-5 h-5 text-fp-blue" />
+              2. Users
+            </h3>
+            <span className="text-xs uppercase tracking-wide text-fp-text-dim">Team Access ({members.length})</span>
           </div>
 
-          <div className="rounded-lg border border-fp-border bg-fp-card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Database className="h-4 w-4 text-fp-accent" />
-              <span className="text-sm font-medium text-fp-text">Storage Usage</span>
+          <div className="rounded-[14px] glass p-6 shadow-lg shadow-black/20 space-y-6">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-fp-text-muted">
+                Manage team members and collaborators who have access to this project.
+              </p>
+              <button
+                onClick={() => setShowInvite(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-fp-blue text-white text-xs font-medium hover:bg-fp-blue/90 transition-all shadow-md shrink-0"
+              >
+                <Plus className="h-4 w-4" />
+                Invite Member
+              </button>
             </div>
-            <div className="space-y-2">
-              <StorageRow label="Evidence files" value="0 files" />
-              <StorageRow label="Database records" value="0 KB" />
-              <StorageRow label="Timeline events" value="0 events" />
-            </div>
-          </div>
 
-          <div className="rounded-lg border border-fp-border bg-fp-card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Key className="h-4 w-4 text-fp-accent" />
-              <span className="text-sm font-medium text-fp-text">API Access</span>
-            </div>
-            <p className="text-xs text-fp-text-muted mb-2">Use this project's API endpoints to integrate with external tools.</p>
-            <div className="rounded-md border border-fp-border bg-fp-bg p-2 font-mono text-xs text-fp-text-muted">
-              GET /api/v1/projects/{projectId.slice(0, 8)}…
+            <div className="space-y-3">
+              {members.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between gap-4 rounded-xl border border-fp-border bg-fp-surface-2/60 p-4 transition-all hover:border-fp-border-hover"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-fp-blue/15 border border-fp-blue/30 text-sm font-semibold text-fp-blue shrink-0">
+                      {m.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-fp-text truncate">{m.name}</span>
+                        <RoleBadge role={m.role} />
+                      </div>
+                      <p className="text-xs text-fp-text-dim truncate mt-0.5">{m.email}</p>
+                    </div>
+                  </div>
+
+                  {m.role !== "admin" && (
+                    <button
+                      onClick={() => removeMember(m.id)}
+                      className="p-2 text-fp-text-muted hover:text-fp-red hover:bg-fp-red/10 rounded-lg transition-colors"
+                      title="Remove Member"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Danger Zone Tab */}
-      {activeTab === "danger" && (
-        <div className="space-y-4 max-w-2xl">
-          <div className="rounded-lg border border-red-800/30 bg-red-950/10 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-              <span className="text-sm font-medium text-red-500">Delete Project</span>
+      {/* SECTION 3: PERMISSIONS */}
+      {showSection("permissions") && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-fp-text flex items-center gap-2">
+              <Shield className="w-5 h-5 text-fp-blue" />
+              3. Permissions
+            </h3>
+            <span className="text-xs uppercase tracking-wide text-fp-text-dim font-medium">Access Control &amp; Alerts</span>
+          </div>
+
+          <div className="rounded-[14px] glass p-6 shadow-lg shadow-black/20 space-y-6">
+            <div>
+              <h4 className="text-sm font-semibold text-fp-text flex items-center gap-2 mb-3">
+                <Activity className="h-4 w-4 text-fp-blue" />
+                Notification &amp; Alert Settings
+              </h4>
+              <div className="space-y-3 pl-1">
+                {[
+                  { key: "notify_deadlines" as const, label: "Statutory Deadline Alerts", desc: "Get notified when statutory due process deadlines or permit expiration dates approach." },
+                  { key: "notify_enforcement" as const, label: "Enforcement Case Updates", desc: "Receive immediate notifications when new code enforcement case filings are detected." },
+                  { key: "notify_permit_changes" as const, label: "Permit Status Changes", desc: "Notify collaborators on permit status updates, inspection schedule changes, or new approvals." },
+                ].map((item) => (
+                  <label key={item.key} className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-fp-surface-2/50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={settings[item.key]}
+                      onChange={(e) => setSettings({ ...settings, [item.key]: e.target.checked })}
+                      className="mt-1 h-4 w-4 rounded border-fp-border bg-fp-surface accent-fp-blue focus:ring-fp-blue cursor-pointer"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-fp-text">{item.label}</p>
+                      <p className="text-xs text-fp-text-muted mt-0.5">{item.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
             </div>
-            <p className="text-xs text-fp-text-muted mb-3">
-              Permanently delete this project and all associated data including evidence, cases, permits, and timeline events. This action cannot be undone.
-            </p>
+
+            <div className="pt-4 border-t border-fp-border">
+              <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wider mb-3">
+                Role Permissions Reference
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 rounded-lg bg-fp-surface-2/60 border border-fp-border">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <RoleBadge role="admin" />
+                  </div>
+                  <p className="text-xs text-fp-text-muted">Full administrative control, team management, and settings configuration.</p>
+                </div>
+                <div className="p-3 rounded-lg bg-fp-surface-2/60 border border-fp-border">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <RoleBadge role="editor" />
+                  </div>
+                  <p className="text-xs text-fp-text-muted">Can upload evidence, edit project records, and trigger AI agent analyses.</p>
+                </div>
+                <div className="p-3 rounded-lg bg-fp-surface-2/60 border border-fp-border">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <RoleBadge role="viewer" />
+                  </div>
+                  <p className="text-xs text-fp-text-muted">Read-only access to view evidence vault, map timelines, and due process findings.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* SECTION 4: ORGANIZATION */}
+      {showSection("organization") && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-fp-text flex items-center gap-2">
+              <Database className="w-5 h-5 text-fp-blue" />
+              4. Organization
+            </h3>
+            <span className="text-xs uppercase tracking-wide text-fp-text-dim font-medium">Jurisdiction &amp; Data</span>
+          </div>
+
+          <div className="rounded-[14px] glass p-6 shadow-lg shadow-black/20 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wide text-fp-text-dim mb-2 block">
+                  Jurisdiction
+                </label>
+                <input
+                  value={settings.jurisdiction}
+                  onChange={(e) => setSettings({ ...settings, jurisdiction: e.target.value })}
+                  className="w-full rounded-lg border border-fp-border bg-fp-surface px-4 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none transition-all"
+                  placeholder="e.g. Humboldt County, CA"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wide text-fp-text-dim mb-2 block">
+                  Auto-Expire Permit Window (Days)
+                </label>
+                <input
+                  type="number"
+                  value={settings.auto_expire_days}
+                  onChange={(e) => setSettings({ ...settings, auto_expire_days: parseInt(e.target.value) || 180 })}
+                  className="w-full rounded-lg border border-fp-border bg-fp-surface px-4 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none font-mono transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-fp-border flex items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-semibold text-fp-text">Export Project Data</h4>
+                <p className="text-xs text-fp-text-muted mt-0.5">Download project settings, evidence catalog, and member configuration as JSON.</p>
+              </div>
+              <button
+                onClick={exportData}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-fp-surface-2 border border-fp-border hover:bg-fp-surface-2/80 text-xs font-medium text-fp-text transition-all shrink-0"
+              >
+                <Download className="h-4 w-4 text-fp-blue" />
+                Export JSON
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* SAVE BUTTON BAR (for Settings Sections) */}
+      <div className="flex items-center justify-end gap-3 pt-2">
+        <button
+          onClick={saveSettings}
+          disabled={saving}
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all shadow-md hover:shadow-fp-blue/20 disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : savedFlash ? <Check className="h-4 w-4" /> : null}
+          {saving ? "Saving Changes…" : savedFlash ? "Settings Saved!" : "Save Changes"}
+        </button>
+      </div>
+
+      {/* SECTION 5: DANGER ZONE */}
+      {showSection("danger") && (
+        <section className="space-y-4 pt-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-fp-red flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-fp-red" />
+              5. Danger Zone
+            </h3>
+            <span className="text-xs uppercase tracking-wide text-fp-red font-medium">Irreversible Actions</span>
+          </div>
+
+          <div className="rounded-[14px] bg-fp-red/5 border border-fp-red/40 p-6 shadow-lg shadow-black/20 space-y-4">
+            <div>
+              <h4 className="text-base font-semibold text-fp-text">Delete Project</h4>
+              <p className="text-sm text-fp-text-muted mt-1 leading-relaxed">
+                Permanently delete this project and all associated evidence, cases, permits, and timeline events. This action is destructive and cannot be undone.
+              </p>
+            </div>
+
             {!showDeleteConfirm ? (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-red-800/40 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-950/30 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-fp-red/40 bg-fp-red/10 text-xs font-medium text-fp-red hover:bg-fp-red/20 transition-all"
               >
                 <Trash2 className="h-4 w-4" />
                 Delete Project
               </button>
             ) : (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-red-500">Are you absolutely sure?</p>
-                <div className="flex items-center gap-2">
+              <div className="p-4 rounded-xl bg-fp-red/10 border border-fp-red/30 space-y-3">
+                <p className="text-sm font-semibold text-fp-red">Are you absolutely sure you want to delete this project?</p>
+                <p className="text-xs text-fp-text-muted">All local storage, connector settings, and member mappings for project ID <code className="font-mono text-fp-text">{projectId}</code> will be purged immediately.</p>
+                <div className="flex items-center gap-3 pt-1">
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-fp-border px-3 py-1.5 text-sm font-medium text-fp-text hover:bg-fp-bg transition-colors"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-fp-border bg-fp-surface-2 text-xs font-medium text-fp-text hover:bg-fp-surface-2/80 transition-colors"
                   >
                     <X className="h-4 w-4" />
                     Cancel
@@ -435,53 +517,53 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
                       localStorage.removeItem(`fairprocess_connectors_${projectId}`);
                       window.location.href = "/";
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-fp-red text-white text-xs font-medium hover:bg-fp-red/90 transition-all shadow-md"
                   >
                     <Trash2 className="h-4 w-4" />
-                    Yes, Delete Forever
+                    Yes, Delete Project
                   </button>
                 </div>
               </div>
             )}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Invite Modal */}
+      {/* Invite Member Modal */}
       {showInvite && (
-        <div role="button" aria-label="Close invite modal" tabIndex={0} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowInvite(false)} onKeyDown={(e) => { if (e.key === "Escape" || e.key === "Enter") setShowInvite(false); }}>
-          <div className="w-full max-w-md rounded-xl border border-fp-border bg-fp-card p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-fp-text">Invite Member</h3>
-              <button onClick={() => setShowInvite(false)} className="text-fp-text-muted hover:text-fp-text">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4" onClick={() => setShowInvite(false)}>
+          <div className="w-full max-w-md rounded-[14px] glass p-6 shadow-2xl shadow-black/50 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-3 border-b border-fp-border">
+              <h3 className="text-base font-semibold text-fp-text">Invite Team Member</h3>
+              <button onClick={() => setShowInvite(false)} className="p-1.5 text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 rounded-lg transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-fp-text-muted mb-1 block">Email Address</label>
+                <label className="text-xs font-medium uppercase tracking-wide text-fp-text-dim mb-1.5 block">Email Address</label>
                 <input
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
+                  className="w-full rounded-lg border border-fp-border bg-fp-surface px-4 py-2.5 text-sm text-fp-text placeholder:text-fp-text-dim focus:border-fp-blue focus:outline-none transition-all"
                   placeholder="colleague@example.com"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-fp-text-muted mb-1 block">Role</label>
+                <label className="text-xs font-medium uppercase tracking-wide text-fp-text-dim mb-1.5 block">Role</label>
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as "editor" | "viewer")}
-                  className="w-full rounded-md border border-fp-border bg-fp-bg px-3 py-2 text-sm text-fp-text focus:border-fp-accent focus:outline-none"
+                  className="w-full rounded-lg border border-fp-border bg-fp-surface px-4 py-2.5 text-sm text-fp-text focus:border-fp-blue focus:outline-none transition-all"
                 >
                   <option value="viewer">Viewer — read-only access</option>
-                  <option value="editor">Editor — can add/edit evidence and cases</option>
+                  <option value="editor">Editor — upload evidence &amp; manage cases</option>
                 </select>
               </div>
               <button
                 onClick={addMember}
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-fp-accent px-4 py-2 text-sm font-medium text-black hover:bg-fp-accent/90 transition-colors"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all shadow-md mt-2"
               >
                 <Plus className="h-4 w-4" />
                 Send Invite
@@ -496,19 +578,10 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
 
 function RoleBadge({ role }: { role: "admin" | "editor" | "viewer" }) {
   const config = {
-    admin: { color: "text-fp-accent bg-fp-accent/10", label: "Admin" },
-    editor: { color: "text-emerald-500 bg-emerald-950/40", label: "Editor" },
-    viewer: { color: "text-fp-text-muted bg-fp-bg", label: "Viewer" },
+    admin: { color: "bg-fp-blue/15 text-fp-blue border-fp-blue/30", label: "Admin" },
+    editor: { color: "bg-fp-green/15 text-fp-green border-fp-green/30", label: "Editor" },
+    viewer: { color: "bg-fp-surface-2 text-fp-text-dim border-fp-border", label: "Viewer" },
   };
   const { color, label } = config[role];
-  return <span className={`text-xs px-1.5 py-0.5 rounded ${color}`}>{label}</span>;
-}
-
-function StorageRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-fp-text-muted">{label}</span>
-      <span className="text-fp-text">{value}</span>
-    </div>
-  );
+  return <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md border ${color}`}>{label}</span>;
 }

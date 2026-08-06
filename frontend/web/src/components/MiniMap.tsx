@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Map as MaplibreMap, type Map as MaplibreMapType } from "maplibre-gl";
-import { Maximize2, X } from "lucide-react";
+import { Maximize2 } from "lucide-react";
 
 interface MiniMapProps {
   centroid: { lng: number; lat: number };
@@ -17,9 +17,6 @@ const STREET_TILES = [
   "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
 ];
 
-// Small, non-interactive-by-default preview of the parcel. Same tile sources
-// as PropertyMap so it stays visually consistent; click to expand into the
-// full interactive map rather than rendering a static image.
 export default function MiniMap({ centroid, geomGeoJSON, onExpand }: MiniMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMapType | null>(null);
@@ -62,16 +59,16 @@ export default function MiniMap({ centroid, geomGeoJSON, onExpand }: MiniMapProp
   }, [view]);
 
   return (
-    <div className="absolute top-3 right-3 z-20 w-56 h-40 rounded-xl overflow-hidden glass shadow-lg">
+    <div className="absolute top-4 right-4 z-20 w-64 h-44 rounded-[14px] overflow-hidden glass shadow-lg shadow-black/20 border border-fp-border">
       <div ref={container} className="w-full h-full" />
 
-      <div className="absolute top-1.5 left-1.5 flex gap-1">
+      <div className="absolute top-2 left-2 flex gap-1">
         {(["satellite", "street"] as const).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`px-1.5 py-0.5 text-[10px] rounded capitalize ${
-              view === v ? "bg-fp-blue/40 text-fp-text" : "bg-fp-bg/60 text-fp-text-dim"
+            className={`px-2 py-1 text-xs rounded-md capitalize font-medium transition-colors ${
+              view === v ? "bg-fp-blue text-white" : "bg-fp-bg/80 text-fp-text-dim hover:text-fp-text"
             }`}
           >
             {v}
@@ -81,10 +78,10 @@ export default function MiniMap({ centroid, geomGeoJSON, onExpand }: MiniMapProp
 
       <button
         onClick={onExpand}
-        className="absolute top-1.5 right-1.5 p-1 rounded bg-fp-bg/60 text-fp-text-dim hover:text-fp-text"
+        className="absolute top-2 right-2 p-1.5 rounded-md bg-fp-bg/80 text-fp-text-dim hover:text-fp-text transition-colors"
         title="Expand map"
       >
-        <Maximize2 className="w-3 h-3" />
+        <Maximize2 className="w-3.5 h-3.5" />
       </button>
     </div>
   );

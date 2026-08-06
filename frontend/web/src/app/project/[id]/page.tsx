@@ -53,9 +53,6 @@ export default function ProjectDashboard() {
   }, [fetchProject]);
 
   // ── Auto-trigger full property intelligence recon on project open ──
-  // Runs all 12 agents in parallel. For existing projects that already have
-  // recon data, the endpoint returns immediately ("already completed").
-  // To force re-run, the user can click the Refresh button.
   useEffect(() => {
     if (!id || reconTriggered) return;
     setReconTriggered(true);
@@ -169,59 +166,121 @@ export default function ProjectDashboard() {
 
   return (
     <div className="h-screen flex flex-col bg-fp-bg overflow-hidden">
-      <header className="h-14 flex items-center px-4 gap-3 glass shrink-0 z-30 border-b border-fp-border">
-        <button
-          onClick={() => router.push("/dashboard")}
-          className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
-          title="Back to map"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <Shield className="w-4 h-4 text-fp-cyan" />
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-fp-text truncate">{project?.name ?? "Loading…"}</div>
-          <div className="text-[11px] text-fp-text-dim truncate">
-            {project?.property.address} · APN {project?.property.apn}
+      {/* ── Structured Header / Topbar ── */}
+      <header className="glass shrink-0 z-30 border-b border-fp-border px-6 py-4 space-y-3">
+        {/* Top Header Row: Navigation Back, Page Title, Location, Recon Status */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all shrink-0"
+              title="Back to projects"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-semibold tracking-tight text-fp-text truncate">
+                {project?.property.address || project?.name || "Loading Property Matter…"}
+              </h1>
+              <p className="text-xs font-medium text-fp-text-dim uppercase tracking-wide flex items-center gap-2 mt-0.5">
+                <span>{project?.status ? `${project.status} Investigation` : "Open Investigation"}</span>
+                <span>·</span>
+                <span>{project?.property.city || "County Jurisdiction"}</span>
+                {project?.property.apn && (
+                  <>
+                    <span>·</span>
+                    <span>APN {project.property.apn}</span>
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Recon status indicator */}
+          <div className="flex items-center gap-4 shrink-0">
+            {recon && (
+              <div className="flex items-center gap-2 text-xs font-medium bg-fp-surface-2/80 px-3 py-1.5 rounded-xl border border-fp-border">
+                {recon.running ? (
+                  <div className="flex items-center gap-2 text-fp-blue">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span className="hidden sm:inline">Recon running…</span>
+                  </div>
+                ) : recon.failed > 0 ? (
+                  <div className="flex items-center gap-2 text-fp-amber" title={recon.message}>
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{recon.succeeded}/{recon.agentCount} agents</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-fp-green" title={recon.message}>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Recon complete</span>
+                  </div>
+                )}
+                <button
+                  onClick={reRunRecon}
+                  disabled={recon.running}
+                  className="p-1 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface transition-all disabled:opacity-50"
+                  title="Re-run full recon"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${recon.running ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Recon status indicator */}
-        {recon && (
-          <div className="flex items-center gap-2 text-xs">
-            {recon.running ? (
-              <div className="flex items-center gap-1.5 text-fp-cyan">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span className="hidden sm:inline">Recon running…</span>
-              </div>
-            ) : recon.failed > 0 ? (
-              <div className="flex items-center gap-1.5 text-amber-400" title={recon.message}>
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{recon.succeeded}/{recon.agentCount} agents</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 text-emerald-400" title={recon.message}>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Recon complete</span>
-              </div>
-            )}
-            <button
-              onClick={reRunRecon}
-              disabled={recon.running}
-              className="p-1 rounded text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 disabled:opacity-50"
-              title="Re-run full recon"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${recon.running ? "animate-spin" : ""}`} />
-            </button>
-          </div>
-        )}
+        {/* Horizontal Divider */}
+        <div className="border-t border-fp-border" />
 
-        {project?.due_process_score != null && (
-          <div className="text-xs font-medium text-fp-text-muted">
-            Score <span className="text-fp-text">{project.due_process_score}</span>
+        {/* Row of Compact Stat Readouts */}
+        <div className="flex items-center gap-8 text-xs overflow-x-auto py-0.5">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-fp-text-dim uppercase tracking-wide font-medium">Evidence Count:</span>
+            <span className="font-semibold text-fp-text text-sm">{project?.evidenceCount ?? 0}</span>
           </div>
-        )}
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-fp-text-dim uppercase tracking-wide font-medium">Timeline Events:</span>
+            <span className="font-semibold text-fp-text text-sm">{project?.evidenceCount ?? 0}</span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-fp-text-dim uppercase tracking-wide font-medium">Findings Count:</span>
+            <span className="font-semibold text-fp-text text-sm">{project?.openFindingsCount ?? 0}</span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-fp-text-dim uppercase tracking-wide font-medium">Pending Reviews:</span>
+            <span className="font-semibold text-fp-red text-sm">{project?.criticalFindingsCount ?? 0}</span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-fp-text-dim uppercase tracking-wide font-medium">Risk Level:</span>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
+                project?.due_process_score == null
+                  ? "bg-fp-surface-2 text-fp-text-dim"
+                  : project.due_process_score < 60
+                  ? "bg-fp-red/20 text-fp-red border border-fp-red/30"
+                  : project.due_process_score < 80
+                  ? "bg-fp-amber/20 text-fp-amber border border-fp-amber/30"
+                  : "bg-fp-green/20 text-fp-green border border-fp-green/30"
+              }`}
+            >
+              {project?.due_process_score == null
+                ? "Unassessed"
+                : project.due_process_score < 60
+                ? "High Risk"
+                : project.due_process_score < 80
+                ? "Moderate Risk"
+                : "Low Risk"}
+            </span>
+          </div>
+        </div>
       </header>
 
+      {/* ── Main Layout Body ── */}
       <div className="flex-1 flex overflow-hidden relative">
         <ProjectNav
           active={section}

@@ -2,8 +2,17 @@
 
 import { useEffect, useState, useRef } from "react";
 import {
-  FolderArchive, FileText, Loader2, AlertCircle, RefreshCw,
-  Upload, Filter, Search,
+  FolderArchive,
+  FileText,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  Upload,
+  Search,
+  Image as ImageIcon,
+  Map,
+  FileCheck,
+  Mail,
 } from "lucide-react";
 
 interface EvidenceItem {
@@ -19,21 +28,40 @@ interface EvidenceItem {
 
 function statusBadge(status: string) {
   const styles: Record<string, string> = {
-    pending: "bg-fp-surface-2 text-fp-text-dim",
-    processed: "bg-fp-cyan/15 text-fp-cyan",
-    flagged: "bg-fp-red/20 text-fp-red",
+    pending: "bg-fp-amber/15 text-fp-amber border border-fp-amber/30",
+    processed: "bg-fp-green/15 text-fp-green border border-fp-green/30",
+    flagged: "bg-fp-red/15 text-fp-red border border-fp-red/30",
   };
-  return styles[status] ?? styles.pending;
+  return styles[status] ?? "bg-fp-surface-2 text-fp-text-dim border border-fp-border";
 }
 
 function sourceBadge(source: string) {
   const styles: Record<string, string> = {
-    upload: "bg-fp-blue/15 text-fp-blue",
-    building_dept: "bg-fp-cyan/15 text-fp-cyan",
-    code_enforcement: "bg-fp-red/15 text-fp-red",
-    ai_research: "bg-fp-purple/15 text-fp-purple",
+    upload: "bg-fp-blue/15 text-fp-blue border border-fp-blue/30",
+    building_dept: "bg-fp-blue/15 text-fp-blue border border-fp-blue/30",
+    code_enforcement: "bg-fp-amber/15 text-fp-amber border border-fp-amber/30",
+    ai_research: "bg-fp-surface-2 text-fp-text-muted border border-fp-border",
   };
-  return styles[source] ?? "bg-fp-surface-2 text-fp-text-dim";
+  return styles[source] ?? "bg-fp-surface-2 text-fp-text-dim border border-fp-border";
+}
+
+function getEvidenceTypeIcon(docType: string | null, source: string) {
+  const dt = (docType || "").toLowerCase();
+  const src = (source || "").toLowerCase();
+
+  if (dt.includes("gis") || dt.includes("map") || dt.includes("parcel") || src.includes("building_dept")) {
+    return Map;
+  }
+  if (dt.includes("permit") || dt.includes("license") || dt.includes("approval")) {
+    return FileCheck;
+  }
+  if (dt.includes("notice") || dt.includes("citation") || dt.includes("warning") || src.includes("code_enforcement")) {
+    return Mail;
+  }
+  if (dt.includes("photo") || dt.includes("image") || dt.includes("jpg") || dt.includes("png")) {
+    return ImageIcon;
+  }
+  return FileText;
 }
 
 export default function EvidenceVaultPanel({ projectId }: { projectId: string }) {
@@ -89,134 +117,157 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
   };
 
   return (
-    <div className="space-y-5 pb-8 max-w-5xl">
+    <div className="space-y-6 pb-8 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-fp-text">Document Vault</h2>
-          <p className="text-xs text-fp-text-dim mt-0.5">
-            Evidence files, extracted text, and AI analysis
+          <h2 className="text-2xl font-semibold tracking-tight text-fp-text">Document Vault</h2>
+          <p className="text-sm text-fp-text-muted mt-1">
+            Evidence files, extracted text, and AI due process analysis
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={fetchData}
-            className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2"
+            className="p-2.5 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-colors border border-fp-border"
             title="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
             onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all shadow-md hover:shadow-fp-blue/20"
           >
-            <Upload className="w-4 h-4" /> Upload
+            <Upload className="w-4 h-4" /> Upload Document
           </button>
           <input
             ref={fileRef}
             type="file"
             multiple
             className="hidden"
-            aria-label="Upload evidence files"
             onChange={(e) => handleUpload(e.target.files)}
           />
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5">
+      {/* Filters and Search */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {["all", "upload", "building_dept", "code_enforcement", "ai_research"].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
                 filter === f
-                  ? "bg-fp-blue/15 text-fp-blue border border-fp-blue/30"
-                  : "bg-fp-surface/40 text-fp-text-muted hover:text-fp-text border border-fp-border"
+                  ? "bg-fp-blue/15 text-fp-blue border border-fp-blue/40 shadow-sm"
+                  : "bg-fp-surface/60 text-fp-text-muted hover:text-fp-text border border-fp-border hover:border-fp-border-hover"
               }`}
             >
-              {f === "all" ? "All" : f.replace(/_/g, " ")}
+              {f === "all" ? "All Sources" : f.replace(/_/g, " ")}
             </button>
           ))}
         </div>
-        <div className="flex-1 max-w-xs relative">
-          <Search className="w-3.5 h-3.5 text-fp-text-dim absolute left-3 top-1/2 -translate-y-1/2" />
+        <div className="flex-1 max-w-sm relative min-w-[200px]">
+          <Search className="w-4 h-4 text-fp-text-dim absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search evidence…"
-            className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-fp-surface/40 border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue/40"
+            placeholder="Search evidence documents…"
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-fp-surface border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue focus:ring-1 focus:ring-fp-blue transition-all"
           />
         </div>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 text-fp-red text-sm p-3 rounded-lg bg-fp-red/10 border border-fp-red/20">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div className="flex items-center gap-3 text-fp-red text-sm p-4 rounded-[14px] bg-fp-red/10 border border-fp-red/20 shadow-sm">
+          <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center gap-2 text-fp-text-muted text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading evidence…
+        <div className="flex items-center justify-center gap-3 py-16 text-fp-text-muted text-sm">
+          <Loader2 className="w-5 h-5 animate-spin text-fp-blue" />
+          <span>Loading evidence vault…</span>
         </div>
       )}
 
       {/* Evidence list */}
       {!loading && filtered.length > 0 && (
-        <div className="grid gap-3">
-          {filtered.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-xl border border-fp-border bg-fp-surface/40 p-4 hover:border-fp-blue/30 transition-colors cursor-pointer group"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div className="w-9 h-9 rounded-lg bg-fp-surface-2 flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4 text-fp-text-muted" />
+        <div className="grid gap-4">
+          {filtered.map((item) => {
+            const TypeIcon = getEvidenceTypeIcon(item.doc_type, item.source);
+            return (
+              <div
+                key={item.id}
+                className="rounded-[14px] glass p-6 shadow-lg shadow-black/20 transition-all duration-200 hover:-translate-y-0.5 hover:border-fp-blue/40 cursor-pointer group"
+              >
+                <div className="flex items-start gap-5">
+                  {/* Larger Thumbnail Preview Tile */}
+                  <div className="w-16 h-16 rounded-xl bg-fp-surface-2 border border-fp-border flex items-center justify-center shrink-0 group-hover:border-fp-blue/40 transition-colors shadow-inner">
+                    <TypeIcon className="w-8 h-8 text-fp-blue group-hover:scale-105 transition-transform" />
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-fp-text truncate group-hover:text-fp-cyan transition-colors">
-                      {item.title ?? "Untitled document"}
+
+                  {/* Document Details */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-semibold text-fp-text truncate group-hover:text-fp-blue transition-colors">
+                          {item.title ?? "Untitled Document"}
+                        </h3>
+                        
+                        {/* Type & Source Metadata */}
+                        <div className="flex items-center gap-2 flex-wrap mt-2">
+                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${sourceBadge(item.source)}`}>
+                            {item.source.replace(/_/g, " ")}
+                          </span>
+
+                          {item.doc_type && (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-fp-text-dim uppercase tracking-wide bg-fp-surface-2 px-2.5 py-0.5 rounded-md border border-fp-border font-medium">
+                              <TypeIcon className="w-3.5 h-3.5 text-fp-blue" />
+                              {item.doc_type}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Consistently Aligned Status Badge & Right-Aligned Date */}
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusBadge(item.status)}`}>
+                          {item.status}
+                        </span>
+                        <span className="text-xs text-fp-text-dim tracking-wide font-mono">
+                          {item.created_at?.slice(0, 10)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${sourceBadge(item.source)}`}>
-                        {item.source.replace(/_/g, " ")}
-                      </span>
-                      <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${statusBadge(item.status)}`}>
-                        {item.status}
-                      </span>
-                      {item.doc_type && (
-                        <span className="text-[11px] text-fp-text-dim">{item.doc_type}</span>
-                      )}
-                      <span className="text-[11px] text-fp-text-dim">{item.created_at?.slice(0, 10)}</span>
-                    </div>
+
                     {item.ai_summary && (
-                      <p className="text-xs text-fp-text-muted mt-2 line-clamp-2">{item.ai_summary}</p>
+                      <p className="text-sm text-fp-text-muted mt-3 line-clamp-2 leading-relaxed">
+                        {item.ai_summary}
+                      </p>
                     )}
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Empty state */}
       {!loading && filtered.length === 0 && !error && (
-        <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-12 text-center">
-          <FolderArchive className="w-10 h-10 text-fp-text-dim mx-auto mb-4" />
-          <h3 className="text-sm font-medium text-fp-text">No documents in vault</h3>
-          <p className="text-xs text-fp-text-dim mt-1 mb-4">
-            Upload PDFs, photos, or correspondence to build your evidence file.
+        <div className="rounded-[14px] glass border-dashed border-fp-border p-12 text-center shadow-lg shadow-black/20">
+          <FolderArchive className="w-12 h-12 text-fp-text-dim mx-auto mb-4" />
+          <h3 className="text-base font-semibold text-fp-text">No documents in vault</h3>
+          <p className="text-sm text-fp-text-muted mt-2 mb-6 max-w-md mx-auto">
+            Upload PDFs, photos, or correspondence to build your evidence file and evaluate due process compliance.
           </p>
           <button
             onClick={() => fileRef.current?.click()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all shadow-md hover:shadow-fp-blue/20"
           >
             <Upload className="w-4 h-4" /> Upload Evidence
           </button>

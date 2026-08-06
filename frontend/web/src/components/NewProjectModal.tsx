@@ -18,7 +18,12 @@ const CASE_TYPES: { value: CaseType; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-export default function NewProjectModal({ propertyId, propertyLabel, onClose, onOpenProject }: NewProjectModalProps) {
+export default function NewProjectModal({
+  propertyId,
+  propertyLabel,
+  onClose,
+  onOpenProject,
+}: NewProjectModalProps) {
   const [existing, setExisting] = useState<Project[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -53,7 +58,7 @@ export default function NewProjectModal({ propertyId, propertyLabel, onClose, on
         const txt = await res.text().catch(() => "");
         throw new Error(`Server returned ${res.status}: ${txt.slice(0, 200)}`);
       }
-      const project = await res.json() as Project;
+      const project = (await res.json()) as Project;
       if (!project?.id) throw new Error("Server did not return a project id");
       onOpenProject(project.id);
     } catch (err) {
@@ -64,31 +69,40 @@ export default function NewProjectModal({ propertyId, propertyLabel, onClose, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-fp-bg/70 backdrop-blur-sm">
-      <div className="w-[420px] rounded-2xl glass p-5 animate-[scale-in_0.25s_cubic-bezier(0.16,1,0.3,1)_forwards]">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-semibold text-fp-text">Open as project</h2>
-          <button onClick={onClose} className="text-fp-text-dim hover:text-fp-text">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-fp-bg/80 backdrop-blur-md p-4 animate-[fade-in_0.2s_ease-out]">
+      <div className="w-full max-w-md rounded-[14px] glass p-6 shadow-2xl shadow-black/50 animate-[scale-in_0.2s_cubic-bezier(0.16,1,0.3,1)] space-y-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-fp-text">Initiate Property Investigation</h2>
+            <p className="text-xs text-fp-text-dim uppercase tracking-wide mt-1">{propertyLabel}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-xl text-fp-text-dim hover:text-fp-text hover:bg-fp-surface-2 transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-xs text-fp-text-dim mb-4">{propertyLabel}</p>
 
-        {loading && <div className="text-xs text-fp-text-muted py-4 text-center">Checking for existing projects…</div>}
+        {loading && (
+          <div className="text-xs text-fp-text-muted py-6 text-center">
+            Checking existing project files…
+          </div>
+        )}
 
         {!loading && existing && existing.length > 0 && (
-          <div className="mb-4">
-            <div className="text-[11px] uppercase tracking-wide text-fp-text-dim mb-2">Existing projects</div>
-            <div className="flex flex-col gap-1.5">
+          <div className="space-y-2">
+            <div className="text-xs uppercase tracking-wide text-fp-text-dim font-medium">Existing Projects</div>
+            <div className="flex flex-col gap-2">
               {existing.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => onOpenProject(p.id)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-fp-surface-2 hover:bg-fp-surface-2/80 text-left text-sm text-fp-text transition-all"
+                  className="flex items-center gap-3 p-3 rounded-xl bg-fp-surface-2 hover:bg-fp-surface-2/80 text-left text-sm text-fp-text border border-fp-border transition-all"
                 >
-                  <FolderOpen className="w-3.5 h-3.5 text-fp-cyan shrink-0" />
-                  <span className="flex-1">{p.name}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-fp-blue/15 text-fp-text-muted capitalize">
+                  <FolderOpen className="w-4 h-4 text-fp-blue shrink-0" />
+                  <span className="flex-1 font-medium">{p.name}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-fp-blue/15 text-fp-blue font-semibold uppercase tracking-wide">
                     {p.status}
                   </span>
                 </button>
@@ -98,41 +112,49 @@ export default function NewProjectModal({ propertyId, propertyLabel, onClose, on
         )}
 
         {!loading && (
-          <div>
-            <div className="text-[11px] uppercase tracking-wide text-fp-text-dim mb-2">New project</div>
-            <input
-              id="project-name"
-              aria-label="New project name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. 2026 Cannabis Abatement"
-              className="w-full px-3 py-2 rounded-lg bg-fp-surface-2 border border-fp-border text-sm text-fp-text mb-2 outline-none focus:border-fp-blue"
-            />
-            <select
-              id="project-type"
-              aria-label="Case type"
-              value={caseType}
-              onChange={(e) => setCaseType(e.target.value as CaseType)}
-              className="w-full px-3 py-2 rounded-lg bg-fp-surface-2 border border-fp-border text-sm text-fp-text mb-3 outline-none focus:border-fp-blue"
-            >
-              {CASE_TYPES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+          <div className="space-y-4">
+            <div className="text-xs uppercase tracking-wide text-fp-text-dim font-medium">Create New Matter</div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-fp-text-dim mb-1">Project Name</label>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. 2026 Code Abatement Appeal"
+                  className="w-full px-4 py-2.5 rounded-xl bg-fp-surface border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim outline-none focus:border-fp-blue focus:ring-2 focus:ring-fp-blue/10 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-fp-text-dim mb-1">Case Type</label>
+                <select
+                  value={caseType}
+                  onChange={(e) => setCaseType(e.target.value as CaseType)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-fp-surface border border-fp-border text-sm text-fp-text outline-none focus:border-fp-blue focus:ring-2 focus:ring-fp-blue/10 transition-all"
+                >
+                  {CASE_TYPES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {error && (
-              <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400">
+              <div className="p-3 rounded-xl bg-fp-red/10 border border-fp-red/20 text-xs text-fp-red">
                 {error}
               </div>
             )}
+
             <button
               onClick={handleCreate}
               disabled={!name.trim() || creating}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium disabled:opacity-40 transition-all"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-fp-blue text-white text-sm font-semibold hover:shadow-lg hover:shadow-fp-blue/25 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 transition-all duration-200"
             >
-              <Plus className="w-3.5 h-3.5" />
-              {creating ? "Creating…" : "Create & open project"}
+              <Plus className="w-4 h-4" />
+              <span>{creating ? "Creating Project…" : "Create & Launch Project"}</span>
             </button>
           </div>
         )}

@@ -55,7 +55,7 @@ export default function DetailPanel({
       setFocusLoading(true);
       fetch(`/api/v1/cases/${caseId}/focus`)
         .then(r => r.json())
-        .then((d: any) => { if (d.ok) setFocus(d.data); })
+        .then(d => { if (d.ok) setFocus(d.data); })
         .catch(() => {})
         .finally(() => setFocusLoading(false));
     }
@@ -67,7 +67,7 @@ export default function DetailPanel({
       setProposalsLoading(true);
       fetch(`/api/v1/cases/${caseId}/agents/proposals`)
         .then(r => r.json())
-        .then((d: any) => { if (d.ok) setProposals(d.data.proposals); })
+        .then(d => { if (d.ok) setProposals(d.data.proposals); })
         .catch(() => {})
         .finally(() => setProposalsLoading(false));
     }
@@ -80,7 +80,7 @@ export default function DetailPanel({
       setExplanationLoading(true);
       fetch(`/api/v1/cases/${caseId}/explain?nodeId=${selectedNode}`)
         .then(r => r.json())
-        .then((d: any) => { if (d.ok) setExplanation(d.data); })
+        .then(d => { if (d.ok) setExplanation(d.data); })
         .catch(() => {})
         .finally(() => setExplanationLoading(false));
     } else {
@@ -94,13 +94,13 @@ export default function DetailPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Tabs */}
-      <div className="shrink-0 flex items-center gap-1 px-4 py-1.5 border-b border-fp-border/50">
+      <div className="shrink-0 flex items-center gap-2 px-6 py-2 border-b border-fp-border/50">
         {(Object.keys(TAB_LABELS) as ("evidence" | "findings" | "authority" | "focus" | "agents")[]).map((tab) => {
           const Icon = TAB_ICONS[tab];
           const isActive = activeTab === tab;
           return (
             <button key={tab} onClick={() => onTabChange(tab)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 isActive ? "bg-fp-blue/15 text-fp-blue" : "text-fp-text-dim hover:text-fp-text-muted hover:bg-fp-surface-2"
               }`}>
               <Icon className="w-3 h-3" />
@@ -119,10 +119,10 @@ export default function DetailPanel({
         })}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-6">
         {/* "Why am I seeing this?" — shown when a node is selected, regardless of tab */}
         {selectedNode && explanation && (
-          <div className="mb-4 p-3 rounded-lg bg-fp-surface-2 border border-fp-cyan/30">
+          <div className="mb-4 p-6 rounded-[14px] bg-fp-surface-2 border border-fp-blue/30">
             <div className="flex items-center gap-2 mb-2">
               <HelpCircle className="w-3.5 h-3.5 text-fp-cyan" />
               <span className="text-xs font-semibold text-fp-cyan uppercase tracking-wider">Why am I seeing this?</span>
@@ -159,7 +159,7 @@ export default function DetailPanel({
 
         {/* Selected node details */}
         {node && (
-          <div className="mb-4 p-3 rounded-lg bg-fp-surface-2 border border-fp-border">
+          <div className="mb-4 p-6 rounded-[14px] bg-fp-surface-2 border border-fp-border">
             <div className="flex items-center gap-2 mb-2">
               <Network className="w-3.5 h-3.5 text-fp-cyan" />
               <span className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider">{node.type}</span>
@@ -186,7 +186,7 @@ export default function DetailPanel({
         {/* Connected edges with provenance */}
         {node && edges.length > 0 && (
           <div className="mb-4">
-            <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wider mb-2">
+            <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wide mb-3">
               Connections ({edges.length})
             </h4>
             <div className="space-y-1.5">
@@ -229,7 +229,7 @@ export default function DetailPanel({
 
         {/* Selected event details */}
         {selectedEvent && !node && (
-          <div className="mb-4 p-3 rounded-lg bg-fp-surface-2 border border-fp-border">
+          <div className="mb-4 p-6 rounded-[14px] bg-fp-surface-2 border border-fp-border">
             <div className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider mb-2">Event</div>
             <h3 className="text-sm font-medium text-fp-text">{selectedEvent.type_label}</h3>
             <div className="mt-2 space-y-1 text-xs">
@@ -250,7 +250,7 @@ export default function DetailPanel({
               <>
                 {/* Observations */}
                 <div>
-                  <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wider mb-2">
+                  <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wide mb-3">
                     Observations ({focus.observations.length})
                   </h4>
                   {focus.observations.length === 0 ? (
@@ -273,7 +273,7 @@ export default function DetailPanel({
 
                 {/* Procedural Checks */}
                 <div>
-                  <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wider mb-2">
+                  <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wide mb-3">
                     Procedural Checks ({focus.procedural_checks.length})
                   </h4>
                   {focus.procedural_checks.length === 0 ? (
@@ -305,7 +305,7 @@ export default function DetailPanel({
 
                 {/* Missing Information */}
                 <div>
-                  <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wider mb-2">
+                  <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wide mb-3">
                     Missing Information ({focus.missing_information.length})
                   </h4>
                   {focus.missing_information.length === 0 ? (
@@ -334,7 +334,7 @@ export default function DetailPanel({
 
                 {/* Supporting Evidence */}
                 <div>
-                  <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wider mb-2">
+                  <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wide mb-3">
                     Supporting Evidence ({focus.supporting_evidence.length})
                   </h4>
                   {focus.supporting_evidence.length === 0 ? (
@@ -360,7 +360,7 @@ export default function DetailPanel({
         {activeTab === "evidence" && (
           <div className="space-y-2">
             {graph?.nodes.filter(n => n.type === "evidence").map(n => {
-              const data = n.data as Record<string, any>;
+              const data = n.data as Record<string, unknown>;
               return (
                 <div key={n.id} className="p-2.5 rounded-lg bg-fp-surface/60 border border-fp-border/50">
                   <div className="flex items-center justify-between mb-1">
@@ -383,7 +383,7 @@ export default function DetailPanel({
         {activeTab === "findings" && (
           <div className="space-y-2">
             {graph?.nodes.filter(n => n.type === "finding").map(n => {
-              const data = n.data as Record<string, any>;
+              const data = n.data as Record<string, unknown>;
               const severity = data.severity as string;
               return (
                 <div key={n.id} className={`p-2.5 rounded-lg border ${
@@ -397,9 +397,9 @@ export default function DetailPanel({
                       "bg-fp-blue/20 text-fp-blue"
                     }`}>{severity}</span>
                   </div>
-                  {data.detail && <p className="text-xs text-fp-text-dim mt-1">{String(data.detail)}</p>}
+                  {data.detail && <p className="text-xs text-fp-text-dim mt-1">{data.detail as string}</p>}
                   {data.generated_by_agent && (
-                    <div className="text-[10px] text-fp-purple mt-1">🤖 {String(data.generated_by_agent)}{data.agent_version ? ` v${data.agent_version}` : ""}</div>
+                    <div className="text-[10px] text-fp-purple mt-1">🤖 {data.generated_by_agent as string}{data.agent_version ? ` v${data.agent_version}` : ""}</div>
                   )}
                 </div>
               );
@@ -413,14 +413,14 @@ export default function DetailPanel({
         {/* Authority tab */}
         {activeTab === "authority" && (
           <div className="space-y-2">
-            {graph?.edges.filter(edge => {
-              const sn = graph.nodes.find(n => n.id === edge.source);
-              const tn = graph.nodes.find(n => n.id === edge.target);
+            {graph?.edges.filter(e => {
+              const sn = graph.nodes.find(n => n.id === e.source);
+              const tn = graph.nodes.find(n => n.id === e.target);
               const at = ["statute", "official", "department", "authority"];
               return (sn && at.includes(sn.type)) || (tn && at.includes(tn.type));
             }).map((edge, i) => {
-              const sn = graph.nodes.find(n => n.id === edge.source);
-              const tn = graph.nodes.find(n => n.id === edge.target);
+              const sn = graph.nodes.find(n => n.id === e.source);
+              const tn = graph.nodes.find(n => n.id === e.target);
               return (
                 <div key={`auth-${i}`} className="p-2.5 rounded-lg bg-fp-surface/60 border border-fp-border/50">
                   <div className="flex items-center gap-2 text-xs">
@@ -440,9 +440,9 @@ export default function DetailPanel({
                 </div>
               );
             }) ?? []}
-            {graph && graph.edges.filter(edge => {
-              const sn = graph.nodes.find(n => n.id === edge.source);
-              const tn = graph.nodes.find(n => n.id === edge.target);
+            {graph && graph.edges.filter(e => {
+              const sn = graph.nodes.find(n => n.id === e.source);
+              const tn = graph.nodes.find(n => n.id === e.target);
               const at = ["statute", "official", "department", "authority"];
               return (sn && at.includes(sn.type)) || (tn && at.includes(tn.type));
             }).length === 0 && (
@@ -503,7 +503,7 @@ export default function DetailPanel({
                               method: "PATCH",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ decision: "accepted" }),
-                            }).then(r => r.json()).then((d: any) => {
+                            }).then(r => r.json()).then(d => {
                               if (d.ok) {
                                 setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: "accepted" as ProposalStatus } : p));
                               }
@@ -519,7 +519,7 @@ export default function DetailPanel({
                               method: "PATCH",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ decision: "rejected", review_reason: "Reviewed and rejected" }),
-                            }).then(r => r.json()).then((d: any) => {
+                            }).then(r => r.json()).then(d => {
                               if (d.ok) {
                                 setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: "rejected" as ProposalStatus } : p));
                               }
@@ -538,7 +538,7 @@ export default function DetailPanel({
             {/* Reviewed proposals (history) */}
             {proposals.filter(p => p.status !== "pending").length > 0 && (
               <div>
-                <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wider mb-2">
+                <h4 className="text-xs font-semibold text-fp-text-dim uppercase tracking-wide mb-3">
                   Reviewed ({proposals.filter(p => p.status !== "pending").length})
                 </h4>
                 <div className="space-y-1.5">
