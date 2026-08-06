@@ -249,14 +249,15 @@ export async function syncCECases(
       const timelineId = crypto.randomUUID();
       await db
         .prepare(
-          `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description)
-           VALUES (?, ?, NULL, ?, 'enforcement', ?)`
+          `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, resource_organization_id)
+           VALUES (?, ?, NULL, ?, 'enforcement', ?, ?)`
         )
         .bind(
           timelineId,
           projectId,
           ce.date_opened || new Date().toISOString().split("T")[0],
           `Code enforcement case opened: ${ce.case_number} (${ce.violation_type || "Unknown type"}) — auto-imported from county GIS`,
+          organizationId,
         )
         .run();
 
