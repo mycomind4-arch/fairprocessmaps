@@ -6,9 +6,10 @@ import {
   ChevronDown, ChevronRight, Eye, EyeOff, ZoomIn, ZoomOut,
   ShieldAlert, ShieldCheck, AlertTriangle, Clock, Bot,
   Building2, Mail, Phone, Camera, Gavel, MapPin, User, BookOpen,
-  Sparkles, Activity, Filter,
+  Sparkles, Activity, Filter, GitBranch,
 } from "lucide-react";
 import ProceduralClock from "./ProceduralClock";
+import EventReconstruction from "./EventReconstruction";
 import InvestigationFeed from "./InvestigationFeed";
 
 // ── Types ──
@@ -138,6 +139,7 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
   const [showFindings, setShowFindings] = useState(true);
   const [showProceduralClock, setShowProceduralClock] = useState(true);
   const [showFeed, setShowFeed] = useState(true);
+  const [showReconstruction, setShowReconstruction] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -393,6 +395,15 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
               Feed
             </button>
             <button
+              onClick={() => setShowReconstruction(!showReconstruction)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                showReconstruction ? "bg-fp-blue/15 text-fp-blue border border-fp-blue/30" : "bg-fp-surface-2 text-fp-text-muted border border-fp-border hover:text-fp-text"
+              }`}
+            >
+              <GitBranch className="w-3.5 h-3.5" />
+              Reconstruction
+            </button>
+            <button
               onClick={fetchData}
               className="p-1.5 rounded-lg bg-fp-surface-2 border border-fp-border text-fp-text-muted hover:text-fp-text transition-colors"
               title="Refresh"
@@ -502,6 +513,13 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
       {/* ═══════════════════════════════════════════════ */}
       {showFeed && (
         <InvestigationFeed items={items} findings={findings} />
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* AI EVENT RECONSTRUCTION — Inferred connections    */}
+      {/* ═══════════════════════════════════════════════ */}
+      {showReconstruction && (
+        <EventReconstruction items={items} findings={findings} />
       )}
       {/* ADD EVENT FORM                                    */}
       {/* ═══════════════════════════════════════════════ */}
