@@ -63,7 +63,7 @@ export function BriefGeneratorPanel({ projectId }: { projectId: string }) {
     try {
       const res = await fetch(`/api/v1/cases/${projectId}/brief`, { credentials: "same-origin" });
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as any;
         setBriefs(data.briefs || []);
       }
     } catch {
@@ -94,11 +94,11 @@ export function BriefGeneratorPanel({ projectId }: { projectId: string }) {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+        const data = (await res.json().catch(() => ({}))) as any;
         throw new Error(data.error || "Generation failed");
       }
 
-      const data = await res.json();
+      const data = await res.json() as any;
       setBriefs(prev => [data.brief, ...prev]);
       setExpandedBrief(data.brief.id);
       setBriefContent(data.brief.content);
@@ -120,7 +120,7 @@ export function BriefGeneratorPanel({ projectId }: { projectId: string }) {
     try {
       const res = await fetch(`/api/v1/cases/${projectId}/brief?briefId=${briefId}`, { credentials: "same-origin" });
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as any;
         setBriefContent(data.brief?.content || "");
       }
     } catch {

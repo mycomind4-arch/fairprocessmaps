@@ -92,7 +92,7 @@ async function arcgisQuery(url: string, where: string, outFields: string[], limi
   try {
     const resp = await fetch(`${url}/query?${params}`, { method: "GET" });
     if (!resp.ok) return [];
-    const data = await resp.json();
+    const data = await resp.json() as any;
     return data.features?.map((f: any) => f.attributes) || [];
   } catch {
     return [];
