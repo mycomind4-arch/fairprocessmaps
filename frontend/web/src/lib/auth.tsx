@@ -22,6 +22,7 @@ interface AuthContextValue {
   user: FairProcessUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -75,6 +76,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   };
 
+  const signUp = async (name: string, email: string, password: string) => {
+    const res = await fetch("/api/v1/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ name, email, password }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({})) as any;
+      throw new Error(data.error ?? "Registration failed");
+    }
+
+    const data = await res.json() as any;
+    setUser(data.user);
+  };
+
   const signOut = async () => {
     await fetch("/api/v1/auth/logout", {
       method: "POST",
@@ -84,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
