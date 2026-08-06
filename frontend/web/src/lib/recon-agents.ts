@@ -571,7 +571,7 @@ const aduAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
 
 // ── All Agents Registry ──
 
-export const // ── Agent 12b: Assessor / Owner Data (Tyler Technologies) ──
+// ── Agent 12b: Assessor / Owner Data (Tyler Technologies) ──
 
 const assessorAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
   const { apn, parcel } = ctx;
@@ -726,7 +726,7 @@ const parcelDetailsAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> =>
   };
 };
 
-ALL_AGENTS: { name: string; agent: ReconAgent; description: string }[] = [
+const ALL_AGENTS: { name: string; agent: ReconAgent; description: string }[] = [
   { name: "parcel", agent: parcelAgent, description: "County GIS parcel data (APN, zoning, acres, legal)" },
   { name: "zoning", agent: zoningAgent, description: "Zoning designation & General Plan land use" },
   { name: "coastal_zone", agent: coastalZoneAgent, description: "California Coastal Zone jurisdiction" },
