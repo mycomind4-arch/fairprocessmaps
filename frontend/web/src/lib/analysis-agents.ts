@@ -234,7 +234,7 @@ export async function factExtractionAgent(ctx: AnalysisContext): Promise<Analysi
             if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
           } catch {}
           if (parsed) {
-            const sentences = text.split(/[.!?)\s+/);
+            const sentences = text.split(/[.!?]\s+/);
             const matchingSentence = sentences.find(s => s.includes(date));
             facts.push({
               fact_id: `evid_${ev.id.slice(0, 8)}_${date.replace(/[^a-zA-Z0-9]/g, "")}`,

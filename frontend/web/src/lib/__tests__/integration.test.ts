@@ -146,7 +146,7 @@ const SAMPLE_INTEL = [
 describe("Fact Extraction Agent", () => {
   it("extracts facts from building permits", async () => {
     const db = createMockDB({ permits: SAMPLE_PERMITS, ceCases: [], evidence: [], timeline: [], recorder: [], intel: [] });
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await factExtractionAgent(ctx);
     expect(result.status).toMatch(/success|partial/);
@@ -156,7 +156,7 @@ describe("Fact Extraction Agent", () => {
 
   it("extracts facts from code enforcement cases", async () => {
     const db = createMockDB({ permits: [], ceCases: SAMPLE_CE_CASES, evidence: [], timeline: [], recorder: [], intel: [] });
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await factExtractionAgent(ctx);
     expect(result.status).toMatch(/success|partial/);
@@ -165,7 +165,7 @@ describe("Fact Extraction Agent", () => {
 
   it("extracts facts from evidence with dates in text", async () => {
     const db = createMockDB({ permits: [], ceCases: [], evidence: SAMPLE_EVIDENCE, timeline: [], recorder: [], intel: [] });
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await factExtractionAgent(ctx);
     expect(result.status).toMatch(/success|partial/);
@@ -173,7 +173,7 @@ describe("Fact Extraction Agent", () => {
 
   it("extracts facts from property intelligence (GIS)", async () => {
     const db = createMockDB({ permits: [], ceCases: [], evidence: [], timeline: [], recorder: [], intel: SAMPLE_INTEL });
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await factExtractionAgent(ctx);
     expect(result.status).toMatch(/success|partial/);
@@ -181,7 +181,7 @@ describe("Fact Extraction Agent", () => {
 
   it("handles empty database gracefully", async () => {
     const db = createMockDB({});
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await factExtractionAgent(ctx);
     expect(result.status).toMatch(/success|partial|error/);
@@ -196,7 +196,7 @@ describe("Statute Matching Agent", () => {
       { fact_id: "2", text: "Compliance deadline", date: "2026-01-31", source: "ce", source_id: "ce_1", category: "compliance_deadline" },
     ];
     const db = createMockDB({});
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await statuteMatchingAgent(ctx, facts);
     expect(result.status).toMatch(/success|partial/);
@@ -211,7 +211,7 @@ describe("Statute Matching Agent", () => {
       { fact_id: "2", text: "Abatement occurred", date: "2026-01-05", source: "ce", source_id: "ce_1", category: "abatement" },
     ];
     const db = createMockDB({});
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await statuteMatchingAgent(ctx, facts);
     expect(result.status).toMatch(/success|partial/);
@@ -221,7 +221,7 @@ describe("Statute Matching Agent", () => {
   it("applies guardrail to all outputs", async () => {
     const facts: any[] = [];
     const db = createMockDB({});
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await statuteMatchingAgent(ctx, facts);
     // Guardrail blocks should be tracked
@@ -237,7 +237,7 @@ describe("Discrepancy Agent", () => {
       // No hearing fact
     ];
     const db = createMockDB({ ceCases: [{ ...SAMPLE_CE_CASES[0], abatement_date: "2026-02-15", hearing_date: null }] });
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await discrepancyAgent(ctx, facts);
     expect(result.status).toMatch(/success|partial/);
@@ -251,7 +251,7 @@ describe("Discrepancy Agent", () => {
       { fact_id: "2", text: "Hearing scheduled", date: "2026-02-01", source: "ce", source_id: "ce_1", category: "hearing" },
     ];
     const db = createMockDB({ ceCases: [{ ...SAMPLE_CE_CASES[0], hearing_date: "2026-02-01" }] });
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await discrepancyAgent(ctx, facts);
     expect(result.status).toMatch(/success|partial/);
@@ -266,7 +266,7 @@ describe("Full Analysis Pipeline (runAnalysisAgents)", () => {
       evidence: SAMPLE_EVIDENCE,
       intel: SAMPLE_INTEL,
     });
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await runAnalysisAgents(ctx);
     expect(result.success).toBe(true);
@@ -286,7 +286,7 @@ describe("Full Analysis Pipeline (runAnalysisAgents)", () => {
       permits: SAMPLE_PERMITS,
       ceCases: SAMPLE_CE_CASES,
     });
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await runAnalysisAgents(ctx);
     expect(result.success).toBe(true);
@@ -296,7 +296,7 @@ describe("Full Analysis Pipeline (runAnalysisAgents)", () => {
 
   it("handles empty database without crashing", async () => {
     const db = createMockDB({});
-    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", db: db as any };
+    const ctx: AnalysisContext = { projectId: "proj_1", propertyId: "prop_1", organizationId: "test-org", db: db as any };
 
     const result = await runAnalysisAgents(ctx);
     expect(result.success).toBe(true);
