@@ -55,7 +55,7 @@ export default function DetailPanel({
       setFocusLoading(true);
       fetch(`/api/v1/cases/${caseId}/focus`)
         .then(r => r.json())
-        .then(d => { if (d.ok) setFocus(d.data); })
+        .then((d: any) => { if (d.ok) setFocus(d.data); })
         .catch(() => {})
         .finally(() => setFocusLoading(false));
     }
@@ -67,7 +67,7 @@ export default function DetailPanel({
       setProposalsLoading(true);
       fetch(`/api/v1/cases/${caseId}/agents/proposals`)
         .then(r => r.json())
-        .then(d => { if (d.ok) setProposals(d.data.proposals); })
+        .then((d: any) => { if (d.ok) setProposals(d.data.proposals); })
         .catch(() => {})
         .finally(() => setProposalsLoading(false));
     }
@@ -80,7 +80,7 @@ export default function DetailPanel({
       setExplanationLoading(true);
       fetch(`/api/v1/cases/${caseId}/explain?nodeId=${selectedNode}`)
         .then(r => r.json())
-        .then(d => { if (d.ok) setExplanation(d.data); })
+        .then((d: any) => { if (d.ok) setExplanation(d.data); })
         .catch(() => {})
         .finally(() => setExplanationLoading(false));
     } else {
@@ -397,9 +397,9 @@ export default function DetailPanel({
                       "bg-fp-blue/20 text-fp-blue"
                     }`}>{severity}</span>
                   </div>
-                  {data.detail && <p className="text-xs text-fp-text-dim mt-1">{data.detail as string}</p>}
-                  {data.generated_by_agent && (
-                    <div className="text-[10px] text-fp-purple mt-1">🤖 {data.generated_by_agent as string}{data.agent_version ? ` v${data.agent_version}` : ""}</div>
+                  {Boolean(data.detail) && <p className="text-xs text-fp-text-dim mt-1">{String(data.detail)}</p>}
+                  {Boolean(data.generated_by_agent) && (
+                    <div className="text-[10px] text-fp-purple mt-1">🤖 {String(data.generated_by_agent)}{data.agent_version ? ` v${data.agent_version}` : ""}</div>
                   )}
                 </div>
               );
@@ -419,8 +419,8 @@ export default function DetailPanel({
               const at = ["statute", "official", "department", "authority"];
               return (sn && at.includes(sn.type)) || (tn && at.includes(tn.type));
             }).map((edge, i) => {
-              const sn = graph.nodes.find(n => n.id === e.source);
-              const tn = graph.nodes.find(n => n.id === e.target);
+              const sn = graph.nodes.find(n => n.id === edge.source);
+              const tn = graph.nodes.find(n => n.id === edge.target);
               return (
                 <div key={`auth-${i}`} className="p-2.5 rounded-lg bg-fp-surface/60 border border-fp-border/50">
                   <div className="flex items-center gap-2 text-xs">
@@ -503,7 +503,7 @@ export default function DetailPanel({
                               method: "PATCH",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ decision: "accepted" }),
-                            }).then(r => r.json()).then(d => {
+                            }).then(r => r.json()).then((d: any) => {
                               if (d.ok) {
                                 setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: "accepted" as ProposalStatus } : p));
                               }
@@ -519,7 +519,7 @@ export default function DetailPanel({
                               method: "PATCH",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ decision: "rejected", review_reason: "Reviewed and rejected" }),
-                            }).then(r => r.json()).then(d => {
+                            }).then(r => r.json()).then((d: any) => {
                               if (d.ok) {
                                 setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: "rejected" as ProposalStatus } : p));
                               }

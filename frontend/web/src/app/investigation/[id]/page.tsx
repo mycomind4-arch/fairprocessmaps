@@ -35,14 +35,14 @@ export default function InvestigationView() {
     setLoading(true);
     try {
       const [summaryRes, graphRes, timelineRes] = await Promise.all([
-        fetch(`/api/v1/cases/${id}/summary`).then(r => r.json()),
-        fetch(`/api/v1/cases/${id}/graph`).then(r => r.json()),
-        fetch(`/api/v1/cases/${id}/timeline`).then(r => r.json()),
+        fetch(`/api/v1/cases/${id}/summary`).then(r => r.json() as any),
+        fetch(`/api/v1/cases/${id}/graph`).then(r => r.json() as any),
+        fetch(`/api/v1/cases/${id}/timeline`).then(r => r.json() as any),
       ]);
       if (summaryRes.ok) setSummary(summaryRes.data);
       if (graphRes.ok) {
         setGraph(graphRes.data);
-        const types = new Set(graphRes.data.nodes.map((n: { type: string }) => n.type));
+        const types = new Set<string>(graphRes.data.nodes.map((n: { type: string }) => n.type));
         setVisibleNodeTypes(types);
       }
       if (timelineRes.ok) setTimeline(timelineRes.data);
