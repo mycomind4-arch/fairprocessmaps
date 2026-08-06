@@ -5,16 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import ProjectNav, { type ProjectSection } from "@/components/ProjectNav";
 import MiniMap from "@/components/MiniMap";
 import type { ProjectSummary } from "@/lib/types";
-import OverviewPanel from "@/components/panels/OverviewPanel";
 import PropertyIntelligence from "@/components/panels/PropertyIntelligence";
 import EvidenceVaultPanel from "@/components/panels/EvidenceVaultPanel";
-import DiscrepanciesPanel from "@/components/panels/DiscrepanciesPanel";
 import TimelinePanel from "@/components/panels/TimelinePanel";
-import LegalLibraryPanel from "@/components/panels/LegalLibraryPanel";
 import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
-import CodeEnforcementPanel from "@/components/panels/CodeEnforcementPanel";
-import BuildingDeptPanel from "@/components/panels/BuildingDeptPanel";
+import AuthorityEnforcementPanel from "@/components/panels/AuthorityEnforcementPanel";
+import LegalAnalysisPanel from "@/components/panels/LegalAnalysisPanel";
+import DefenseBuilderPanel from "@/components/panels/DefenseBuilderPanel";
 import { ArrowLeft, Shield, Loader2, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
@@ -35,7 +33,7 @@ export default function ProjectDashboard() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [project, setProject] = useState<ProjectSummary | null>(null);
-  const [section, setSection] = useState<ProjectSection>("overview");
+  const [section, setSection] = useState<ProjectSection>("property-intelligence");
   const [mapExpanded, setMapExpanded] = useState(false);
   const [recon, setRecon] = useState<ReconStatus | null>(null);
   const [reconTriggered, setReconTriggered] = useState(false);
@@ -290,7 +288,7 @@ export default function ProjectDashboard() {
 
         <main className="flex-1 relative overflow-y-auto p-6">
           {/* MiniMap floats in top-right for sections that need spatial context */}
-          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && section !== "code-enforcement" && section !== "building" && section !== "timeline" && (
+          {project?.property.centroid && section !== "evidence" && section !== "admin" && section !== "connectors" && section !== "legal-analysis" && section !== "authority-enforcement" && section !== "timeline" && (
             <MiniMap
               centroid={toLngLat(project.property.centroid)!}
               geomGeoJSON={(project.property.geom as any) ?? undefined}
@@ -298,14 +296,17 @@ export default function ProjectDashboard() {
             />
           )}
 
-          {section === "overview" && <OverviewPanel projectId={id} onNavigate={setSection} />}
-          {section === "intelligence" && <PropertyIntelligence propertyId={project?.property_id ?? ""} />}
+          {/* CASE BUILDING */}
+          {section === "property-intelligence" && <PropertyIntelligence propertyId={project?.property_id ?? ""} />}
           {section === "timeline" && <TimelinePanel projectId={id} />}
-          {section === "building" && <BuildingDeptPanel projectId={id} />}
-          {section === "code-enforcement" && <CodeEnforcementPanel projectId={id} />}
-          {section === "discrepancies" && <DiscrepanciesPanel projectId={id} />}
-          {section === "vault" && <EvidenceVaultPanel projectId={id} />}
-          {section === "legal" && <LegalLibraryPanel />}
+          {section === "authority-enforcement" && <AuthorityEnforcementPanel projectId={id} />}
+          {section === "evidence" && <EvidenceVaultPanel projectId={id} />}
+
+          {/* ANALYSIS & DEFENSE */}
+          {section === "legal-analysis" && <LegalAnalysisPanel projectId={id} />}
+          {section === "defense-builder" && <DefenseBuilderPanel projectId={id} />}
+
+          {/* SYSTEM */}
           {section === "connectors" && <ConnectorsPanel projectId={id} />}
           {section === "admin" && <AdminPanel projectId={id} />}
         </main>

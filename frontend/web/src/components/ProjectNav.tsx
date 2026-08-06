@@ -1,36 +1,31 @@
 "use client";
 
 import {
-  LayoutDashboard,
   Search,
   Building2,
-  ShieldAlert,
-  ScaleIcon,
+  Scale,
   FolderArchive,
-  BookOpen,
+  Gavel,
+  Shield,
   Plug,
   Settings,
   Calendar,
-  FileText,
 } from "lucide-react";
 
 export type ProjectSection =
-  | "overview"
-  | "intelligence"
+  | "property-intelligence"
   | "timeline"
-  | "building"
-  | "code-enforcement"
-  | "discrepancies"
-  | "vault"
-  | "legal"
-  | "briefs"
+  | "authority-enforcement"
+  | "evidence"
+  | "legal-analysis"
+  | "defense-builder"
   | "connectors"
   | "admin";
 
 interface NavItem {
   id: ProjectSection;
   label: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof Search;
   badgeKey?: "findings";
 }
 
@@ -39,24 +34,22 @@ interface NavGroup {
   items: NavItem[];
 }
 
+// Workflow-organized: Understand → Reconstruct → Identify Power → Analyze → Defend
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: "INVESTIGATION",
+    title: "CASE BUILDING",
     items: [
-      { id: "overview", label: "Overview", icon: LayoutDashboard },
-      { id: "intelligence", label: "Property Intelligence", icon: Search },
+      { id: "property-intelligence", label: "Property Intelligence", icon: Search },
       { id: "timeline", label: "Timeline", icon: Calendar },
-      { id: "building", label: "Building Dept", icon: Building2 },
-      { id: "code-enforcement", label: "Code Enforcement", icon: ShieldAlert },
-      { id: "discrepancies", label: "Due Process Discrepancies", icon: ScaleIcon, badgeKey: "findings" },
+      { id: "authority-enforcement", label: "Authority & Enforcement", icon: Building2, badgeKey: "findings" },
+      { id: "evidence", label: "Evidence", icon: FolderArchive },
     ],
   },
   {
-    title: "LEGAL",
+    title: "ANALYSIS & DEFENSE",
     items: [
-      { id: "vault", label: "Document Vault", icon: FolderArchive },
-      { id: "legal", label: "Legal & Law Library", icon: BookOpen },
-      { id: "briefs", label: "Brief Generator", icon: FileText },
+      { id: "legal-analysis", label: "Legal Analysis", icon: Scale, badgeKey: "findings" },
+      { id: "defense-builder", label: "Defense Builder", icon: Gavel },
     ],
   },
   {
@@ -77,6 +70,11 @@ interface ProjectNavProps {
 export default function ProjectNav({ active, onSelect, criticalFindingsCount = 0 }: ProjectNavProps) {
   return (
     <nav className="w-64 shrink-0 border-r border-fp-border bg-fp-surface/60 backdrop-blur-xl flex flex-col py-4 overflow-y-auto">
+      {/* Workflow hint at top of nav */}
+      <div className="px-6 pb-3 text-[10px] font-medium uppercase tracking-widest text-fp-text-dim/60">
+        Understand → Reconstruct → Power → Analyze → Defend
+      </div>
+
       {NAV_GROUPS.map((group, groupIdx) => (
         <div key={group.title} className={groupIdx > 0 ? "mt-4" : ""}>
           {groupIdx > 0 && <div className="border-t border-fp-border mx-4 mb-4" />}
@@ -111,6 +109,16 @@ export default function ProjectNav({ active, onSelect, criticalFindingsCount = 0
           </div>
         </div>
       ))}
+
+      {/* Branding at bottom */}
+      <div className="mt-auto px-6 pt-4 border-t border-fp-border">
+        <div className="flex items-center gap-2 text-xs text-fp-text-dim">
+          <Shield className="w-3.5 h-3.5" />
+          <span>FairProcess</span>
+          <span className="text-fp-text-dim/40">·</span>
+          <span className="text-fp-text-dim/60">Evidence-First</span>
+        </div>
+      </div>
     </nav>
   );
 }
