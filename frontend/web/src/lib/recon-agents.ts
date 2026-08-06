@@ -781,7 +781,7 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
 
   // Step 6: Create timeline event
   await db.prepare(
-    `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, resource_organization_id)
+    `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, organization_id)
      VALUES (?, ?, ?, datetime('now'), 'intelligence_gathered', ?, ?)`
   ).bind(
     crypto.randomUUID(),

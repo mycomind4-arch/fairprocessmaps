@@ -19,56 +19,125 @@ const buildingPermitsAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> 
   const { db, projectId, apn, parcel } = ctx;
   
   try {
-    // Try to fetch building permit data from Accela Citizen Access
-    // Accela is an ASP.NET WebForms app — we attempt an HTTP GET to their
-    // public search page and look for permit records by address/APN.
-    //
-    // The Accela public search URL format:
-    // https://aca-prod.accela.com/HUMBOLDT/Cap/CapHome.aspx?module=Building
-    //
-    // Since Accela requires ViewState + session cookies for POST searches,
-    // we use a GET request to check if the service is reachable and
-    // collect any accessible data. Full permit records require browser
-    // automation or authenticated API access.
-
     const address = parcel?.properties?.FULLADDR?.trim() || "";
-    const accelaUrl = `https://aca-prod.accela.com/HUMBOLDT/Cap/CapHome.aspx?module=Building`;
+    const streetNum = address ? address.split(" ")[0] : "";
+    const streetName = address ? address.split(" ").slice(1).join(" ").replace(/\s+(Rd|St|Ave|Blvd|Dr|Ln|Way|Ct|Pl|Trl|Hwy)\.?$/, "").trim() : "";
     
+    // Try Accela search via POST (WebForms with ViewState)
     let permitsFound = 0;
-    let accelaReachable = false;
+    let permitRecords: any[] = [];
+    let accelaStatus = "unreachable";
     
     try {
-      const resp = await fetch(accelaUrl, {
-        method: "GET",
+      // Step 1: GET the search page to extract ViewState
+      const searchPageUrl = "https://aca-prod.accela.com/HUMBOLDT/Cap/CapHome.aspx?module=Building";
+      const pageResp = await fetch(searchPageUrl, {
         headers: { "User-Agent": "FairProcess-PropertyIntel/1.0" },
       });
-      accelaReachable = resp.ok;
-    } catch (_e) {
-      accelaReachable = false;
+      
+      if (pageResp.ok) {
+        accelaStatus = "reachable";
+        const pageHtml = await pageResp.text();
+        
+        // Extract __VIEWSTATE and __EVENTVALIDATION
+        const viewStateMatch = pageHtml.match(/__VIEWSTATE[^>]*value="([^"]*)"/);
+        const eventValMatch = pageHtml.match(/__EVENTVALIDATION[^>]*value="([^"]*)"/);
+        
+        if (viewStateMatch && streetNum && streetName) {
+          // Step 2: POST the search form
+          const formData = new URLSearchParams();
+          formData.append("__VIEWSTATE", viewStateMatch[1]);
+          if (eventValMatch) formData.append("__EVENTVALIDATION", eventValMatch[1]);
+          formData.append("__EVENTTARGET", "");
+          formData.append("__EVENTARGUMENT", "");
+          formData.append("ScriptManager1", "UpdatePanel1|ctl00$MainContent$btnSearch");
+          formData.append("ctl00$MainContent$drpSearchType", "AddressSearch");
+          formData.append("ctl00$MainContent$txtStreetNumFrom", streetNum);
+          formData.append("ctl00$MainContent$txtStreetNumTo", streetNum);
+          formData.append("ctl00$MainContent$txtStreetName", streetName);
+          formData.append("ctl00$MainContent$btnSearch", "Search");
+          
+          const searchResp = await fetch(searchPageUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "User-Agent": "FairProcess-PropertyIntel/1.0",
+            },
+            body: formData.toString(),
+          });
+          
+          if (searchResp.ok) {
+            const resultsHtml = await searchResp.text();
+            
+            // Parse results — look for table rows with address and permit data
+            const rowPattern = /<tr[^>]*class=["']?(?:AltRow|row)[^"']?["']?[^>]*>(.*?)<\/tr>/gis;
+            const rows = resultsHtml.match(rowPattern) || [];
+            
+            for (const row of rows) {
+              const cells = row.match(/<td[^>]*>(.*?)<\/td>/gis) || [];
+              const cellTexts = cells.map(c => c.replace(/<[^>]+>/g, "").trim());
+              if (cellTexts.length >= 2) {
+                permitRecords.push({
+                  permit_number: cellTexts[0] || "",
+                  permit_type: cellTexts[1] || "Building",
+                  address: cellTexts[2] || address,
+                  status: cellTexts[3] || "Unknown",
+                });
+              }
+            }
+            
+            permitsFound = permitRecords.length;
+          }
+        }
+      }
+    } catch (e) {
+      accelaStatus = "error";
     }
-
-    // Check for existing permits in D1 (may have been manually entered or
-    // collected via browser automation)
+    
+    // Also check for existing permits in D1
     const existingPermits = await db.prepare(
-      `SELECT * FROM building_permits WHERE project_id = ? ORDER BY issued_date DESC`
+      `SELECT * FROM building_permits WHERE project_id = ? AND organization_id = ? ORDER BY issued_date DESC`
     ).bind(projectId).all() as any;
     
-    permitsFound = existingPermits.results?.length || 0;
-
-    // Build summary
+    const d1Count = existingPermits.results?.length || 0;
+    
+    // If we found new permits from Accela, store them in D1
     if (permitsFound > 0) {
-      const permitList = existingPermits.results.map((p: any) => 
-        `- ${p.permit_number || "No #"} | ${p.permit_type} | Status: ${p.permit_status} | Issued: ${p.issued_date || "N/A"} | Valuation: $${p.valuation || 0}`
+      for (const p of permitRecords) {
+        // Check if already exists
+        const existing = await db.prepare(
+          `SELECT id FROM building_permits WHERE project_id = ? AND organization_id = ? AND permit_number = ?`
+        ).bind(projectId, p.permit_number).first();
+        
+        if (!existing) {
+          await db.prepare(
+            `INSERT INTO building_permits (id, project_id, permit_number, permit_type, permit_status, organization_id, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+          ).bind(crypto.randomUUID(), projectId, p.permit_number, p.permit_type, p.status, ctx.organizationId).run();
+        }
+      }
+    }
+    
+    const totalCount = Math.max(d1Count, permitsFound);
+    
+    if (totalCount > 0) {
+      const allPermits = await db.prepare(
+        `SELECT * FROM building_permits WHERE project_id = ? AND organization_id = ? ORDER BY issued_date DESC`
+      ).bind(projectId).all() as any;
+      
+      const permitList = (allPermits.results || []).map((p: any) => 
+        `- ${p.permit_number || "No #"} | ${p.permit_type || "Building"} | Status: ${p.permit_status || "Unknown"} | Issued: ${p.issued_date || "N/A"} | Valuation: $${p.valuation || 0}`
       ).join("\n");
       
       return {
         agent: "building_permits",
         status: "success",
-        message: `${permitsFound} building permit(s) on file. Accela: ${accelaReachable ? "reachable" : "unreachable"}.`,
+        message: `${totalCount} building permit(s) on file. Accela: ${accelaStatus}.`,
         data: {
-          permit_count: permitsFound,
-          accela_reachable: accelaReachable,
-          permits: existingPermits.results,
+          permit_count: totalCount,
+          accela_reachable: accelaStatus === "reachable",
+          accela_searched: permitsFound > 0,
+          permits: allPermits.results,
           summary: permitList,
         },
       };
@@ -77,12 +146,13 @@ const buildingPermitsAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> 
     return {
       agent: "building_permits",
       status: "no_data",
-      message: `No building permits in D1. Accela ${accelaReachable ? `reachable — search by address '${address}' or APN '${apn}' at aca-prod.accela.com/HUMBOLDT` : "unreachable — manual collection needed"}.`,
+      message: `No building permits found. Accela ${accelaStatus}. Search by address '${address}' at aca-prod.accela.com/HUMBOLDT or call Planning & Building: (707) 445-7541.`,
       data: {
-        accela_reachable: accelaReachable,
-        accela_url: accelaUrl,
+        accela_reachable: accelaStatus === "reachable",
+        accela_url: `https://aca-prod.accela.com/HUMBOLDT/Cap/CapHome.aspx?module=Building`,
         search_address: address,
         search_apn: apn,
+        building_dept_phone: "(707) 445-7541",
       },
     };
   } catch (err: any) {
@@ -117,7 +187,7 @@ const codeEnforcementAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> 
     
     // Read back all CE cases (including pre-existing)
     const allCases = await db.prepare(
-      `SELECT * FROM code_enforcement_cases WHERE project_id = ? ORDER BY created_at DESC`
+      `SELECT * FROM code_enforcement_cases WHERE project_id = ? AND organization_id = ? ORDER BY created_at DESC`
     ).bind(projectId).all() as any;
     
     const caseCount = allCases.results?.length || 0;
@@ -165,68 +235,96 @@ const countyRecorderAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> =
   const { db, projectId, apn, parcel } = ctx;
   
   try {
-    // Humboldt County Clerk-Recorder Self-Service:
-    // https://humboldtcountyca-web.tylerhost.net/web/
-    // Search by name, document number, or legal description
-    // Official record document and recorded map index search (1979 to present)
-    //
-    // Also: Humboldt County Assessor at https://humboldt-search.gsacorp.io/
-    // Parcel records, property tax records, sale records
+    // Extract data from the GIS parcel record (already fetched by parcelAgent)
+    const legal = parcel?.properties?.LEGAL?.trim() || "";
+    const bkpg = parcel?.properties?.BKPG || "";
+    const trandate = parcel?.properties?.TRANDATE || "";
+    const yearBuilt = parcel?.properties?.YEAR_BUILT?.trim() || "";
     
+    // Try to reach the county recorder and assessor
     const recorderUrl = "https://humboldtcountyca-web.tylerhost.net/web/";
-    const assessorUrl = "https://humboldt-search.gsacorp.io/";
+    const assessorUrl = "https://www.humboldtgov.org/206/Assessor";
     
     let recorderReachable = false;
     let assessorReachable = false;
     
     try {
-      const resp = await fetch(recorderUrl, {
-        method: "GET",
-        headers: { "User-Agent": "FairProcess-PropertyIntel/1.0" },
-      });
+      const resp = await fetch(recorderUrl, { headers: { "User-Agent": "FairProcess-PropertyIntel/1.0" } });
       recorderReachable = resp.ok;
-    } catch (_e) { recorderReachable = false; }
+    } catch { recorderReachable = false; }
     
     try {
-      const resp = await fetch(assessorUrl, {
-        method: "GET",
-        headers: { "User-Agent": "FairProcess-PropertyIntel/1.0" },
-      });
+      const resp = await fetch(assessorUrl, { headers: { "User-Agent": "FairProcess-PropertyIntel/1.0" } });
       assessorReachable = resp.ok;
-    } catch (_e) { assessorReachable = false; }
+    } catch { assessorReachable = false; }
     
     // Check for existing recorder records in D1
     const existingRecords = await db.prepare(
-      `SELECT * FROM recorder_records WHERE project_id = ? ORDER BY recording_date DESC`
+      `SELECT * FROM recorder_records WHERE project_id = ? AND organization_id = ? ORDER BY recording_date DESC`
     ).bind(projectId).all() as any;
     
     const recordCount = existingRecords.results?.length || 0;
     
-    // Extract parcel data for recorder context
-    const legal = parcel?.properties?.LEGAL?.trim() || "";
-    const bkpg = parcel?.properties?.BKPG || "";
-    const trandate = parcel?.properties?.TRANDATE || "";
-    
+    // Build recorder context from GIS parcel data
     const recorderInfo: string[] = [];
     if (bkpg) recorderInfo.push(`Book/Page: ${bkpg}`);
-    if (trandate) recorderInfo.push(`Last Transfer: ${new Date(trandate).toISOString().slice(0, 10)}`);
+    if (trandate) {
+      const transferDate = new Date(trandate).toISOString().slice(0, 10);
+      recorderInfo.push(`Last Transfer: ${transferDate}`);
+      
+      // Auto-create a recorder record from GIS transfer data if none exist
+      if (recordCount === 0) {
+        const recId = crypto.randomUUID();
+        await db.prepare(
+          `INSERT INTO recorder_records (id, project_id, document_number, document_type, recording_date, parties, notes, organization_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+        ).bind(
+          recId, projectId,
+          bkpg || `GIS-${apn}`,
+          "Grant Deed",
+          transferDate,
+          null,
+          `Auto-extracted from County GIS parcel data. Book/Page: ${bkpg}. APN: ${apn}.`,
+          ctx.organizationId,
+        ).run();
+        
+        // Create a timeline event for the transfer
+        await db.prepare(
+          `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, organization_id)
+           VALUES (?, ?, NULL, ?, 'correspondence', ?, ?)`
+        ).bind(
+          crypto.randomUUID(), projectId, transferDate,
+          `Property transfer recorded (Book/Page: ${bkpg || "Unknown"})`,
+          ctx.organizationId,
+        ).run();
+      }
+    }
     if (legal) recorderInfo.push(`Legal: ${legal}`);
+    if (yearBuilt) recorderInfo.push(`Year Built: ${yearBuilt}`);
     
-    if (recordCount > 0) {
-      const recordList = existingRecords.results.map((r: any) =>
-        `- ${r.document_number || "No #"} | ${r.document_type} | Recorded: ${r.recording_date || "N/A"} | Parties: ${r.parties || "N/A"}`
+    // Re-read after potential insert
+    const allRecords = await db.prepare(
+      `SELECT * FROM recorder_records WHERE project_id = ? AND organization_id = ? ORDER BY recording_date DESC`
+    ).bind(projectId).all() as any;
+    
+    const finalCount = allRecords.results?.length || 0;
+    
+    if (finalCount > 0) {
+      const recordList = (allRecords.results || []).map((r: any) =>
+        `- ${r.document_number || "No #"} | ${r.document_type || "Document"} | Recorded: ${r.recording_date || "N/A"} | Parties: ${r.parties || "N/A"}`
       ).join("\n");
       
       return {
         agent: "county_recorder",
         status: "success",
-        message: `${recordCount} recorder record(s) on file. ${recorderInfo.join(", ")}`,
+        message: `${finalCount} recorder record(s) on file. ${recorderInfo.join(", ") || "No parcel transfer data"}.`,
         data: {
-          record_count: recordCount,
-          records: existingRecords.results,
+          record_count: finalCount,
+          records: allRecords.results,
           summary: recordList,
           recorder_reachable: recorderReachable,
           assessor_reachable: assessorReachable,
+          gis_transfer_data: recorderInfo.length > 0,
         },
       };
     }
@@ -234,15 +332,16 @@ const countyRecorderAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> =
     return {
       agent: "county_recorder",
       status: "no_data",
-      message: `No recorder records in D1. ${recorderInfo.join(", ") || "No parcel transfer data"}. Recorder: ${recorderReachable ? "reachable" : "unreachable"} at humboldtcountyca-web.tylerhost.net. Assessor: ${assessorReachable ? "reachable" : "unreachable"} at humboldt-search.gsacorp.io.`,
+      message: `No recorder records found. GIS data: ${recorderInfo.join(", ") || "No parcel transfer data"}. Recorder: ${recorderReachable ? "reachable" : "unreachable"} at humboldtcountyca-web.tylerhost.net. Assessor: ${assessorReachable ? "reachable" : "unreachable"} at humboldoldtgov.org/206/Assessor.`,
       data: {
         recorder_reachable: recorderReachable,
         assessor_reachable: assessorReachable,
         recorder_url: recorderUrl,
         assessor_url: assessorUrl,
         book_page: bkpg,
-        last_transfer: trandate,
+        last_transfer: trandate ? new Date(trandate).toISOString().slice(0, 10) : null,
         legal_desc: legal,
+        year_built: yearBuilt,
         search_apn: apn,
       },
     };
@@ -258,14 +357,14 @@ const countyRecorderAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> =
 // ── Agent 16: Due Process Analysis (Cross-Reference Engine) ──
 
 const dueProcessAnalysisAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
-  const { db, projectId } = ctx;
+  const { db, projectId, organizationId } = ctx;
   
   try {
     // Gather all records from all three sources
     const [permits, ceCases, recorderRecords] = await Promise.all([
-      db.prepare(`SELECT * FROM building_permits WHERE project_id = ?`).bind(projectId).all(),
-      db.prepare(`SELECT * FROM code_enforcement_cases WHERE project_id = ?`).bind(projectId).all(),
-      db.prepare(`SELECT * FROM recorder_records WHERE project_id = ?`).bind(projectId).all(),
+      db.prepare(`SELECT * FROM building_permits WHERE project_id = ? AND organization_id = ?`).bind(projectId, ctx.organizationId).all(),
+      db.prepare(`SELECT * FROM code_enforcement_cases WHERE project_id = ? AND organization_id = ?`).bind(projectId, ctx.organizationId).all(),
+      db.prepare(`SELECT * FROM recorder_records WHERE project_id = ? AND organization_id = ?`).bind(projectId, ctx.organizationId).all(),
     ]);
     
     const permitList = (permits.results || []) as any[];
@@ -435,13 +534,13 @@ const dueProcessAnalysisAgent: ReconAgent = async (ctx): Promise<ReconAgentResul
     
     // Delete ALL old due process findings for this project (we're regenerating them)
     await db.prepare(
-      `DELETE FROM due_process_findings WHERE project_id = ?`
-    ).bind(projectId).run();
+      `DELETE FROM due_process_findings WHERE project_id = ? AND organization_id = ?`
+    ).bind(projectId, ctx.organizationId).run();
     
     for (const finding of findings) {
       await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail)
-         VALUES (?, ?, ?, ?, ?, 'open', ?)`
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`
       ).bind(
         crypto.randomUUID(),
         projectId,
@@ -449,6 +548,7 @@ const dueProcessAnalysisAgent: ReconAgent = async (ctx): Promise<ReconAgentResul
         finding.rule_name,
         finding.severity,
         finding.detail,
+        ctx.organizationId,
       ).run();
     }
     

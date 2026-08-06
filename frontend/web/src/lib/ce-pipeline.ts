@@ -249,7 +249,7 @@ export async function syncCECases(
       const timelineId = crypto.randomUUID();
       await db
         .prepare(
-          `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, resource_organization_id)
+          `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, organization_id)
            VALUES (?, ?, NULL, ?, 'enforcement', ?, ?)`
         )
         .bind(
