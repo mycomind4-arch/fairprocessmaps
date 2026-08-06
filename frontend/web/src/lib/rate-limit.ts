@@ -102,6 +102,7 @@ export async function checkRateLimit(
 // Preset limits for sensitive endpoints
 export const RATE_LIMITS = {
   login: { max: 5, window: 60 },      // 5 login attempts per minute
+  register: { max: 3, window: 3600 }, // 3 registrations per hour
   bootstrap: { max: 3, window: 3600 }, // 3 bootstrap attempts per hour
   upload: { max: 10, window: 60 },     // 10 uploads per minute
   agent_run: { max: 10, window: 60 },  // 10 agent runs per minute
