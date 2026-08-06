@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
     const analysisResult = await runAnalysisAgents({
       projectId,
       propertyId: project.property_id as string,
+      organizationId: user.organization_id as string,
       db,
     });
     const legacyResult = await runAnalysis(projectId);
