@@ -11,6 +11,7 @@ import {
   Plug,
   Settings,
   Calendar,
+  FileText,
 } from "lucide-react";
 
 export type ProjectSection =
@@ -22,6 +23,7 @@ export type ProjectSection =
   | "discrepancies"
   | "vault"
   | "legal"
+  | "briefs"
   | "connectors"
   | "admin";
 
@@ -54,6 +56,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "vault", label: "Document Vault", icon: FolderArchive },
       { id: "legal", label: "Legal & Law Library", icon: BookOpen },
+      { id: "briefs", label: "Brief Generator", icon: FileText },
     ],
   },
   {
