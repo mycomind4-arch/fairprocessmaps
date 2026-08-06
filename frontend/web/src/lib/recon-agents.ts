@@ -237,6 +237,7 @@ export interface ReconContext {
   apn: string;
   projectId: string;
   propertyId: string;
+  organizationId: string;
   db: D1Database;
   parcel: ParcelData | null;
 }
@@ -598,7 +599,7 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
 
   // Get project + property info
   const project = await db.prepare(
-    `SELECT p.id, p.name, p.property_id, pr.apn, pr.address, pr.city
+    `SELECT p.id, p.name, p.property_id, p.organization_id, pr.apn, pr.address, pr.city
      FROM projects p
      JOIN properties pr ON p.property_id = pr.id
      WHERE p.id = ?`
@@ -612,8 +613,8 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
   // Check if recon was already done (unless forced)
   if (!force) {
     const existing = await db.prepare(
-      `SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND doc_type = 'recon_report' LIMIT 1`
-    ).bind(projectId).first();
+      `SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND doc_type = 'recon_report' AND organization_id = ? LIMIT 1`
+    ).bind(projectId, project.organization_id as string).first();
     if (existing) {
       return {
         success: true,
@@ -631,20 +632,20 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
   if (force) {
     // Delete ALL timeline events that reference ai_research evidence
     await db.prepare(
-      `DELETE FROM timeline_events WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research')`
-    ).bind(projectId).run();
+      `DELETE FROM timeline_events WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?)`
+    ).bind(projectId, project.organization_id as string).run();
     // Delete due_process_findings that reference ai_research evidence
     await db.prepare(
-      `DELETE FROM due_process_findings WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research')`
-    ).bind(projectId).run();
+      `DELETE FROM due_process_findings WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?)`
+    ).bind(projectId, project.organization_id as string).run();
     // Delete evidence_relations that reference ai_research evidence
     await db.prepare(
-      `DELETE FROM evidence_relations WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research') OR related_evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research')`
-    ).bind(projectId, projectId).run();
+      `DELETE FROM evidence_relations WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?) OR related_evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?)`
+    ).bind(projectId, project.organization_id as string, projectId, project.organization_id as string).run();
     // Now safe to delete evidence
     await db.prepare(
-      `DELETE FROM evidence WHERE project_id = ? AND source = 'ai_research'`
-    ).bind(projectId).run();
+      `DELETE FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?`
+    ).bind(projectId, project.organization_id as string).run();
     // Delete old property_intelligence cache
     await db.prepare(
       `DELETE FROM property_intelligence WHERE property_id = ?`
@@ -659,6 +660,7 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
     apn,
     projectId,
     propertyId: project.property_id as string,
+    organizationId: project.organization_id as string,
     db,
     parcel,
   };
@@ -766,11 +768,12 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
   const evidenceId = crypto.randomUUID();
   const title = `Property Intelligence Recon — APN ${apn}`;
   await db.prepare(
-    `INSERT INTO evidence (id, project_id, source, doc_type, title, status, extracted_text, ai_summary)
-     VALUES (?, ?, 'ai_research', 'recon_report', ?, 'processed', ?, ?)`
+    `INSERT INTO evidence (id, project_id, organization_id, source, doc_type, title, status, extracted_text, ai_summary)
+     VALUES (?, ?, ?, 'ai_research', 'recon_report', ?, 'processed', ?, ?)`
   ).bind(
     evidenceId,
     projectId,
+    project.organization_id as string,
     title,
     intelligenceSummary,
     `Full recon: ${succeeded}/${ALL_AGENTS.length} agents succeeded. Key findings: ${results.filter(r => r.status === "success").map(r => r.message).join("; ")}`,
@@ -778,13 +781,14 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
 
   // Step 6: Create timeline event
   await db.prepare(
-    `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description)
-     VALUES (?, ?, ?, datetime('now'), 'intelligence_gathered', ?)`
+    `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, resource_organization_id)
+     VALUES (?, ?, ?, datetime('now'), 'intelligence_gathered', ?, ?)`
   ).bind(
     crypto.randomUUID(),
     projectId,
     evidenceId,
     `Full property intelligence recon completed: ${succeeded}/${ALL_AGENTS.length} agents succeeded (${failed} failed, ${noData} no data). Data gathered from Humboldt County GIS: parcel, zoning, coastal zone, flood, fire, tsunami, seismic, sea level rise, airport, jurisdiction, natural resources, ADU eligibility.`,
+    project.organization_id as string,
   ).run();
 
   // Step 7: Run analysis agents (fact extraction, timeline, statute matching, discrepancy)
@@ -793,6 +797,7 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
     const analysisResult = await runAnalysisAgents({
       projectId,
       propertyId: project.property_id as string,
+      organizationId: project.organization_id as string,
       db,
     });
     
