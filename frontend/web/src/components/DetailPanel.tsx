@@ -9,7 +9,7 @@ import type {
 
 import type { AgentProposal, ProposalStatus } from "@/lib/agents/types";
 import type { RelationshipLineage } from "@/lib/agents/proposals";
-import { FileText, AlertTriangle, Scale, Network, Eye, HelpCircle, CheckCircle2, XCircle, Clock, Bot, Loader2, ChevronDown, GitBranch, ThumbsUp, ThumbsDown } from "lucide-react";
+import { FileText, AlertTriangle, Scale, Network, Eye, HelpCircle, CheckCircle2, XCircle, Clock, Bot, Loader2, ChevronDown, GitBranch, ThumbsUp, ThumbsDown, Play } from "lucide-react";
 
 interface Props {
   graph: CaseGraph | null;
@@ -57,6 +57,9 @@ export default function DetailPanel({
   const [lineageLoadingId, setLineageLoadingId] = useState<string | null>(null);
   const [expandedLineageId, setExpandedLineageId] = useState<string | null>(null);
   const [reviewingEdgeId, setReviewingEdgeId] = useState<string | null>(null);
+  const [runningAgent, setRunningAgent] = useState<string | null>(null);
+  const [runResult, setRunResult] = useState<{ run_id: string; proposal_count: number; rejected_count: number; rejected_reasons: string[] } | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
   const node = graph?.nodes.find(n => n.id === selectedNode) ?? null;
   const edges = graph?.edges.filter(e => e.source === selectedNode || e.target === selectedNode) ?? [];
@@ -164,6 +167,32 @@ export default function DetailPanel({
       })
       .catch(() => {})
       .finally(() => setReviewingEdgeId(null));
+  };
+
+  // Trigger an agent run
+  const triggerAgentRun = (agentType: string) => {
+    if (!caseId) return;
+    setRunningAgent(agentType);
+    setRunResult(null);
+    setRunError(null);
+    fetch(`/api/v1/cases/${caseId}/agents/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agent_type: agentType }),
+    })
+      .then(r => r.json())
+      .then((d: any) => {
+        if (d.ok) {
+          setRunResult(d.data);
+          // Refresh proposals
+          setProposals([]);
+          setProposalsLoading(false);
+        } else {
+          setRunError(d.error?.message || "Agent run failed");
+        }
+      })
+      .catch(() => setRunError("Network error"))
+      .finally(() => setRunningAgent(null));
   };
 
 
@@ -663,6 +692,63 @@ export default function DetailPanel({
         {/* Agent Proposals tab */}
         {activeTab === "agents" && (
           <div className="space-y-3">
+            {/* Run Agent section */}
+            <div className="p-3 rounded-lg bg-fp-surface-2 border border-fp-border">
+              <div className="flex items-center gap-2 mb-2">
+                <Play className="w-3.5 h-3.5 text-fp-purple" />
+                <span className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider">Run Agent</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => triggerAgentRun("timeline_anomaly")}
+                  disabled={runningAgent !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-fp-purple/15 text-fp-purple hover:bg-fp-purple/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {runningAgent === "timeline_anomaly" ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Play className="w-3 h-3" />
+                  )}
+                  Timeline Anomaly Detector
+                </button>
+                <button
+                  onClick={() => triggerAgentRun("statute_matcher")}
+                  disabled={runningAgent !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-fp-purple/15 text-fp-purple hover:bg-fp-purple/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {runningAgent === "statute_matcher" ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Play className="w-3 h-3" />
+                  )}
+                  Statute Matcher
+                </button>
+              </div>
+              {/* Run result */}
+              {runResult && (
+                <div className="mt-2 p-2 rounded-lg bg-fp-green/5 border border-fp-green/20 text-xs">
+                  <span className="text-fp-green font-medium">✓ Run completed</span>
+                  <span className="text-fp-text-muted ml-2">{runResult.proposal_count} proposals generated</span>
+                  {runResult.rejected_count > 0 && (
+                    <span className="text-fp-amber ml-2">· {runResult.rejected_count} rejected by validator</span>
+                  )}
+                  {runResult.rejected_reasons.length > 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      {runResult.rejected_reasons.map((r, i) => (
+                        <div key={i} className="text-fp-text-dim text-[11px]">⚠ {r}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Run error */}
+              {runError && (
+                <div className="mt-2 p-2 rounded-lg bg-fp-red/5 border border-fp-red/20 text-xs text-fp-red">
+                  ✗ {runError}
+                </div>
+              )}
+            </div>
+
             {proposalsLoading && (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="w-4 h-4 animate-spin text-fp-text-dim" />
