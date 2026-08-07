@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { logout, clearSessionCookie, getSessionCookieName } from "@/lib/security/auth";
 
+import { handleCorsPreflight } from "@/lib/cors";
+
 export const runtime = "nodejs";
+
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPreflight(req) ?? new Response(null, { status: 204 });
+}
 
 export async function POST(req: NextRequest) {
   try {

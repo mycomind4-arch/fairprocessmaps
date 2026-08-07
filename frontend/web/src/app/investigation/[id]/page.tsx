@@ -35,22 +35,41 @@ export default function InvestigationView() {
     if (!id) return;
     setLoading(true);
     setFetchError(null);
+    const errors: string[] = [];
     try {
       const [summaryRes, graphRes, timelineRes] = await Promise.all([
         fetch(`/api/v1/cases/${id}/summary`).then(r => r.json() as any),
         fetch(`/api/v1/cases/${id}/graph`).then(r => r.json() as any),
         fetch(`/api/v1/cases/${id}/timeline`).then(r => r.json() as any),
       ]);
-      if (summaryRes.ok) setSummary(summaryRes.data);
+      
+      if (summaryRes.ok) {
+        setSummary(summaryRes.data);
+      } else {
+        errors.push(summaryRes.error || "Failed to load case summary");
+      }
+      
       if (graphRes.ok) {
         setGraph(graphRes.data);
         const types = new Set<string>(graphRes.data.nodes.map((n: { type: string }) => n.type));
         setVisibleNodeTypes(types);
+      } else {
+        errors.push(graphRes.error || "Failed to load case graph");
       }
-      if (timelineRes.ok) setTimeline(timelineRes.data);
+      
+      if (timelineRes.ok) {
+        setTimeline(timelineRes.data);
+      } else {
+        errors.push(timelineRes.error || "Failed to load case timeline");
+      }
 
-      // If summary didn't load and there was no explicit error, leave it null
-      // so the "not found" view shows. But if any fetch threw, fetchError is set.
+      // If all three failed, show the error view
+      if (errors.length === 3) {
+        setFetchError(errors[0]);
+      } else if (errors.length > 0) {
+        // Partial failure — show what we have, but surface the error
+        console.warn("[investigation] Partial data load errors:", errors);
+      }
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Failed to load case data.");
     } finally {
