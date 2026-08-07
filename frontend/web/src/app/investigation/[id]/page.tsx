@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import type { CaseSummary, CaseGraph, CaseTimeline, TimelineEntry } from "@/lib/graph/types";
-import { ArrowLeft, Shield, Loader2, AlertTriangle, Clock, MapPin, FileText, Scale, Network, ChevronRight, Filter, Bot, ChevronDown, AlertCircle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Shield, Loader2, AlertTriangle, Clock, MapPin, FileText, Scale, Network, ChevronRight, Filter, Bot, ChevronDown, AlertCircle, RefreshCw, LayoutDashboard } from "lucide-react";
 import InvestigationGraph from "@/components/InvestigationGraph";
 import TimelineList from "@/components/TimelineList";
 import DetailPanel from "@/components/DetailPanel";
@@ -132,8 +132,16 @@ export default function InvestigationView() {
       {/* ── Case Header ── */}
       <header className="shrink-0 border-b border-fp-border bg-fp-surface/60 backdrop-blur-xl">
         <div className="flex items-center gap-4 px-8 py-4">
-          <button onClick={() => router.push("/dashboard")} className="text-fp-text-dim hover:text-fp-text transition-colors shrink-0">
+          <button onClick={() => router.push("/dashboard")} className="text-fp-text-dim hover:text-fp-text transition-colors shrink-0" title="Back to dashboard">
             <ArrowLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => router.push(`/project/${id}`)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-surface-2 border border-fp-border hover:bg-fp-surface-2/80 text-xs font-medium text-fp-text-muted hover:text-fp-text transition-colors shrink-0"
+            title="Back to project workspace"
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            Workspace
           </button>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-[14px] bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shrink-0">

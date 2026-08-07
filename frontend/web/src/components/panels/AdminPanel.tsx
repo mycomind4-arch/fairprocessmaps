@@ -51,40 +51,43 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
   const [activeTab, setActiveTab] = useState<"general" | "members" | "permissions" | "organization" | "danger" | "all">("all");
 
   useEffect(() => {
-    // Load settings from localStorage
-    const settingsKey = `fairprocess_admin_settings_${projectId}`;
-    const membersKey = `fairprocess_admin_members_${projectId}`;
+    let cancelled = false;
 
-    const storedSettings = localStorage.getItem(settingsKey);
-    if (storedSettings) {
+    async function loadAll() {
+      setLoading(true);
       try {
-        setSettings(JSON.parse(storedSettings));
+        const [settingsRes, membersRes] = await Promise.all([
+          fetch(`/api/v1/project-settings?projectId=${projectId}`, { headers: { "Cache-Control": "no-cache" } }),
+          fetch(`/api/v1/members?projectId=${projectId}`, { headers: { "Cache-Control": "no-cache" } }),
+        ]);
+
+        if (settingsRes.ok) {
+          const data = await settingsRes.json() as { settings?: ProjectSettings };
+          if (!cancelled) setSettings(data.settings ?? defaultSettings());
+        } else {
+          if (!cancelled) setSettings(defaultSettings());
+        }
+
+        if (membersRes.ok) {
+          const data = await membersRes.json() as { items?: ProjectMember[] };
+          if (!cancelled) {
+            setMembers(data.items ?? []);
+          }
+        } else {
+          if (!cancelled) setMembers([]);
+        }
       } catch {
-        setSettings(defaultSettings());
+        if (!cancelled) {
+          setSettings(defaultSettings());
+          setMembers([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } else {
-      setSettings(defaultSettings());
     }
 
-    const storedMembers = localStorage.getItem(membersKey);
-    if (storedMembers) {
-      try {
-        setMembers(JSON.parse(storedMembers));
-      } catch {
-        setMembers([]);
-      }
-    } else {
-      setMembers([
-        {
-          id: crypto.randomUUID(),
-          name: "You",
-          email: "owner@example.com",
-          role: "admin",
-          added_at: new Date().toISOString(),
-        },
-      ]);
-    }
-    setLoading(false);
+    loadAll();
+    return () => { cancelled = true; };
   }, [projectId]);
 
   const defaultSettings = (): ProjectSettings => ({
@@ -99,38 +102,66 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
     notify_permit_changes: false,
   });
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
     if (!settings) return;
     setSaving(true);
-    const key = `fairprocess_admin_settings_${projectId}`;
-    localStorage.setItem(key, JSON.stringify(settings));
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      const res = await fetch("/api/v1/project-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: projectId, settings }),
+      });
+      if (!res.ok) throw new Error("Failed to save settings");
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 2000);
-    }, 500);
+    } catch {
+      // Show error — keep settings in local state so user can retry
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const addMember = () => {
+  const addMember = async () => {
     if (!inviteEmail.trim()) return;
-    const newMember: ProjectMember = {
-      id: crypto.randomUUID(),
-      name: inviteEmail.split("@")[0],
-      email: inviteEmail,
-      role: inviteRole,
-      added_at: new Date().toISOString(),
-    };
-    const next = [...members, newMember];
-    setMembers(next);
-    localStorage.setItem(`fairprocess_admin_members_${projectId}`, JSON.stringify(next));
-    setInviteEmail("");
-    setShowInvite(false);
+    try {
+      const res = await fetch("/api/v1/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_id: projectId,
+          email: inviteEmail,
+          role: inviteRole,
+          name: inviteEmail.split("@")[0],
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error || "Failed to invite member");
+      }
+      // Refresh members list from server
+      const membersRes = await fetch(`/api/v1/members?projectId=${projectId}`);
+      if (membersRes.ok) {
+        const data = await membersRes.json() as { items?: ProjectMember[] };
+        setMembers(data.items ?? []);
+      }
+      setInviteEmail("");
+      setShowInvite(false);
+    } catch {
+      // Keep modal open so user can retry
+    }
   };
 
-  const removeMember = (id: string) => {
-    const next = members.filter((m) => m.id !== id);
-    setMembers(next);
-    localStorage.setItem(`fairprocess_admin_members_${projectId}`, JSON.stringify(next));
+  const removeMember = async (id: string) => {
+    // Optimistic update
+    const prev = members;
+    setMembers(members.filter((m) => m.id !== id));
+    try {
+      const res = await fetch(`/api/v1/members?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to remove member");
+    } catch {
+      // Revert on failure
+      setMembers(prev);
+    }
   };
 
   const exportData = () => {
@@ -168,17 +199,6 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-fp-text">Admin Settings</h2>
         <p className="text-sm text-fp-text-muted mt-1">Project configuration, member access, permissions, and system controls</p>
-      </div>
-
-      {/* Preview — not yet connected to live data */}
-      <div className="flex items-start gap-3 rounded-[14px] border border-fp-amber/30 bg-fp-amber/10 p-4">
-        <AlertTriangle className="h-5 w-5 text-fp-amber shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-semibold text-fp-amber">Preview — not yet connected to live data</p>
-          <p className="text-xs text-fp-text-muted mt-1 leading-relaxed">
-            Settings and member lists are stored locally in your browser only. Inviting a member does not send an email or grant real access — the member is only visible on this device. Project settings do not persist across browsers or survive a cache clear. These will be wired to D1 database tables and real invite-email sending in a future release.
-          </p>
-        </div>
       </div>
 
       {/* Quick Navigation Filter Bar */}
@@ -522,10 +542,27 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
                     Cancel
                   </button>
                   <button
-                    onClick={() => {
-                      localStorage.removeItem(`fairprocess_admin_settings_${projectId}`);
-                      localStorage.removeItem(`fairprocess_admin_members_${projectId}`);
-                      localStorage.removeItem(`fairprocess_connectors_${projectId}`);
+                    onClick={async () => {
+                      // Best-effort cleanup of server-side data
+                      try {
+                        await fetch(`/api/v1/project-settings?projectId=${projectId}`, { method: "DELETE" }).catch(() => {});
+                        const membersRes = await fetch(`/api/v1/members?projectId=${projectId}`).catch(() => null);
+                        if (membersRes?.ok) {
+                          const data = await membersRes.json() as { items?: { id: string }[] };
+                          for (const m of data.items ?? []) {
+                            await fetch(`/api/v1/members?id=${m.id}`, { method: "DELETE" }).catch(() => {});
+                          }
+                        }
+                        const connectorsRes = await fetch(`/api/v1/connectors?projectId=${projectId}`).catch(() => null);
+                        if (connectorsRes?.ok) {
+                          const data = await connectorsRes.json() as { items?: { id: string }[] };
+                          for (const c of data.items ?? []) {
+                            await fetch(`/api/v1/connectors?id=${c.id}`, { method: "DELETE" }).catch(() => {});
+                          }
+                        }
+                      } catch {
+                        // Best effort — proceed to redirect
+                      }
                       window.location.href = "/";
                     }}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-fp-red text-white text-xs font-medium hover:bg-fp-red/90 transition-all shadow-md"

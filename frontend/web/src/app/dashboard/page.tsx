@@ -252,14 +252,15 @@ export default function Dashboard() {
                           e.stopPropagation();
                           router.push(`/investigation/${p.id}`);
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-blue/15 text-fp-blue hover:bg-fp-blue/25 transition-all text-xs font-semibold"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-fp-text-dim hover:text-fp-blue hover:bg-fp-blue/10 transition-all text-xs font-medium"
+                        title="Open fullscreen graph view"
                       >
                         <Network className="w-3.5 h-3.5" />
-                        <span>Fullscreen Graph</span>
+                        <span>Graph</span>
                       </button>
                       <button
                         onClick={() => router.push(`/project/${p.id}`)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-fp-surface-2 text-fp-text hover:text-white hover:bg-fp-blue/20 transition-all text-xs font-semibold"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-fp-blue text-white hover:bg-fp-blue/90 transition-all text-xs font-semibold shadow-sm shadow-fp-blue/20"
                       >
                         <span>Open Workspace</span>
                         <ChevronRight className="w-3.5 h-3.5" />
