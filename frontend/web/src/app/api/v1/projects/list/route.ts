@@ -25,7 +25,9 @@ export async function GET(req: NextRequest) {
            (SELECT COUNT(*) FROM due_process_findings f
             WHERE f.project_id = p.id AND f.status = 'open' AND f.severity = 'critical' AND f.organization_id = ?) AS critical_findings_count,
            (SELECT COUNT(*) FROM evidence e
-            WHERE e.project_id = p.id AND e.organization_id = ?) AS evidence_count
+            WHERE e.project_id = p.id AND e.organization_id = ?) AS evidence_count,
+           (SELECT COUNT(*) FROM timeline_events te
+            WHERE te.project_id = p.id) AS timeline_count
          FROM projects p
          JOIN properties pr ON p.property_id = pr.id
          WHERE p.organization_id = ?
@@ -49,6 +51,7 @@ export async function GET(req: NextRequest) {
       openFindingsCount: row.open_findings_count ?? 0,
       criticalFindingsCount: row.critical_findings_count ?? 0,
       evidenceCount: row.evidence_count ?? 0,
+      timelineCount: row.timeline_count ?? 0,
     }));
 
     return NextResponse.json(

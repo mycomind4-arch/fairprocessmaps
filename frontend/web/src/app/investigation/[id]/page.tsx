@@ -85,8 +85,32 @@ export default function InvestigationView() {
 
   if (authLoading || loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-fp-bg">
-        <Loader2 className="w-6 h-6 animate-spin text-fp-blue" />
+      <div className="h-screen flex flex-col bg-fp-bg overflow-hidden">
+        {/* Skeleton header */}
+        <div className="shrink-0 border-b border-fp-border bg-fp-surface/60 animate-pulse">
+          <div className="flex items-center gap-4 px-8 py-4">
+            <div className="w-10 h-10 rounded-[14px] bg-fp-surface-2" />
+            <div className="space-y-2">
+              <div className="h-6 w-48 bg-fp-surface-2 rounded" />
+              <div className="h-3 w-32 bg-fp-surface-2 rounded" />
+            </div>
+          </div>
+          <div className="flex items-center gap-6 px-8 py-3 border-t border-fp-border/50">
+            <div className="h-3 w-20 bg-fp-surface-2 rounded" />
+            <div className="h-3 w-24 bg-fp-surface-2 rounded" />
+            <div className="h-3 w-16 bg-fp-surface-2 rounded" />
+          </div>
+        </div>
+        {/* Skeleton body */}
+        <div className="flex-1 flex min-h-0">
+          <div className="w-72 shrink-0 border-r border-fp-border bg-fp-surface/40 animate-pulse p-6 space-y-3">
+            {[0,1,2,3].map(i => <div key={i} className="h-12 bg-fp-surface-2 rounded-lg" />)}
+          </div>
+          <div className="flex-1 animate-pulse flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-fp-blue" />
+            <span className="ml-3 text-sm text-fp-text-dim">Loading graph data…</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -230,6 +254,31 @@ export default function InvestigationView() {
               </div>
             )}
             <InvestigationGraph nodes={visibleNodes} edges={visibleEdges} selectedNode={selectedNode} highlightedNodes={highlightedNodes} onNodeClick={handleNodeClick} />
+            {/* Graph Legend */}
+            {graph && visibleNodes.length > 0 && (
+              <div className="absolute bottom-3 left-3 z-10 px-4 py-3 rounded-xl glass border border-fp-border/60 shadow-lg space-y-1.5 text-xs">
+                <div className="font-semibold text-fp-text-muted uppercase tracking-wide text-[10px] mb-1">Legend</div>
+                {[
+                  { type: "case", color: "bg-fp-blue", label: "Case" },
+                  { type: "property", color: "bg-fp-green", label: "Property" },
+                  { type: "evidence", color: "bg-fp-amber", label: "Evidence" },
+                  { type: "finding", color: "bg-fp-red", label: "Finding" },
+                  { type: "event", color: "bg-fp-cyan", label: "Event" },
+                  { type: "permit", color: "bg-fp-purple", label: "Permit" },
+                  { type: "ce_case", color: "bg-fp-pink", label: "CE Case" },
+                ].map(({ type, color, label }) => {
+                  const count = graph.nodes.filter(n => n.type === type).length;
+                  if (count === 0) return null;
+                  return (
+                    <div key={type} className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${color}`} />
+                      <span className="text-fp-text-dim">{label}</span>
+                      <span className="text-fp-text-muted ml-auto text-[10px]">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

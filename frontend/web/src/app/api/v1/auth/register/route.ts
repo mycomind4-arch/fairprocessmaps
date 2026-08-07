@@ -9,11 +9,13 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     // Rate limit: 3 registrations per hour per IP
+    const rlEnv = getCloudflareContext();
     const limit = await checkRateLimit(
       req,
       "register",
       RATE_LIMITS.register.max,
       RATE_LIMITS.register.window,
+      rlEnv.env,
     );
     if (!limit.ok) return limit.response!;
 

@@ -4,9 +4,9 @@
  * Uses D1 as a lightweight rate-limit store. Tracks requests per IP + endpoint.
  * Window: 60 seconds. Limits vary by endpoint sensitivity.
  *
- * Usage:
- *   const limit = await checkRateLimit(req, "login", 5); // 5 attempts/min
- *   if (!limit.ok) return limit.response;
+ * IMPORTANT: Both the INSERT and SELECT use the same timestamp format
+ * (ISO 8601 with T separator and Z timezone) to ensure SQLite string
+ * comparison works correctly for the sliding window.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -17,6 +17,7 @@ export interface RateLimitResult {
   remaining: number;
   resetAt: number;
   response?: NextResponse;
+  debugError?: string;
 }
 
 function getClientIP(req: NextRequest): string {
@@ -28,7 +29,6 @@ function getClientIP(req: NextRequest): string {
 }
 
 function hashIP(ip: string): string {
-  // Simple hash for storage — not cryptographic, just for key normalization
   let hash = 0;
   for (let i = 0; i < ip.length; i++) {
     const char = ip.charCodeAt(i);
@@ -43,26 +43,45 @@ export async function checkRateLimit(
   endpoint: string,
   maxRequests: number = 60,
   windowSeconds: number = 60,
+  env?: { DB: any },
 ): Promise<RateLimitResult> {
+  let debugError: string | undefined;
   try {
-    const { env } = getCloudflareContext();
-    const db = env.DB;
+    let db: any;
+    if (env?.DB) {
+      db = env.DB;
+    } else {
+      const ctx = getCloudflareContext();
+      db = ctx.env.DB;
+    }
+
+    if (!db) {
+      return { ok: true, remaining: maxRequests, resetAt: 0, debugError: "no DB binding" };
+    }
+
     const ip = getClientIP(req);
     const key = `${hashIP(ip)}:${endpoint}`;
-    const windowStart = new Date(Date.now() - windowSeconds * 1000).toISOString();
+    const now = Date.now();
+    const nowISO = new Date(now).toISOString();
+    const windowStartISO = new Date(now - windowSeconds * 1000).toISOString();
 
-    // Count requests in window
-    const countResult = await db
-      .prepare(
+    // INSERT first, then COUNT — avoids TOCTOU race across requests.
+    // The batch runs in a single transaction so the COUNT sees our INSERT.
+    const batch = [
+      db.prepare(
+        `INSERT INTO rate_limit_log (id, key, endpoint, ip_hash, created_at) VALUES (?, ?, ?, ?, ?)`
+      ).bind(crypto.randomUUID(), key, endpoint, hashIP(ip), nowISO),
+      db.prepare(
         `SELECT COUNT(*) as n FROM rate_limit_log WHERE key = ? AND created_at > ?`
-      )
-      .bind(key, windowStart)
-      .first();
+      ).bind(key, windowStartISO),
+    ];
 
-    const count = (countResult?.n as number) ?? 0;
+    const results = await db.batch(batch);
+    // results[1] is the COUNT, which now includes the row we just inserted
+    const totalAfterInsert = (results[1]?.results?.[0]?.n as number) ?? 1;
 
-    if (count >= maxRequests) {
-      const resetAt = Date.now() + windowSeconds * 1000;
+    if (totalAfterInsert > maxRequests) {
+      const resetAt = now + windowSeconds * 1000;
       return {
         ok: false,
         remaining: 0,
@@ -83,28 +102,29 @@ export async function checkRateLimit(
       };
     }
 
-    // Log this request
-    await db
-      .prepare(`INSERT INTO rate_limit_log (id, key, endpoint, ip_hash, created_at) VALUES (?, ?, ?, ?, datetime('now'))`)
-      .bind(crypto.randomUUID(), key, endpoint, hashIP(ip))
-      .run();
-
-    const remaining = maxRequests - count - 1;
-    const resetAt = Date.now() + windowSeconds * 1000;
+    const remaining = maxRequests - totalAfterInsert;
+    const resetAt = now + windowSeconds * 1000;
 
     return { ok: true, remaining, resetAt };
-  } catch {
-    // Fail open — if D1 is down, don't block requests
-    return { ok: true, remaining: maxRequests, resetAt: Date.now() + windowSeconds * 1000 };
+  } catch (err) {
+    debugError = err instanceof Error ? err.message : String(err);
+    // Fail open — but surface the error for debugging
+    return { ok: true, remaining: maxRequests, resetAt: 0, debugError };
   }
 }
 
-// Preset limits for sensitive endpoints
+// Periodic cleanup: old rows should be pruned periodically
+// This can be done via a cron job or scheduled task
+export async function cleanupRateLimitLog(db: any, olderThanSeconds: number = 3600): Promise<void> {
+  const cutoff = new Date(Date.now() - olderThanSeconds * 1000).toISOString();
+  await db.prepare(`DELETE FROM rate_limit_log WHERE created_at < ?`).bind(cutoff).run();
+}
+
 export const RATE_LIMITS = {
-  login: { max: 5, window: 60 },      // 5 login attempts per minute
-  register: { max: 3, window: 3600 }, // 3 registrations per hour
-  bootstrap: { max: 3, window: 3600 }, // 3 bootstrap attempts per hour
-  upload: { max: 10, window: 60 },     // 10 uploads per minute
-  agent_run: { max: 10, window: 60 },  // 10 agent runs per minute
-  default: { max: 120, window: 60 },   // 120 requests per minute
+  login: { max: 5, window: 60 },
+  register: { max: 3, window: 3600 },
+  bootstrap: { max: 3, window: 3600 },
+  upload: { max: 10, window: 60 },
+  agent_run: { max: 10, window: 60 },
+  default: { max: 120, window: 60 },
 } as const;

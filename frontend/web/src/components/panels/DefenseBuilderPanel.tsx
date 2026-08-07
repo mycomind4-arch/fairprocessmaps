@@ -35,6 +35,7 @@ const STARTER_ARGUMENTS: DefenseArgument[] = [
 export default function DefenseBuilderPanel({ projectId }: { projectId: string }) {
   const [arguments_, setArguments] = useState<DefenseArgument[]>(STARTER_ARGUMENTS);
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -46,8 +47,8 @@ export default function DefenseBuilderPanel({ projectId }: { projectId: string }
       // TODO: AI generates defense arguments from findings
       // For now, just simulate
       await new Promise((r) => setTimeout(r, 1500));
-    } catch {
-      // Silent fail for now
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate defense arguments");
     } finally {
       setGenerating(false);
     }

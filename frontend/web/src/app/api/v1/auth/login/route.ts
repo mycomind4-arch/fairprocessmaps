@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { login, setSessionCookie } from "@/lib/security/auth";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 5 login attempts per minute per IP
+    const rlEnv = getCloudflareContext();
+    const limit = await checkRateLimit(
+      req,
+      "login",
+      RATE_LIMITS.login.max,
+      RATE_LIMITS.login.window,
+      rlEnv.env,
+    );
+    if (!limit.ok) return limit.response!;
+
     const body = (await req.json()) as { email?: string; password?: string };
     if (!body.email || !body.password) {
       return NextResponse.json(

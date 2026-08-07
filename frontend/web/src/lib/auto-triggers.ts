@@ -96,6 +96,22 @@ interface Finding {
   evidence_id: string | null;
 }
 
+/**
+ * Generate a stable fingerprint for a finding.
+ * Same rule + same evidence + same detail = same fingerprint.
+ * Used for upsert: if fingerprint matches, preserve existing status/reviews.
+ */
+function findingFingerprint(rule: string, evidenceId: string | null, detail: string): string {
+  const input = `${rule}|${evidenceId ?? "none"}|${detail.slice(0, 200)}`;
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    const char = input.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return `fp_${Math.abs(hash).toString(36)}`;
+}
+
 function analyzeProject(
   evidence: any[],
   timeline: any[],
@@ -270,6 +286,17 @@ function analyzeProject(
  * Run due-process analysis for a project.
  * Evaluates timeline events against rules, writes findings, updates score.
  */
+/**
+ * Run due-process analysis for a project.
+ * Evaluates timeline events against rules, writes findings, updates score.
+ *
+ * P0 FIX: Uses fingerprint-based upsert instead of destructive DELETE+INSERT.
+ * - Existing findings with matching fingerprint keep their status/reviews.
+ * - New findings are inserted with 'open' status.
+ * - Findings that no longer apply are marked 'superseded' (not deleted).
+ * - All queries are org-scoped to prevent cross-org data leaks.
+ * - Multi-step writes use db.batch() for atomicity.
+ */
 export async function runAnalysis(projectId: string): Promise<{
   score: number;
   summary: string;
@@ -278,13 +305,24 @@ export async function runAnalysis(projectId: string): Promise<{
   warningCount: number;
   infoCount: number;
   findings: Finding[];
+  newFindingsCount: number;
+  preservedCount: number;
+  supersededCount: number;
 }> {
   const { env } = getCloudflareContext();
   const db = env.DB;
 
-  const evidenceResult = await db
-    .prepare("SELECT id, extracted_text, ai_summary, title, source, doc_type FROM evidence WHERE project_id = ?")
+  // P0-5: Resolve org_id for org-scoped queries
+  const projectRow = await db
+    .prepare("SELECT organization_id FROM projects WHERE id = ?")
     .bind(projectId)
+    .first();
+  const orgId = (projectRow?.organization_id as string) ?? "";
+
+  // P0-5: All queries org-scoped
+  const evidenceResult = await db
+    .prepare("SELECT id, extracted_text, ai_summary, title, source, doc_type FROM evidence WHERE project_id = ? AND organization_id = ?")
+    .bind(projectId, orgId)
     .all();
 
   const timelineResult = await db
@@ -293,13 +331,13 @@ export async function runAnalysis(projectId: string): Promise<{
     .all();
 
   const ceResult = await db
-    .prepare("SELECT * FROM code_enforcement_cases WHERE project_id = ?")
-    .bind(projectId)
+    .prepare("SELECT * FROM code_enforcement_cases WHERE project_id = ? AND organization_id = ?")
+    .bind(projectId, orgId)
     .all();
 
   const permitsResult = await db
-    .prepare("SELECT * FROM building_permits WHERE project_id = ?")
-    .bind(projectId)
+    .prepare("SELECT * FROM building_permits WHERE project_id = ? AND organization_id = ?")
+    .bind(projectId, orgId)
     .all();
 
   const evidence = evidenceResult.results ?? [];
@@ -309,30 +347,79 @@ export async function runAnalysis(projectId: string): Promise<{
 
   const { findings, score, summary } = analyzeProject(evidence, timeline, ceCases, permits);
 
-  // Clear old findings
-  await db.prepare("DELETE FROM due_process_findings WHERE project_id = ?").bind(projectId).run();
+  // P0-1: Generate fingerprints for new findings
+  const newFingerprints = new Set(
+    findings.map(f => findingFingerprint(f.rule, f.evidence_id, f.detail))
+  );
+
+  // Fetch existing findings to compare
+  const existingResult = await db
+    .prepare("SELECT id, finding_fingerprint, status, reviewed_by, reviewed_at FROM due_process_findings WHERE project_id = ? AND organization_id = ? AND status != 'superseded'")
+    .bind(projectId, orgId)
+    .all();
+  const existingFindings = existingResult.results ?? [];
+
+  const existingByFingerprint = new Map(
+    existingFindings.map((ef: any) => [ef.finding_fingerprint, ef])
+  );
+
+  // Categorize: preserve, insert, supersede
+  const toInsert: any[] = [];
+  const toSupersede: string[] = [];
+  let preservedCount = 0;
+
+  for (const finding of findings) {
+    const fp = findingFingerprint(finding.rule, finding.evidence_id, finding.detail);
+    const existing = existingByFingerprint.get(fp);
+    if (existing) {
+      // Finding already exists — preserve status, reviewed_by, reviewed_at
+      preservedCount++;
+      existingByFingerprint.delete(fp); // Remove from map; remaining = stale
+    } else {
+      // New finding — insert
+      const isMissingInfo = (finding.detail?.toLowerCase().includes('missing') ?? false) ||
+        (finding.detail?.toLowerCase().includes('not found') ?? false) ||
+        (finding.detail?.toLowerCase().includes('absent') ?? false);
+      toInsert.push({
+        id: crypto.randomUUID(),
+        project_id: projectId,
+        org_id: orgId,
+        rule: finding.rule,
+        rule_name: RULES[finding.rule]?.name ?? finding.rule,
+        severity: finding.severity,
+        detail: finding.detail,
+        evidence_id: finding.evidence_id,
+        missing_info: isMissingInfo ? 1 : 0,
+        fingerprint: fp,
+      });
+    }
+  }
+
+  // Remaining in existingByFingerprint are stale (no longer detected) → mark superseded
+  for (const [fp, ef] of existingByFingerprint) {
+    toSupersede.push((ef as any).id);
+  }
+
+  // P0-3: Use db.batch() for atomic writes
 
   // Insert new findings
-  for (const finding of findings) {
-    const isMissingInfo = (finding.detail?.toLowerCase().includes('missing') ?? false) ||
-      (finding.detail?.toLowerCase().includes('not found') ?? false) ||
-      (finding.detail?.toLowerCase().includes('absent') ?? false);
-    await db
-      .prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, evidence_id, missing_info)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
-      )
-      .bind(
-        crypto.randomUUID(),
-        projectId,
-        finding.rule,
-        RULES[finding.rule]?.name ?? finding.rule,
-        finding.severity,
-        finding.detail,
-        finding.evidence_id,
-        isMissingInfo ? 1 : 0,
-      )
-      .run();
+  if (toInsert.length > 0) {
+    const insertStmts = toInsert.map(f =>
+      db.prepare(
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, evidence_id, missing_info, finding_fingerprint, organization_id)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?)`
+      ).bind(f.id, f.project_id, f.rule, f.rule_name, f.severity, f.detail, f.evidence_id, f.missing_info, f.fingerprint, f.org_id)
+    );
+    await db.batch(insertStmts);
+  }
+
+  // Mark stale findings as superseded (preserving their history)
+  if (toSupersede.length > 0) {
+    const supersedeStmts = toSupersede.map(id =>
+      db.prepare("UPDATE due_process_findings SET status = 'superseded' WHERE id = ?")
+        .bind(id)
+    );
+    await db.batch(supersedeStmts);
   }
 
   // Update project's due_process_score
@@ -349,5 +436,8 @@ export async function runAnalysis(projectId: string): Promise<{
     warningCount: findings.filter((f) => f.severity === "warning").length,
     infoCount: findings.filter((f) => f.severity === "info").length,
     findings,
+    newFindingsCount: toInsert.length,
+    preservedCount,
+    supersededCount: toSupersede.length,
   };
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { Shield, Plus, Map, FileText, Clock, AlertTriangle, ChevronRight, LogOut, Loader2, Network } from "lucide-react";
+import { Shield, Plus, Map, FileText, Clock, AlertTriangle, ChevronRight, LogOut, Loader2, Network, ClipboardCheck, RefreshCw } from "lucide-react";
 
 interface ProjectListItem {
   id: string;
@@ -20,13 +20,43 @@ interface ProjectListItem {
   openFindingsCount: number;
   criticalFindingsCount: number;
   evidenceCount: number;
+  timelineCount: number;
+}
+
+interface PendingReview {
+  id: string;
+  agent_name: string;
+  proposal_type: string;
+  confidence: number;
+  created_at: string;
+  project_name: string;
 }
 
 export default function Dashboard() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
+  const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const loadData = useCallback(() => {
+    setFetching(true);
+    setFetchError(null);
+    Promise.all([
+      fetch("/api/v1/projects/list", { headers: { "Cache-Control": "no-cache" } }).then(r => r.json() as Promise<{ items?: ProjectListItem[] }>).catch(() => ({ items: [] })),
+      fetch("/api/v1/agent-proposals?status=pending", { headers: { "Cache-Control": "no-cache" } }).then(r => r.json() as Promise<{ items?: PendingReview[] }>).catch(() => ({ items: [] })),
+    ]).then(([projData, reviewData]) => {
+      setProjects(projData.items ?? []);
+      setPendingReviews(reviewData.items ?? []);
+      setFetching(false);
+    }).catch(() => {
+      setFetchError("Failed to load dashboard data");
+      setProjects([]);
+      setPendingReviews([]);
+      setFetching(false);
+    });
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -34,23 +64,17 @@ export default function Dashboard() {
       return;
     }
     if (!loading) {
-      fetch("/api/v1/projects/list", { headers: { "Cache-Control": "no-cache" } })
-        .then((r) => r.json())
-        .then((d: any) => {
-          setProjects(d.items ?? []);
-          setFetching(false);
-        })
-        .catch(() => {
-          setProjects([]);
-          setFetching(false);
-        });
+      loadData();
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, loadData]);
 
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-fp-bg">
-        <Loader2 className="w-5 h-5 text-fp-text-dim animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-6 h-6 text-fp-blue animate-spin" />
+          <span className="text-sm text-fp-text-dim">Loading workspace…</span>
+        </div>
       </div>
     );
   }
@@ -60,6 +84,7 @@ export default function Dashboard() {
   const activeCases = projects.filter((p) => p.status === "open").length;
   const criticalAlerts = projects.reduce((sum, p) => sum + (p.criticalFindingsCount || 0), 0);
   const totalEvidence = projects.reduce((sum, p) => sum + (p.evidenceCount || 0), 0);
+  const totalTimelineEvents = projects.reduce((sum, p) => sum + (p.timelineCount || 0), 0);
 
   return (
     <div className="min-h-screen bg-fp-bg flex flex-col">
@@ -76,7 +101,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-4">
           {user && (
-            <span className="text-xs text-fp-text-dim hidden sm:block">
+            <span className="text-sm text-fp-text-dim hidden sm:inline">
               {user.email}
             </span>
           )}
@@ -84,6 +109,7 @@ export default function Dashboard() {
             onClick={() => signOut()}
             className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all"
             title="Sign out"
+            aria-label="Sign out"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -112,32 +138,93 @@ export default function Dashboard() {
           <div className="border-t border-fp-border my-6" />
         </div>
 
-        {/* ── 4 Normalized Summary Stat Cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
-          <div className="glass rounded-[14px] p-6 shadow-lg shadow-black/20 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-200">
+        {/* ── Error State ── */}
+        {fetchError && (
+          <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-fp-red/10 border border-fp-red/30">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-fp-red shrink-0" />
+              <span className="text-sm text-fp-text">{fetchError}</span>
+            </div>
+            <button
+              onClick={loadData}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-fp-red/20 text-fp-red hover:bg-fp-red/30 transition-all text-sm font-medium"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Retry</span>
+            </button>
+          </div>
+        )}
+
+        {/* ── 5 Summary Stat Cards ── */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-stretch">
+          <div className="glass rounded-[14px] p-5 shadow-lg shadow-black/20 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-200">
             <span className="text-xs uppercase tracking-wide font-medium text-fp-text-dim">Total Projects</span>
             <div className="text-2xl font-semibold text-fp-text mt-2">{totalProjects}</div>
-            <span className="text-xs text-fp-text-dim mt-2">Active property matters</span>
+            <span className="text-xs text-fp-text-dim mt-1">Active matters</span>
           </div>
 
-          <div className="glass rounded-[14px] p-6 shadow-lg shadow-black/20 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-200">
+          <div className="glass rounded-[14px] p-5 shadow-lg shadow-black/20 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-200">
             <span className="text-xs uppercase tracking-wide font-medium text-fp-text-dim">Active Cases</span>
             <div className="text-2xl font-semibold text-fp-blue mt-2">{activeCases}</div>
-            <span className="text-xs text-fp-text-dim mt-2">Open investigations</span>
+            <span className="text-xs text-fp-text-dim mt-1">Open investigations</span>
           </div>
 
-          <div className="glass rounded-[14px] p-6 shadow-lg shadow-black/20 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-200">
+          <div className="glass rounded-[14px] p-5 shadow-lg shadow-black/20 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-200">
             <span className="text-xs uppercase tracking-wide font-medium text-fp-text-dim">Critical Alerts</span>
             <div className="text-2xl font-semibold text-fp-red mt-2">{criticalAlerts}</div>
-            <span className="text-xs text-fp-text-dim mt-2">Due-process discrepancies</span>
+            <span className="text-xs text-fp-text-dim mt-1">Due-process discrepancies</span>
           </div>
 
-          <div className="glass rounded-[14px] p-6 shadow-lg shadow-black/20 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-200">
+          <div className="glass rounded-[14px] p-5 shadow-lg shadow-black/20 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-200">
+            <span className="text-xs uppercase tracking-wide font-medium text-fp-text-dim">Timeline Events</span>
+            <div className="text-2xl font-semibold text-fp-text mt-2">{totalTimelineEvents}</div>
+            <span className="text-xs text-fp-text-dim mt-1">Across all cases</span>
+          </div>
+
+          <div className="glass rounded-[14px] p-5 shadow-lg shadow-black/20 flex flex-col justify-between hover:-translate-y-0.5 transition-all duration-200">
             <span className="text-xs uppercase tracking-wide font-medium text-fp-text-dim">Evidence Items</span>
             <div className="text-2xl font-semibold text-fp-text mt-2">{totalEvidence}</div>
-            <span className="text-xs text-fp-text-dim mt-2">Public records & filings</span>
+            <span className="text-xs text-fp-text-dim mt-1">Records & filings</span>
           </div>
         </div>
+
+        {/* ── Pending Reviews Section ── */}
+        {pendingReviews.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-fp-blue" />
+              <h2 className="text-base font-semibold text-fp-text">Pending AI Reviews</h2>
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-fp-blue/15 text-fp-blue border border-fp-blue/30">
+                {pendingReviews.length} awaiting
+              </span>
+            </div>
+            <div className="space-y-2">
+              {pendingReviews.slice(0, 5).map((review) => (
+                <div
+                  key={review.id}
+                  className="flex items-center justify-between gap-4 p-3 rounded-xl glass border border-fp-blue/20 hover:border-fp-blue/40 transition-all"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-fp-blue/15 flex items-center justify-center shrink-0">
+                      <Shield className="w-4 h-4 text-fp-blue" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-fp-text truncate">
+                        {review.agent_name}: {review.proposal_type}
+                      </div>
+                      <div className="text-xs text-fp-text-dim">
+                        {review.project_name} · {Math.round(review.confidence * 100)}% confidence
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs text-fp-text-dim shrink-0">
+                    {new Date(review.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Interactive Map Prompt Banner ── */}
         <button
@@ -166,8 +253,25 @@ export default function Dashboard() {
           </div>
 
           {fetching ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 text-fp-blue animate-spin" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="glass rounded-[14px] p-6 shadow-lg shadow-black/20 animate-pulse">
+                  <div className="h-5 w-2/3 bg-fp-surface-2 rounded mb-3" />
+                  <div className="h-3 w-1/2 bg-fp-surface-2 rounded mb-6" />
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t border-fp-border/60">
+                    {[0, 1, 2].map(j => (
+                      <div key={j}>
+                        <div className="h-2 w-16 bg-fp-surface-2 rounded mb-2" />
+                        <div className="h-4 w-12 bg-fp-surface-2 rounded" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-4">
+                    <div className="h-3 w-24 bg-fp-surface-2 rounded" />
+                    <div className="h-7 w-28 bg-fp-surface-2 rounded-lg" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-4 p-12 glass rounded-[14px] text-center">
@@ -177,7 +281,7 @@ export default function Dashboard() {
               <div className="space-y-1">
                 <h3 className="text-base font-semibold text-fp-text">No active projects found</h3>
                 <p className="text-sm text-fp-text-muted max-w-md">
-                  You have not opened any property investigations yet. Click below to launch the GIS map and locate a parcel.
+                  You haven&apos;t opened any property investigations yet. Search for a parcel on the map to start your first case.
                 </p>
               </div>
               <button
@@ -213,9 +317,9 @@ export default function Dashboard() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-fp-border/60 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-fp-border/60 text-xs">
                     <div>
-                      <div className="text-fp-text-dim uppercase tracking-wide text-[11px]">Due Process Score</div>
+                      <div className="text-fp-text-dim uppercase tracking-wide text-[11px]">Score</div>
                       <div className="text-sm font-semibold text-fp-text mt-0.5 flex items-center gap-1.5">
                         <Shield className="w-3.5 h-3.5 text-fp-blue" />
                         {p.due_process_score != null ? p.due_process_score : "N/A"}
@@ -223,7 +327,7 @@ export default function Dashboard() {
                     </div>
 
                     <div>
-                      <div className="text-fp-text-dim uppercase tracking-wide text-[11px]">Critical Findings</div>
+                      <div className="text-fp-text-dim uppercase tracking-wide text-[11px]">Critical</div>
                       <div className="text-sm font-semibold mt-0.5 flex items-center gap-1.5">
                         <AlertTriangle className={`w-3.5 h-3.5 ${p.criticalFindingsCount > 0 ? "text-fp-red" : "text-fp-text-dim"}`} />
                         <span className={p.criticalFindingsCount > 0 ? "text-fp-red font-bold" : "text-fp-text"}>
@@ -233,10 +337,18 @@ export default function Dashboard() {
                     </div>
 
                     <div>
-                      <div className="text-fp-text-dim uppercase tracking-wide text-[11px]">Evidence Records</div>
+                      <div className="text-fp-text-dim uppercase tracking-wide text-[11px]">Evidence</div>
                       <div className="text-sm font-semibold text-fp-text mt-0.5 flex items-center gap-1.5">
                         <FileText className="w-3.5 h-3.5 text-fp-text-dim" />
                         {p.evidenceCount}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-fp-text-dim uppercase tracking-wide text-[11px]">Timeline</div>
+                      <div className="text-sm font-semibold text-fp-text mt-0.5 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-fp-text-dim" />
+                        {p.timelineCount || 0}
                       </div>
                     </div>
                   </div>
@@ -254,6 +366,7 @@ export default function Dashboard() {
                         }}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-fp-text-dim hover:text-fp-blue hover:bg-fp-blue/10 transition-all text-xs font-medium"
                         title="Open fullscreen graph view"
+                        aria-label="Open graph view"
                       >
                         <Network className="w-3.5 h-3.5" />
                         <span>Graph</span>

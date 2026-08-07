@@ -11,7 +11,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "fairprocess"
-database_id = "8b5ed716-77c3-48d2-81c1-009cb01b206f"
+database_id = "0cdba437-b016-4dcd-91ae-08e14dd1662f"
 
 [[r2_buckets]]
 binding = "EVIDENCE_BUCKET"
