@@ -1,3 +1,9 @@
+/**
+ * @deprecated Legacy API client — uses old route patterns that may not match deployed routes.
+ * New code should use inline fetch() calls matching the actual API routes in src/app/api/v1/.
+ * This is still imported by map page components (SearchBar, PropertyDetail, EvidencePanel, etc.)
+ * but many methods point at routes that no longer exist in the Cloudflare Workers deployment.
+ */
 import type {
   Property,
   PropertyCreate,
