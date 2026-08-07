@@ -83,6 +83,9 @@ export interface ProjectSummary extends Project {
   criticalFindingsCount: number;
   evidenceCount: number;
   timelineEventCount: number;
+  timelineCount?: number;
+  reconCompleted?: boolean;
+  lastReconAt?: string | null;
 }
 
 export interface PropertyCreate {

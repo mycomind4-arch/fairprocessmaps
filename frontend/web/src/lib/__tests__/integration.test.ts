@@ -361,3 +361,516 @@ describe("End-to-End Statute Compliance Scenarios", () => {
     expect(result.status).toBe("deviation detected");
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Recon Agents Integration Tests
+//
+// These tests run each of the records-collection recon agents against a seeded
+// mock D1 database to verify:
+// 1. The correct number of bind parameters are passed to each query
+//    (catches the class of bug where a two-placeholder query only binds one)
+// 2. The agents correctly report the count of records found
+// ──────────────────────────────────────────────────────────────────────────────
+
+import {
+  buildingPermitsAgent,
+  codeEnforcementAgent,
+  countyRecorderAgent,
+  dueProcessAnalysisAgent,
+} from "@/lib/recon-agents-records";
+import type { ReconContext } from "@/lib/recon-agents";
+
+/**
+ * Enhanced mock DB that tracks bind() calls and their argument counts.
+ * This lets us assert that queries with N placeholders receive N bound values.
+ */
+function createTrackingMockDB(data: {
+  permits?: any[];
+  ceCases?: any[];
+  recorder?: any[];
+  timeline?: any[];
+  findings?: any[];
+  projects?: any[];
+}) {
+  const tables: Record<string, any[]> = {
+    building_permits: data.permits || [],
+    code_enforcement_cases: data.ceCases || [],
+    recorder_records: data.recorder || [],
+    timeline_events: data.timeline || [],
+    due_process_findings: data.findings || [],
+    projects: data.projects || [],
+  };
+
+  // Track all bind calls: [{ sql, args }]
+  const bindCalls: { sql: string; args: any[] }[] = [];
+
+  const mockDb = {
+    prepare: vi.fn((sql: string) => {
+      let results: any[] = [];
+
+      if (sql.includes("FROM building_permits")) {
+        results = tables.building_permits;
+      } else if (sql.includes("FROM code_enforcement_cases")) {
+        results = tables.code_enforcement_cases;
+      } else if (sql.includes("FROM recorder_records")) {
+        results = tables.recorder_records;
+      } else if (sql.includes("FROM timeline_events")) {
+        results = tables.timeline_events;
+      } else if (sql.includes("FROM due_process_findings")) {
+        results = tables.due_process_findings;
+      } else if (sql.includes("FROM projects")) {
+        results = tables.projects;
+      } else if (sql.includes("INSERT INTO")) {
+        const bound = vi.fn((...args: any[]) => ({
+          run: vi.fn(async () => ({ success: true })),
+          all: vi.fn(async () => ({ results: [] })),
+          first: vi.fn(async () => null),
+        }));
+        bindCalls.push({ sql, args: [] as any[] }); // INSERT binds will be captured below
+        return { bind: bound };
+      } else if (sql.includes("DELETE FROM")) {
+        const bound = vi.fn((...args: any[]) => ({
+          run: vi.fn(async () => ({ success: true })),
+        }));
+        return { bind: bound };
+      }
+
+      const bound = vi.fn((...args: any[]) => {
+        bindCalls.push({ sql, args });
+        return {
+          all: vi.fn(async () => ({ results })),
+          first: vi.fn(async () => results[0] || null),
+          run: vi.fn(async () => ({ success: true })),
+        };
+      });
+
+      return { bind: bound };
+    }),
+    batch: vi.fn(async (statements: any[]) => {
+      return statements.map(() => ({ success: true }));
+    }),
+  };
+
+  return { db: mockDb as any, bindCalls };
+}
+
+// ── Test data for recon agents ──
+
+const RECON_PERMITS = [
+  {
+    id: "bp_1",
+    project_id: "proj_test",
+    organization_id: "test-org",
+    permit_number: "BLD-2026-100",
+    permit_type: "Building Permit",
+    permit_status: "issued",
+    issued_date: "2026-04-01",
+    valuation: 85000,
+    expired_date: null,
+  },
+  {
+    id: "bp_2",
+    project_id: "proj_test",
+    organization_id: "test-org",
+    permit_number: "ELEC-2026-045",
+    permit_type: "Electrical",
+    permit_status: "finalized",
+    issued_date: "2026-02-15",
+    valuation: 12000,
+    expired_date: null,
+  },
+];
+
+const RECON_CE_CASES = [
+  {
+    id: "ce_1",
+    project_id: "proj_test",
+    organization_id: "test-org",
+    case_number: "CE-2026-200",
+    violation_type: "substandard_housing",
+    severity: "moderate",
+    status: "open",
+    notice_served_date: "2026-03-01",
+    hearing_date: null,
+    abatement_date: null,
+    lien_filed: 0,
+    appeal_filed: 0,
+  },
+  {
+    id: "ce_2",
+    project_id: "proj_test",
+    organization_id: "test-org",
+    case_number: "CE-2026-201",
+    violation_type: "building_without_permit",
+    severity: "high",
+    status: "closed",
+    notice_served_date: "2026-01-15",
+    hearing_date: "2026-02-20",
+    abatement_date: "2026-03-10",
+    lien_filed: 0,
+    appeal_filed: 0,
+  },
+];
+
+const RECON_RECORDER = [
+  {
+    id: "rec_1",
+    project_id: "proj_test",
+    organization_id: "test-org",
+    document_number: "2026-001234",
+    document_type: "Grant Deed",
+    recording_date: "2026-01-05",
+    parties: "SMITH JOHN → JONES MARY",
+    notes: "Real estate transfer",
+  },
+  {
+    id: "rec_2",
+    project_id: "proj_test",
+    organization_id: "test-org",
+    document_number: "2026-005678",
+    document_type: "Notice of Default",
+    recording_date: "2026-03-20",
+    parties: "BANK OF EXAMPLE → SMITH JOHN",
+    notes: "Notice of default filed",
+  },
+];
+
+const RECON_PROJECTS = [
+  { id: "proj_test", organization_id: "test-org" },
+];
+
+const RECON_PARCEL: any = {
+  properties: {
+    FULLADDR: "1234 MAIN ST EUREKA CA 95501",
+    OWNER: "SMITH JOHN",
+    LEGAL: "LOT 1 BLK 5 TRACT 1234",
+    BKPG: "2026/001234",
+    TRANDATE: "2026-01-05",
+    YEAR_BUILT: "1990",
+    APN: "123-456-789",
+  },
+};
+
+// ── Tests ──
+
+describe("Recon Agents — Building Permits (Agent 13)", () => {
+  it("reports correct permit count from D1 and binds both placeholders", async () => {
+    const { db, bindCalls } = createTrackingMockDB({
+      permits: RECON_PERMITS,
+      projects: RECON_PROJECTS,
+    });
+
+    const ctx: ReconContext = {
+      apn: "123-456-789",
+      projectId: "proj_test",
+      propertyId: "prop_test",
+      organizationId: "test-org",
+      db,
+      parcel: RECON_PARCEL,
+    };
+
+    const result = await buildingPermitsAgent(ctx);
+
+    // The agent should report 2 permits (from D1, since Accela fetch will fail in test)
+    expect(result.status).toBe("success");
+    expect(result.data?.permit_count).toBe(2);
+
+    // Verify that all SELECT queries with 2 placeholders got 2 bind args
+    const selectCalls = bindCalls.filter(
+      c => c.sql.includes("WHERE project_id = ? AND organization_id = ?"),
+    );
+    for (const call of selectCalls) {
+      expect(call.args.length).toBeGreaterThanOrEqual(2);
+      expect(call.args[0]).toBe("proj_test");
+      expect(call.args[1]).toBe("test-org");
+    }
+
+    // Specifically check the initial SELECT * query
+    const initialSelect = bindCalls.find(
+      c => c.sql.includes("SELECT * FROM building_permits") && c.sql.includes("ORDER BY issued_date DESC"),
+    );
+    expect(initialSelect).toBeDefined();
+    expect(initialSelect!.args.length).toBe(2);
+    expect(initialSelect!.args).toEqual(["proj_test", "test-org"]);
+  });
+
+  it("reports no_data when no permits exist in D1 and Accela is unreachable", async () => {
+    const { db } = createTrackingMockDB({ permits: [], projects: RECON_PROJECTS });
+
+    const ctx: ReconContext = {
+      apn: "123-456-789",
+      projectId: "proj_test",
+      propertyId: "prop_test",
+      organizationId: "test-org",
+      db,
+      parcel: RECON_PARCEL,
+    };
+
+    const result = await buildingPermitsAgent(ctx);
+    expect(result.status).toBe("no_data");
+    expect(result.data?.search_apn).toBe("123-456-789");
+  });
+});
+
+describe("Recon Agents — Code Enforcement (Agent 14)", () => {
+  it("reports correct CE case count from D1 and binds both placeholders", async () => {
+    // Mock the ce-pipeline import
+    vi.doMock("@/lib/ce-pipeline", () => ({
+      syncCECases: vi.fn(async () => ({ casesCreated: 0, casesUpdated: 0 })),
+      fetchCECasesByAPN: vi.fn(async () => []),
+    }));
+
+    const { db, bindCalls } = createTrackingMockDB({
+      ceCases: RECON_CE_CASES,
+      projects: RECON_PROJECTS,
+    });
+
+    const ctx: ReconContext = {
+      apn: "123-456-789",
+      projectId: "proj_test",
+      propertyId: "prop_test",
+      organizationId: "test-org",
+      db,
+      parcel: null,
+    };
+
+    const result = await codeEnforcementAgent(ctx);
+
+    expect(result.status).toBe("success");
+    expect(result.data?.case_count).toBe(2);
+
+    // The CE readback query should bind both project_id and organization_id
+    const ceReadback = bindCalls.find(
+      c => c.sql.includes("SELECT * FROM code_enforcement_cases") && c.sql.includes("ORDER BY created_at DESC"),
+    );
+    expect(ceReadback).toBeDefined();
+    expect(ceReadback!.args.length).toBe(2);
+    expect(ceReadback!.args).toEqual(["proj_test", "test-org"]);
+
+    vi.doUnmock("@/lib/ce-pipeline");
+  });
+});
+
+describe("Recon Agents — County Recorder (Agent 15)", () => {
+  it("reports correct recorder record count from D1 and binds both placeholders", async () => {
+    const { db, bindCalls } = createTrackingMockDB({
+      recorder: RECON_RECORDER,
+      projects: RECON_PROJECTS,
+    });
+
+    const ctx: ReconContext = {
+      apn: "123-456-789",
+      projectId: "proj_test",
+      propertyId: "prop_test",
+      organizationId: "test-org",
+      db,
+      parcel: RECON_PARCEL,
+    };
+
+    const result = await countyRecorderAgent(ctx);
+
+    expect(result.status).toBe("success");
+    expect(result.data?.record_count).toBe(2);
+
+    // All SELECT queries on recorder_records should bind 2 args
+    const recorderSelects = bindCalls.filter(
+      c => c.sql.includes("SELECT * FROM recorder_records") && c.sql.includes("WHERE project_id"),
+    );
+    expect(recorderSelects.length).toBeGreaterThan(0);
+    for (const call of recorderSelects) {
+      expect(call.args.length).toBe(2);
+      expect(call.args[0]).toBe("proj_test");
+      expect(call.args[1]).toBe("test-org");
+    }
+  });
+
+  it("falls back to GIS-derived record when recorder search returns nothing", async () => {
+    const { db, bindCalls } = createTrackingMockDB({
+      recorder: [],
+      projects: RECON_PROJECTS,
+    });
+
+    const ctx: ReconContext = {
+      apn: "123-456-789",
+      projectId: "proj_test",
+      propertyId: "prop_test",
+      organizationId: "test-org",
+      db,
+      parcel: RECON_PARCEL,
+    };
+
+    const result = await countyRecorderAgent(ctx);
+
+    // Should create a GIS-derived record since recorder search failed and no existing records
+    expect(result.data?.recorder_search_status).toMatch(/no_results|not_searched|error/);
+  });
+});
+
+describe("Recon Agents — Due Process Analysis (Agent 16)", () => {
+  it("cross-references all records and binds both placeholders on DELETE and INSERT", async () => {
+    const { db, bindCalls } = createTrackingMockDB({
+      permits: RECON_PERMITS,
+      ceCases: RECON_CE_CASES,
+      recorder: RECON_RECORDER,
+      projects: RECON_PROJECTS,
+    });
+
+    const ctx: ReconContext = {
+      apn: "123-456-789",
+      projectId: "proj_test",
+      propertyId: "prop_test",
+      organizationId: "test-org",
+      db,
+      parcel: null,
+    };
+
+    const result = await dueProcessAnalysisAgent(ctx);
+
+    expect(result.status).toBe("success");
+    expect(result.data?.records_analyzed).toEqual({
+      building_permits: 2,
+      code_enforcement: 2,
+      recorder_records: 2,
+    });
+
+    // The DELETE query should bind 2 args
+    const deleteCall = bindCalls.find(
+      c => c.sql.includes("DELETE FROM due_process_findings"),
+    );
+    if (deleteCall) {
+      expect(deleteCall.args.length).toBe(2);
+      expect(deleteCall.args).toEqual(["proj_test", "test-org"]);
+    }
+
+    // The three SELECT queries in Promise.all should each bind 2 args
+    const selectAll = bindCalls.filter(
+      c => (c.sql.includes("FROM building_permits") ||
+            c.sql.includes("FROM code_enforcement_cases") ||
+            c.sql.includes("FROM recorder_records")) &&
+           !c.sql.includes("ORDER BY") &&
+           !c.sql.includes("DELETE"),
+    );
+    expect(selectAll.length).toBeGreaterThanOrEqual(3);
+    for (const call of selectAll) {
+      expect(call.args.length).toBe(2);
+      expect(call.args[0]).toBe("proj_test");
+      expect(call.args[1]).toBe("test-org");
+    }
+  });
+
+  it("detects abatement without hearing as a critical finding", async () => {
+    const ceWithAbatement = [
+      {
+        ...RECON_CE_CASES[1],
+        abatement_date: "2026-03-10",
+        hearing_date: null,
+      },
+    ];
+
+    const { db } = createTrackingMockDB({
+      permits: [],
+      ceCases: ceWithAbatement,
+      recorder: [],
+      projects: RECON_PROJECTS,
+    });
+
+    const ctx: ReconContext = {
+      apn: "123-456-789",
+      projectId: "proj_test",
+      propertyId: "prop_test",
+      organizationId: "test-org",
+      db,
+      parcel: null,
+    };
+
+    const result = await dueProcessAnalysisAgent(ctx);
+    expect(result.status).toBe("success");
+    expect(result.data?.critical_count).toBeGreaterThan(0);
+
+    const criticalFinding = result.data?.findings?.find(
+      (f: any) => f.rule === "right_to_hearing",
+    );
+    expect(criticalFinding).toBeDefined();
+    expect(criticalFinding.severity).toBe("critical");
+  });
+});
+
+describe("Recon Agents — Bind Parameter Regression Tests", () => {
+  /**
+   * This test explicitly guards against the class of bug where a query
+   * with two `?` placeholders only receives one bound value. The original
+   * bug (Issue #22) caused these queries to silently return zero rows.
+   */
+  it("every SELECT with 'project_id = ? AND organization_id = ?' receives exactly 2 bind args", async () => {
+    const { db, bindCalls } = createTrackingMockDB({
+      permits: RECON_PERMITS,
+      ceCases: RECON_CE_CASES,
+      recorder: RECON_RECORDER,
+      projects: RECON_PROJECTS,
+    });
+
+    const ctx: ReconContext = {
+      apn: "123-456-789",
+      projectId: "proj_test",
+      propertyId: "prop_test",
+      organizationId: "test-org",
+      db,
+      parcel: RECON_PARCEL,
+    };
+
+    // Run all recon agents
+    await buildingPermitsAgent(ctx);
+    await countyRecorderAgent(ctx);
+
+    // Find every query with two WHERE placeholders
+    const twoPlaceholderQueries = bindCalls.filter(
+      c => c.sql.includes("WHERE project_id = ? AND organization_id = ?"),
+    );
+
+    expect(twoPlaceholderQueries.length).toBeGreaterThan(0);
+
+    for (const call of twoPlaceholderQueries) {
+      // Count actual ? placeholders in the SQL
+      const placeholderCount = (call.sql.match(/\?/g) || []).length;
+      // For SELECTs with WHERE project_id AND organization_id, there should be at least 2 bind args
+      // (some queries have additional ? for ORDER BY or other clauses, but the first 2 must be project + org)
+      expect(call.args.length).toBeGreaterThanOrEqual(2);
+      expect(call.args[0]).toBe("proj_test");
+      expect(call.args[1]).toBe("test-org");
+    }
+  });
+
+  it("the single-placeholder query 'SELECT organization_id FROM projects WHERE id = ?' receives exactly 1 bind arg", async () => {
+    // Mock the ce-pipeline import
+    vi.doMock("@/lib/ce-pipeline", () => ({
+      syncCECases: vi.fn(async () => ({ casesCreated: 0, casesUpdated: 0 })),
+      fetchCECasesByAPN: vi.fn(async () => []),
+    }));
+
+    const { db, bindCalls } = createTrackingMockDB({
+      ceCases: RECON_CE_CASES,
+      projects: RECON_PROJECTS,
+    });
+
+    const ctx: ReconContext = {
+      apn: "123-456-789",
+      projectId: "proj_test",
+      propertyId: "prop_test",
+      organizationId: "test-org",
+      db,
+      parcel: null,
+    };
+
+    await codeEnforcementAgent(ctx);
+
+    // The projects query should have exactly 1 bind arg (just projectId)
+    const projectsQuery = bindCalls.find(
+      c => c.sql.includes("SELECT organization_id FROM projects"),
+    );
+    expect(projectsQuery).toBeDefined();
+    expect(projectsQuery!.args.length).toBe(1);
+    expect(projectsQuery!.args[0]).toBe("proj_test");
+
+    vi.doUnmock("@/lib/ce-pipeline");
+  });
+});

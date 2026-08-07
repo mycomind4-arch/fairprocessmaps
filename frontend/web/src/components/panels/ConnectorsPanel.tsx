@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Plug,
   Database,
@@ -15,6 +15,8 @@ import {
   Cloud,
   FileSearch,
   X,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 // ── Types ──
@@ -36,7 +38,7 @@ const CATALOG: { name: string; type: Connector["type"]; description: string; ico
   { name: "Humboldt Building Dept", type: "scraping", description: "Scrape permit applications and inspection schedules from the county building department portal", icon: FileSearch },
   { name: "Humboldt Code Enforcement", type: "scraping", description: "Monitor code enforcement case filings and status changes", icon: FileSearch },
   { name: "Court Records Scraper", type: "scraping", description: "Scrape civil court filings for due process violations and case timelines", icon: FileSearch },
-  { name: "GPT-4 Evidence Analyzer", type: "ai_tool", description: "AI analysis of uploaded documents for legal relevance, due process issues, and evidence strength", icon: Brain },
+  { name: "Llama 3.1 Evidence Analyzer", type: "ai_tool", description: "AI analysis of uploaded documents for legal relevance, due process issues, and evidence strength — powered by Cloudflare Workers AI (Llama 3.1 8B)", icon: Brain },
   { name: "OCR Pipeline", type: "ai_tool", description: "Extract text from scanned documents, photos, and PDFs for searchable evidence", icon: Brain },
   { name: "Slack Notifications", type: "webhook", description: "Send alerts when new code enforcement actions are detected or deadlines approach", icon: Webhook },
   { name: "Email Digest", type: "webhook", description: "Weekly summary of project activity and approaching deadlines", icon: Webhook },
@@ -61,55 +63,90 @@ const TYPE_ICONS: Record<Connector["type"], typeof Database> = {
 export default function ConnectorsPanel({ projectId }: { projectId: string }) {
   const [connectors, setConnectors] = useState<Connector[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showCatalog, setShowCatalog] = useState(false);
   const [selectedConnector, setSelectedConnector] = useState<Connector | null>(null);
 
-  useEffect(() => {
-    const key = `fairprocess_connectors_${projectId}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        setConnectors(JSON.parse(stored));
-      } catch {
-        setConnectors([]);
-      }
+  const fetchConnectors = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/connectors?projectId=${projectId}`, {
+        headers: { "Cache-Control": "no-cache" },
+      });
+      if (!res.ok) throw new Error(`Failed to load connectors (${res.status})`);
+      const data = await res.json() as { items?: Connector[] };
+      setConnectors(data.items ?? []);
+    } catch (err) {
+      setConnectors([]);
+      setError(err instanceof Error ? err.message : "Failed to load connectors");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [projectId]);
 
-  const saveConnectors = (next: Connector[]) => {
-    setConnectors(next);
-    const key = `fairprocess_connectors_${projectId}`;
-    localStorage.setItem(key, JSON.stringify(next));
+  useEffect(() => {
+    fetchConnectors();
+  }, [fetchConnectors]);
+
+  const addConnector = async (catalogItem: (typeof CATALOG)[number]) => {
+    try {
+      const res = await fetch("/api/v1/connectors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_id: projectId,
+          name: catalogItem.name,
+          type: catalogItem.type,
+          status: "pending",
+          description: catalogItem.description,
+          endpoint: catalogItem.endpoint ?? null,
+          config: {},
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to add connector");
+      setShowCatalog(false);
+      await fetchConnectors();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add connector");
+    }
   };
 
-  const addConnector = (catalogItem: (typeof CATALOG)[number]) => {
-    const newConnector: Connector = {
-      id: crypto.randomUUID(),
-      name: catalogItem.name,
-      type: catalogItem.type,
-      status: "pending",
-      description: catalogItem.description,
-      last_sync: null,
-      endpoint: catalogItem.endpoint ?? null,
-      config: {},
-    };
-    saveConnectors([...connectors, newConnector]);
-    setShowCatalog(false);
+  const removeConnector = async (id: string) => {
+    try {
+      const res = await fetch(`/api/v1/connectors?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to remove connector");
+      setSelectedConnector(null);
+      await fetchConnectors();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove connector");
+    }
   };
 
-  const removeConnector = (id: string) => {
-    saveConnectors(connectors.filter((c) => c.id !== id));
-    setSelectedConnector(null);
-  };
-
-  const toggleStatus = (id: string) => {
-    const next = connectors.map((c) =>
-      c.id === id
-        ? { ...c, status: c.status === "connected" ? ("disconnected" as const) : ("connected" as const), last_sync: c.status !== "connected" ? new Date().toISOString() : c.last_sync }
-        : c
+  const toggleStatus = async (id: string) => {
+    const connector = connectors.find((c) => c.id === id);
+    if (!connector) return;
+    const newStatus = connector.status === "connected" ? "disconnected" : "connected";
+    // Optimistic update
+    setConnectors((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? { ...c, status: newStatus as Connector["status"], last_sync: newStatus === "connected" ? new Date().toISOString() : c.last_sync }
+          : c
+      )
     );
-    saveConnectors(next);
+    try {
+      const res = await fetch("/api/v1/connectors", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Failed to update connector");
+    } catch (err) {
+      // Revert on failure
+      await fetchConnectors();
+      setError(err instanceof Error ? err.message : "Failed to update connector");
+    }
   };
 
   const connectedCount = connectors.filter((c) => c.status === "connected").length;
@@ -141,6 +178,24 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
           Add Connector
         </button>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-start gap-3 rounded-[14px] border border-fp-red/30 bg-fp-red/10 p-4">
+          <AlertTriangle className="h-5 w-5 text-fp-red shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-fp-red">Something went wrong</p>
+            <p className="text-xs text-fp-text-muted mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => { setError(null); fetchConnectors(); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-surface-2 text-fp-text text-xs font-medium hover:bg-fp-surface-2/80 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Stats Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -204,59 +259,69 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
                 <div>
                   {/* Top row: Icon, Title, Type label & Status Badge */}
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-fp-surface-2 border border-fp-border flex items-center justify-center shrink-0">
-                        <Icon className="w-6 h-6 text-fp-blue" />
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-fp-surface-2 flex items-center justify-center shrink-0">
+                        <Icon className="w-5 h-5 text-fp-blue" />
                       </div>
                       <div>
-                        <h3 className="text-base font-semibold text-fp-text leading-snug">{c.name}</h3>
-                        <span className="text-xs text-fp-text-dim uppercase tracking-wide font-medium">
-                          {TYPE_LABELS[c.type]}
-                        </span>
+                        <h3 className="text-base font-semibold text-fp-text leading-tight">{c.name}</h3>
+                        <span className="text-xs text-fp-text-dim uppercase tracking-wide">{TYPE_LABELS[c.type]}</span>
                       </div>
                     </div>
-
-                    <StatusBadge status={c.status} />
+                    <button
+                      onClick={() => toggleStatus(c.id)}
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        c.status === "connected"
+                          ? "bg-fp-green/15 text-fp-green hover:bg-fp-green/25"
+                          : "bg-fp-surface-2 text-fp-text-dim hover:bg-fp-surface-2/80"
+                      }`}
+                    >
+                      {c.status === "connected" ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Connected
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-3.5 h-3.5" /> Connect
+                        </>
+                      )}
+                    </button>
                   </div>
 
                   {/* Description */}
-                  <p className="text-sm text-fp-text-muted mt-4 leading-relaxed">
-                    {c.description}
-                  </p>
+                  <p className="text-sm text-fp-text-muted mt-4 leading-relaxed">{c.description}</p>
+
+                  {/* Metadata */}
+                  <div className="flex items-center gap-4 text-xs text-fp-text-dim mt-4">
+                    {c.last_sync && (
+                      <span className="flex items-center gap-1.5">
+                        <RefreshCw className="w-3 h-3" />
+                        Last sync: {new Date(c.last_sync).toLocaleDateString()}
+                      </span>
+                    )}
+                    {c.endpoint && (
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Cloud className="w-3 h-3" />
+                        <span className="truncate">{c.endpoint}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Footer Zone: Last Sync & Actions */}
-                <div className="pt-4 border-t border-fp-border flex items-center justify-between gap-4">
-                  <div className="text-xs text-fp-text-dim">
-                    <span className="block uppercase tracking-wide text-[10px]">Last Sync</span>
-                    <span className="text-fp-text-muted font-mono mt-0.5 block">
-                      {c.status === "connected" && c.last_sync
-                        ? new Date(c.last_sync).toLocaleString()
-                        : c.status === "connected"
-                        ? "Just now"
-                        : "Not connected"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSelectedConnector(c)}
-                      className="px-4 py-2 rounded-lg bg-fp-surface-2 border border-fp-border hover:bg-fp-surface-2/80 text-xs font-medium text-fp-text transition-colors"
-                    >
-                      Configure
-                    </button>
-
-                    <button
-                      onClick={() => toggleStatus(c.id)}
-                      className={`px-4 py-2 rounded-lg text-xs font-medium transition-all shadow-sm ${
-                        c.status === "connected"
-                          ? "bg-fp-surface-2 border border-fp-border hover:bg-fp-red/15 hover:border-fp-red/40 hover:text-fp-red text-fp-text-muted"
-                          : "bg-fp-blue text-white hover:bg-fp-blue/90 shadow-fp-blue/20"
-                      }`}
-                    >
-                      {c.status === "connected" ? "Disconnect" : "Connect"}
-                    </button>
-                  </div>
+                {/* Action Row */}
+                <div className="flex items-center justify-between pt-4 border-t border-fp-border">
+                  <button
+                    onClick={() => setSelectedConnector(c)}
+                    className="text-xs text-fp-text-dim hover:text-fp-text transition-colors"
+                  >
+                    Configure
+                  </button>
+                  <button
+                    onClick={() => removeConnector(c.id)}
+                    className="text-xs text-fp-text-dim hover:text-fp-red transition-colors inline-flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Remove
+                  </button>
                 </div>
               </div>
             );
@@ -266,151 +331,79 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
 
       {/* Catalog Modal */}
       {showCatalog && (
-        <Modal onClose={() => setShowCatalog(false)} title="Connector Catalog">
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-            {CATALOG.map((item) => {
-              const Icon = item.icon;
-              const alreadyAdded = connectors.some((c) => c.name === item.name);
-              return (
-                <div
-                  key={item.name}
-                  className="flex items-start justify-between gap-4 p-4 rounded-[14px] glass border border-fp-border hover:border-fp-blue/30 transition-all"
-                >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-lg bg-fp-surface-2 border border-fp-border flex items-center justify-center shrink-0 mt-0.5">
+        <div
+          className="fixed inset-0 z-40 bg-fp-bg/80 backdrop-blur-sm flex items-center justify-center p-8"
+          onClick={() => setShowCatalog(false)}
+        >
+          <div
+            className="bg-fp-surface rounded-2xl border border-fp-border shadow-2xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-fp-border shrink-0">
+              <h3 className="text-lg font-semibold text-fp-text">Connector Catalog</h3>
+              <button onClick={() => setShowCatalog(false)} className="text-fp-text-dim hover:text-fp-text transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-6 space-y-4">
+              {CATALOG.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => addConnector(item)}
+                    className="w-full flex items-start gap-4 p-4 rounded-xl bg-fp-surface-2 hover:bg-fp-surface-2/80 transition-all text-left group"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-fp-surface flex items-center justify-center shrink-0 group-hover:bg-fp-blue/20 transition-colors">
                       <Icon className="w-5 h-5 text-fp-blue" />
                     </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-fp-text">{item.name}</span>
-                        <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-fp-surface-2 text-fp-text-dim border border-fp-border">
-                          {TYPE_LABELS[item.type]}
-                        </span>
-                      </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-fp-text">{item.name}</h4>
                       <p className="text-xs text-fp-text-muted mt-1 leading-relaxed">{item.description}</p>
+                      <span className="text-xs text-fp-text-dim uppercase tracking-wide mt-2 inline-block">{TYPE_LABELS[item.type]}</span>
                     </div>
-                  </div>
-                  <button
-                    disabled={alreadyAdded}
-                    onClick={() => addConnector(item)}
-                    className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all shrink-0 ${
-                      alreadyAdded
-                        ? "bg-fp-surface-2 text-fp-text-dim border border-fp-border cursor-not-allowed"
-                        : "bg-fp-blue text-white hover:bg-fp-blue/90 shadow-sm"
-                    }`}
-                  >
-                    {alreadyAdded ? "Added" : "Add"}
+                    <Plus className="w-4 h-4 text-fp-text-dim group-hover:text-fp-blue transition-colors shrink-0 mt-2" />
                   </button>
-                </div>
-              );
-            })}
-          </div>
-        </Modal>
-      )}
-
-      {/* Connector Detail / Configure Modal */}
-      {selectedConnector && (
-        <Modal onClose={() => setSelectedConnector(null)} title={selectedConnector.name}>
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-2">
-              <StatusBadge status={selectedConnector.status} />
-              <span className="text-xs uppercase tracking-wide text-fp-text-dim font-medium">
-                {TYPE_LABELS[selectedConnector.type]}
-              </span>
-            </div>
-
-            <p className="text-sm text-fp-text-muted leading-relaxed">{selectedConnector.description}</p>
-
-            {selectedConnector.endpoint && (
-              <div>
-                <label className="text-xs uppercase tracking-wide text-fp-text-dim font-medium mb-1.5 block">Endpoint</label>
-                <div className="rounded-lg border border-fp-border bg-fp-surface-2 p-3 font-mono text-xs text-fp-text-muted break-all">
-                  {selectedConnector.endpoint}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="text-xs uppercase tracking-wide text-fp-text-dim font-medium mb-1 block">Last Synchronization</label>
-              <p className="text-sm font-mono text-fp-text">
-                {selectedConnector.last_sync ? new Date(selectedConnector.last_sync).toLocaleString() : "Never synced"}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between gap-3 pt-4 border-t border-fp-border">
-              <button
-                onClick={() => removeConnector(selectedConnector.id)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-fp-red/30 bg-fp-red/10 text-xs font-medium text-fp-red hover:bg-fp-red/20 transition-colors"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Remove
-              </button>
-
-              <button
-                onClick={() => {
-                  toggleStatus(selectedConnector.id);
-                  setSelectedConnector(null);
-                }}
-                className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-fp-blue text-white text-xs font-medium hover:bg-fp-blue/90 transition-all shadow-md"
-              >
-                <Zap className="h-3.5 w-3.5" />
-                {selectedConnector.status === "connected" ? "Disconnect" : "Connect"}
-              </button>
+                );
+              })}
             </div>
           </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: Connector["status"] }) {
-  const config = {
-    connected: {
-      color: "bg-fp-green/15 text-fp-green border-fp-green/30",
-      label: "Connected",
-      icon: CheckCircle2,
-    },
-    disconnected: {
-      color: "bg-fp-surface-2 text-fp-text-dim border-fp-border",
-      label: "Disconnected",
-      icon: XCircle,
-    },
-    error: {
-      color: "bg-fp-red/15 text-fp-red border-fp-red/30",
-      label: "Error",
-      icon: XCircle,
-    },
-    pending: {
-      color: "bg-fp-amber/15 text-fp-amber border-fp-amber/30",
-      label: "Pending",
-      icon: Loader2,
-    },
-  };
-  const { color, label, icon: Icon } = config[status];
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${color}`}>
-      <Icon className={`w-3.5 h-3.5 ${status === "pending" ? "animate-spin" : ""}`} />
-      {label}
-    </span>
-  );
-}
-
-function Modal({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title: string }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-lg rounded-[14px] glass p-6 shadow-2xl shadow-black/50 max-h-[85vh] overflow-y-auto space-y-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between pb-4 border-b border-fp-border">
-          <h3 className="text-base font-semibold text-fp-text">{title}</h3>
-          <button onClick={onClose} className="p-1.5 text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 rounded-lg transition-colors">
-            <X className="h-5 w-5" />
-          </button>
         </div>
-        {children}
-      </div>
+      )}
+
+      {/* Config Drawer */}
+      {selectedConnector && (
+        <div
+          className="fixed inset-0 z-40 bg-fp-bg/80 backdrop-blur-sm flex items-center justify-center p-8"
+          onClick={() => setSelectedConnector(null)}
+        >
+          <div
+            className="bg-fp-surface rounded-2xl border border-fp-border shadow-2xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-fp-border">
+              <h3 className="text-lg font-semibold text-fp-text">{selectedConnector.name}</h3>
+              <button onClick={() => setSelectedConnector(null)} className="text-fp-text-dim hover:text-fp-text transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-xs text-fp-text-dim uppercase tracking-wide font-medium">Status</label>
+                <p className="text-sm text-fp-text mt-1 capitalize">{selectedConnector.status}</p>
+              </div>
+              <div>
+                <label className="text-xs text-fp-text-dim uppercase tracking-wide font-medium">Endpoint</label>
+                <p className="text-sm text-fp-text mt-1 break-all">{selectedConnector.endpoint || "—"}</p>
+              </div>
+              <div>
+                <label className="text-xs text-fp-text-dim uppercase tracking-wide font-medium">Last Sync</label>
+                <p className="text-sm text-fp-text mt-1">{selectedConnector.last_sync ? new Date(selectedConnector.last_sync).toLocaleString() : "Never"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

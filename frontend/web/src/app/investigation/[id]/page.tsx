@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import type { CaseSummary, CaseGraph, CaseTimeline, TimelineEntry } from "@/lib/graph/types";
-import { ArrowLeft, Shield, Loader2, AlertTriangle, Clock, MapPin, FileText, Scale, Network, ChevronRight, Filter, Bot, ChevronDown } from "lucide-react";
+import { ArrowLeft, Shield, Loader2, AlertTriangle, Clock, MapPin, FileText, Scale, Network, ChevronRight, Filter, Bot, ChevronDown, AlertCircle, RefreshCw, LayoutDashboard } from "lucide-react";
 import InvestigationGraph from "@/components/InvestigationGraph";
 import TimelineList from "@/components/TimelineList";
 import DetailPanel from "@/components/DetailPanel";
@@ -18,6 +18,7 @@ export default function InvestigationView() {
   const [graph, setGraph] = useState<CaseGraph | null>(null);
   const [timeline, setTimeline] = useState<CaseTimeline | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [detailExpanded, setDetailExpanded] = useState(true);
 
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export default function InvestigationView() {
   const fetchData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
+    setFetchError(null);
     try {
       const [summaryRes, graphRes, timelineRes] = await Promise.all([
         fetch(`/api/v1/cases/${id}/summary`).then(r => r.json() as any),
@@ -46,8 +48,11 @@ export default function InvestigationView() {
         setVisibleNodeTypes(types);
       }
       if (timelineRes.ok) setTimeline(timelineRes.data);
-    } catch {
-      // Silently fail
+
+      // If summary didn't load and there was no explicit error, leave it null
+      // so the "not found" view shows. But if any fetch threw, fetchError is set.
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : "Failed to load case data.");
     } finally {
       setLoading(false);
     }
@@ -86,6 +91,26 @@ export default function InvestigationView() {
     );
   }
 
+  // ── Issue 4: Distinct error view vs. "not found" ──
+  if (fetchError) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-fp-bg gap-4">
+        <div className="w-12 h-12 rounded-xl bg-fp-red/15 border border-fp-red/30 flex items-center justify-center">
+          <AlertCircle className="w-6 h-6 text-fp-red" />
+        </div>
+        <h2 className="text-lg font-semibold text-fp-text">Couldn't load this case</h2>
+        <p className="text-sm text-fp-text-muted max-w-md text-center">{fetchError}</p>
+        <button
+          onClick={fetchData}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   if (!summary) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-fp-bg gap-4">
@@ -107,8 +132,16 @@ export default function InvestigationView() {
       {/* ── Case Header ── */}
       <header className="shrink-0 border-b border-fp-border bg-fp-surface/60 backdrop-blur-xl">
         <div className="flex items-center gap-4 px-8 py-4">
-          <button onClick={() => router.push("/dashboard")} className="text-fp-text-dim hover:text-fp-text transition-colors shrink-0">
+          <button onClick={() => router.push("/dashboard")} className="text-fp-text-dim hover:text-fp-text transition-colors shrink-0" title="Back to dashboard">
             <ArrowLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => router.push(`/project/${id}`)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-surface-2 border border-fp-border hover:bg-fp-surface-2/80 text-xs font-medium text-fp-text-muted hover:text-fp-text transition-colors shrink-0"
+            title="Back to project workspace"
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            Workspace
           </button>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-[14px] bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shrink-0">

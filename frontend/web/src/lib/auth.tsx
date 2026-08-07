@@ -21,6 +21,8 @@ export interface FairProcessUser {
 interface AuthContextValue {
   user: FairProcessUser | null;
   loading: boolean;
+  authError: string | null;
+  retry: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -28,13 +30,26 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+const AUTH_TIMEOUT_MS = 10_000;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FairProcessUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
 
   // Resolve current user from session cookie via /api/v1/auth/me
   useEffect(() => {
     let cancelled = false;
+    let timedOut = false;
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      if (!cancelled) {
+        setAuthError("We couldn't verify your session. Please check your connection and try again.");
+        setLoading(false);
+      }
+    }, AUTH_TIMEOUT_MS);
 
     fetch("/api/v1/auth/me", { credentials: "same-origin" })
       .then((res) => {
@@ -42,22 +57,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       })
       .then((data: any) => {
-        if (!cancelled) {
+        if (!cancelled && !timedOut) {
+          clearTimeout(timer);
           setUser(data?.user ?? null);
+          setAuthError(null);
           setLoading(false);
         }
       })
       .catch(() => {
-        if (!cancelled) {
+        if (!cancelled && !timedOut) {
+          clearTimeout(timer);
           setUser(null);
+          setAuthError("Network error — couldn't reach the authentication server.");
           setLoading(false);
         }
       });
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, []);
+  }, [retryToken]);
+
+  const retry = () => {
+    setLoading(true);
+    setAuthError(null);
+    setRetryToken((t) => t + 1);
+  };
 
   const signIn = async (email: string, password: string) => {
     const res = await fetch("/api/v1/auth/login", {
@@ -102,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, authError, retry, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

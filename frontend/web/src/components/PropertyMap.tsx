@@ -5,9 +5,11 @@ import { Map as MaplibreMap, NavigationControl, GeolocateControl, ScaleControl, 
 import "maplibre-gl/dist/maplibre-gl.css";
 
 interface PropertyMapProps {
-  onSelectProperty: (id: string | null) => void;
-  selectedProperty: string | null;
+  onSelectProperty?: (id: string | null) => void;
+  selectedProperty?: string | null;
   onOpenAsProject?: (info: ParcelInfo, lngLat: [number, number]) => void;
+  initialCenter?: [number, number];
+  initialZoom?: number;
 }
 
 type BaseLayer = "satellite" | "street" | "dark";
@@ -175,7 +177,7 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
   };
 }
 
-function addPropertyLayers(map: MaplibreMapType, selectedId: string | null) {
+function addPropertyLayers(map: MaplibreMapType, selectedId: string | null | undefined) {
   if (!map.getSource("properties")) {
     map.addSource("properties", {
       type: "geojson",
@@ -204,7 +206,7 @@ function loadPropertyData(map: MaplibreMapType, properties: any[]) {
   source?.setData({ type: "FeatureCollection", features });
 }
 
-export default function PropertyMap({ onSelectProperty, selectedProperty, onOpenAsProject }: PropertyMapProps) {
+export default function PropertyMap({ onSelectProperty, selectedProperty, onOpenAsProject, initialCenter, initialZoom }: PropertyMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMapType | null>(null);
   const popupRef = useRef<Popup | null>(null);
@@ -225,8 +227,8 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
     const map = new MaplibreMap({
       container: mapContainer.current,
       style: buildStyle("satellite"),
-      center: HUMBOLDT_CENTER,
-      zoom: HUMBOLDT_ZOOM,
+      center: initialCenter ?? HUMBOLDT_CENTER,
+      zoom: initialZoom ?? HUMBOLDT_ZOOM,
       attributionControl: { compact: true },
     });
 
@@ -240,13 +242,13 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
     // Hide loading indicator once tiles start rendering
     map.on("load", () => {
       setMapLoading(false);
-      addPropertyLayers(map, selectedProperty);
+      addPropertyLayers(map, selectedProperty ?? null);
 
       // Click on a tracked property
       map.on("click", "property-fill", (e) => {
         const feature = e.features?.[0];
         if (feature?.properties?.id) {
-          onSelectProperty(feature.properties.id);
+          onSelectProperty?.(feature.properties.id);
         }
       });
 
@@ -286,6 +288,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
               <button id="open-as-project-btn" style="margin-top:8px;width:100%;padding:6px 12px;background:#06b6d4;color:white;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer">
                 Open as Project →
               </button>
+              <div id="open-as-project-error" style="display:none;margin-top:6px;padding:6px 8px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;font-size:11px;color:#dc2626"></div>
             </div>
           `;
 
@@ -297,13 +300,29 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
 
           // Wait for the popup to render, then attach button click handler
           setTimeout(() => {
-            const btn = document.getElementById("open-as-project-btn");
+            const btn = document.getElementById("open-as-project-btn") as HTMLButtonElement | null;
+            const errEl = document.getElementById("open-as-project-error");
             if (btn) {
-              btn.addEventListener("click", () => {
-                if (onOpenAsProjectRef.current) {
-                  onOpenAsProjectRef.current(info, [e.lngLat.lng, e.lngLat.lat]);
+              btn.addEventListener("click", async () => {
+                if (!onOpenAsProjectRef.current) return;
+                btn.textContent = "Opening…";
+                btn.disabled = true;
+                btn.style.opacity = "0.6";
+                btn.style.cursor = "wait";
+                if (errEl) errEl.style.display = "none";
+                try {
+                  await onOpenAsProjectRef.current(info, [e.lngLat.lng, e.lngLat.lat]);
+                  popupRef.current?.remove();
+                } catch (err) {
+                  btn.textContent = "Open as Project →";
+                  btn.disabled = false;
+                  btn.style.opacity = "1";
+                  btn.style.cursor = "pointer";
+                  if (errEl) {
+                    errEl.textContent = err instanceof Error ? err.message : "Failed to open project. Please try again.";
+                    errEl.style.display = "block";
+                  }
                 }
-                popupRef.current?.remove();
               });
             }
           }, 50);
@@ -358,7 +377,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
     map.setStyle(buildStyle(baseLayer));
     map.once("style.load", () => {
       setMapLoading(false);
-      addPropertyLayers(map, selectedProperty);
+      addPropertyLayers(map, selectedProperty ?? null);
       loadPropertyData(map, properties);
     });
     // Fallback: hide loading after 3s

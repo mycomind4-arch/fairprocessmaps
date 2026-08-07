@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const result = await db
       .prepare(
         `SELECT id, rule, rule_name, severity, status, detail, evidence_id, created_at,
-                reviewed_by, reviewed_at
+                reviewed_by, reviewed_at, missing_info
          FROM due_process_findings
          WHERE project_id = ? AND organization_id = ?
          ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END, created_at DESC`,

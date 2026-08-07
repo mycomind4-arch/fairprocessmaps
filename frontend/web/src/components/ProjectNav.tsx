@@ -12,12 +12,14 @@ import {
   Settings,
   Calendar,
   FileText,
+  Network,
 } from "lucide-react";
 
 export type ProjectSection =
   | "overview"
   | "intelligence"
   | "timeline"
+  | "graph"
   | "building"
   | "code-enforcement"
   | "discrepancies"
@@ -46,6 +48,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "overview", label: "Overview", icon: LayoutDashboard },
       { id: "intelligence", label: "Property Intelligence", icon: Search },
       { id: "timeline", label: "Timeline", icon: Calendar },
+      { id: "graph", label: "Relationship Graph", icon: Network },
       { id: "building", label: "Building Dept", icon: Building2 },
       { id: "code-enforcement", label: "Code Enforcement", icon: ShieldAlert },
       { id: "discrepancies", label: "Due Process Discrepancies", icon: ScaleIcon, badgeKey: "findings" },
