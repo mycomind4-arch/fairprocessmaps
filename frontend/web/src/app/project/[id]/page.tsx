@@ -12,6 +12,7 @@ import EvidenceVaultPanel from "@/components/panels/EvidenceVaultPanel";
 import DiscrepanciesPanel from "@/components/panels/DiscrepanciesPanel";
 import TimelinePanel from "@/components/panels/TimelinePanel";
 import LegalLibraryPanel from "@/components/panels/LegalLibraryPanel";
+import { BriefGeneratorPanel } from "@/components/panels/BriefGeneratorPanel";
 import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
 import CodeEnforcementPanel from "@/components/panels/CodeEnforcementPanel";
@@ -432,6 +433,7 @@ export default function ProjectDashboard() {
           {section === "discrepancies" && <DiscrepanciesPanel projectId={id} />}
           {section === "vault" && <EvidenceVaultPanel projectId={id} />}
           {section === "legal" && <LegalLibraryPanel />}
+          {section === "briefs" && <BriefGeneratorPanel projectId={id} />}
           {section === "connectors" && <ConnectorsPanel projectId={id} />}
           {section === "admin" && <AdminPanel projectId={id} />}
 
