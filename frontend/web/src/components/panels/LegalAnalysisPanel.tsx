@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, BookOpen, FileText } from "lucide-react";
 import DiscrepanciesPanel from "./DiscrepanciesPanel";
 import LegalLibraryPanel from "./LegalLibraryPanel";
-import BriefGeneratorPanel from "./BriefGeneratorPanel";
+import { BriefGeneratorPanel } from "./BriefGeneratorPanel";
 
 type SubTab = "findings" | "library" | "briefs";
 

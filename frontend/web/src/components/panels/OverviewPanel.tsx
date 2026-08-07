@@ -45,8 +45,8 @@ function caseTypeLabel(ct: string) {
 }
 
 export default function OverviewPanel({
-  projectId, onNavigate,
-}: { projectId: string; onNavigate: (s: ProjectSection) => void }) {
+  projectId, onNavigate, onOpenPropertyDetails,
+}: { projectId: string; onNavigate: (s: ProjectSection) => void; onOpenPropertyDetails?: () => void }) {
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +120,7 @@ export default function OverviewPanel({
               Upload Evidence
             </button>
             <button
-              onClick={() => onNavigate("discrepancies")}
+              onClick={() => onNavigate("legal")}
               className="px-4 py-2 rounded-lg bg-fp-surface-2 border border-fp-border text-fp-text text-sm font-medium hover:bg-fp-surface hover:border-fp-border-hover transition-colors flex items-center gap-2"
             >
               Due Process Check
@@ -173,7 +173,7 @@ export default function OverviewPanel({
             </div>
           </div>
           <button
-            onClick={() => onNavigate("intelligence")}
+            onClick={() => (onOpenPropertyDetails ? onOpenPropertyDetails() : onNavigate("intelligence"))}
             className="mt-6 text-sm font-medium text-fp-blue hover:underline flex items-center gap-1.5 pt-4 border-t border-fp-border/40"
           >
             Property Intelligence
@@ -231,7 +231,7 @@ export default function OverviewPanel({
             </div>
           </div>
           <button
-            onClick={() => onNavigate("discrepancies")}
+            onClick={() => onNavigate("legal")}
             className="mt-6 text-sm font-medium text-fp-blue hover:underline flex items-center gap-1.5 pt-4 border-t border-fp-border/40"
           >
             Review Discrepancies
@@ -325,7 +325,7 @@ export default function OverviewPanel({
                     {data.criticalCount} critical due-process flag{data.criticalCount !== 1 ? "s" : ""} require review.
                   </div>
                   <button
-                    onClick={() => onNavigate("discrepancies")}
+                    onClick={() => onNavigate("legal")}
                     className="text-xs text-fp-red font-medium hover:underline mt-1 inline-block"
                   >
                     Open Due Process Check →

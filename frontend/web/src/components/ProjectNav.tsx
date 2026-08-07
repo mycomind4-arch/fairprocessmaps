@@ -1,38 +1,31 @@
 "use client";
 
 import {
-  LayoutDashboard,
   Search,
   Building2,
-  ShieldAlert,
   ScaleIcon,
   FolderArchive,
-  BookOpen,
   Plug,
   Settings,
   Calendar,
-  FileText,
-  Network,
+  Gavel,
 } from "lucide-react";
 
 export type ProjectSection =
-  | "overview"
   | "intelligence"
   | "timeline"
-  | "graph"
-  | "building"
-  | "code-enforcement"
-  | "discrepancies"
+  | "authority"
   | "vault"
   | "legal"
-  | "briefs"
+  | "defense-builder"
   | "connectors"
-  | "admin";
+  | "admin"
+  | "graph";
 
 interface NavItem {
   id: ProjectSection;
   label: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof Search;
   badgeKey?: "findings";
 }
 
@@ -43,23 +36,19 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: "INVESTIGATION",
+    title: "CASE BUILDING",
     items: [
-      { id: "overview", label: "Overview", icon: LayoutDashboard },
       { id: "intelligence", label: "Property Intelligence", icon: Search },
       { id: "timeline", label: "Timeline", icon: Calendar },
-      { id: "graph", label: "Relationship Graph", icon: Network },
-      { id: "building", label: "Building Dept", icon: Building2 },
-      { id: "code-enforcement", label: "Code Enforcement", icon: ShieldAlert },
-      { id: "discrepancies", label: "Due Process Discrepancies", icon: ScaleIcon, badgeKey: "findings" },
+      { id: "authority", label: "Authority & Enforcement", icon: Building2 },
+      { id: "vault", label: "Evidence", icon: FolderArchive },
     ],
   },
   {
-    title: "LEGAL",
+    title: "ANALYSIS & DEFENSE",
     items: [
-      { id: "vault", label: "Document Vault", icon: FolderArchive },
-      { id: "legal", label: "Legal & Law Library", icon: BookOpen },
-      { id: "briefs", label: "Brief Generator", icon: FileText },
+      { id: "legal", label: "Legal Analysis", icon: ScaleIcon, badgeKey: "findings" },
+      { id: "defense-builder", label: "Defense Builder", icon: Gavel },
     ],
   },
   {
@@ -80,6 +69,14 @@ interface ProjectNavProps {
 export default function ProjectNav({ active, onSelect, criticalFindingsCount = 0 }: ProjectNavProps) {
   return (
     <nav className="w-64 shrink-0 border-r border-fp-border bg-fp-surface/60 backdrop-blur-xl flex flex-col py-4 overflow-y-auto">
+      <div className="px-6 pb-4 text-[11px] font-medium uppercase tracking-wide text-fp-text-dim/70 leading-relaxed">
+        Understand → Reconstruct
+        <br />
+        → Power → Analyze →
+        <br />
+        Defend
+      </div>
+
       {NAV_GROUPS.map((group, groupIdx) => (
         <div key={group.title} className={groupIdx > 0 ? "mt-4" : ""}>
           {groupIdx > 0 && <div className="border-t border-fp-border mx-4 mb-4" />}
@@ -89,7 +86,7 @@ export default function ProjectNav({ active, onSelect, criticalFindingsCount = 0
           <div className="space-y-0.5">
             {group.items.map((section) => {
               const Icon = section.icon;
-              const isActive = active === section.id;
+              const isActive = active === section.id || (section.id === "intelligence" && active === "graph");
               const showBadge = section.badgeKey === "findings" && criticalFindingsCount > 0;
               return (
                 <button
