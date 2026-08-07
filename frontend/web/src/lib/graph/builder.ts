@@ -28,8 +28,10 @@ function derivedProvenance(): EdgeProvenance {
 }
 
 function semanticProvenance(row: Record<string, unknown>): EdgeProvenance {
+  const id = row.id as string | undefined;
   const evidenceIdsRaw = row.evidence_ids as string | null;
   return {
+    id,
     source: "relationship_table",
     created_by: (row.created_by as string) || null,
     created_by_type: (row.created_by_type as string) || "system",
@@ -230,7 +232,7 @@ export async function buildCaseGraph(
 
   // Semantic relationships (with lifecycle provenance)
   const rels = await db.prepare(
-    `SELECT r.source_type, r.source_id, r.target_type, r.target_id,
+    `SELECT r.id, r.source_type, r.source_id, r.target_type, r.target_id,
             r.relationship_type, r.valid_from, r.valid_to,
             r.created_by, r.created_by_type, r.confidence,
             r.evidence_ids, r.notes, r.created_at,
