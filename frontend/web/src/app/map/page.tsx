@@ -62,6 +62,10 @@ export default function Home() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...info, lng: lngLat[0], lat: lngLat[1] }),
     });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error || `Failed to resolve property (${res.status})`);
+    }
     const property = await res.json() as { id: string };
     setPendingPropertyId(property.id);
     setPendingParcel(info);

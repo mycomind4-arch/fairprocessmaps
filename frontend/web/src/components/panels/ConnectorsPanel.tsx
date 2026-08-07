@@ -15,6 +15,7 @@ import {
   Cloud,
   FileSearch,
   X,
+  AlertTriangle,
 } from "lucide-react";
 
 // ── Types ──
@@ -36,7 +37,7 @@ const CATALOG: { name: string; type: Connector["type"]; description: string; ico
   { name: "Humboldt Building Dept", type: "scraping", description: "Scrape permit applications and inspection schedules from the county building department portal", icon: FileSearch },
   { name: "Humboldt Code Enforcement", type: "scraping", description: "Monitor code enforcement case filings and status changes", icon: FileSearch },
   { name: "Court Records Scraper", type: "scraping", description: "Scrape civil court filings for due process violations and case timelines", icon: FileSearch },
-  { name: "GPT-4 Evidence Analyzer", type: "ai_tool", description: "AI analysis of uploaded documents for legal relevance, due process issues, and evidence strength", icon: Brain },
+  { name: "Llama 3.1 Evidence Analyzer", type: "ai_tool", description: "AI analysis of uploaded documents for legal relevance, due process issues, and evidence strength — powered by Cloudflare Workers AI (Llama 3.1 8B)", icon: Brain },
   { name: "OCR Pipeline", type: "ai_tool", description: "Extract text from scanned documents, photos, and PDFs for searchable evidence", icon: Brain },
   { name: "Slack Notifications", type: "webhook", description: "Send alerts when new code enforcement actions are detected or deadlines approach", icon: Webhook },
   { name: "Email Digest", type: "webhook", description: "Weekly summary of project activity and approaching deadlines", icon: Webhook },
@@ -140,6 +141,17 @@ export default function ConnectorsPanel({ projectId }: { projectId: string }) {
           <Plus className="h-4 w-4" />
           Add Connector
         </button>
+      </div>
+
+      {/* Preview — not yet connected to live data */}
+      <div className="flex items-start gap-3 rounded-[14px] border border-fp-amber/30 bg-fp-amber/10 p-4">
+        <AlertTriangle className="h-5 w-5 text-fp-amber shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-fp-amber">Preview — not yet connected to live data</p>
+          <p className="text-xs text-fp-text-muted mt-1 leading-relaxed">
+            Connector toggles and configurations are stored locally in your browser only. Toggling a connector does not yet trigger a real OAuth flow, API connection, or data sync. This panel will be wired to live backend endpoints in a future release.
+          </p>
+        </div>
       </div>
 
       {/* Stats Bar */}

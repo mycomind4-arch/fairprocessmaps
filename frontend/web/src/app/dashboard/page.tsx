@@ -255,7 +255,7 @@ export default function Dashboard() {
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-blue/15 text-fp-blue hover:bg-fp-blue/25 transition-all text-xs font-semibold"
                       >
                         <Network className="w-3.5 h-3.5" />
-                        <span>Graph View</span>
+                        <span>Fullscreen Graph</span>
                       </button>
                       <button
                         onClick={() => router.push(`/project/${p.id}`)}

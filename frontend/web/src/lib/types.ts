@@ -82,6 +82,8 @@ export interface ProjectSummary extends Project {
   openFindingsCount: number;
   criticalFindingsCount: number;
   evidenceCount: number;
+  reconCompleted?: boolean;
+  lastReconAt?: string | null;
 }
 
 export interface PropertyCreate {

@@ -170,6 +170,17 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
         <p className="text-sm text-fp-text-muted mt-1">Project configuration, member access, permissions, and system controls</p>
       </div>
 
+      {/* Preview — not yet connected to live data */}
+      <div className="flex items-start gap-3 rounded-[14px] border border-fp-amber/30 bg-fp-amber/10 p-4">
+        <AlertTriangle className="h-5 w-5 text-fp-amber shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-fp-amber">Preview — not yet connected to live data</p>
+          <p className="text-xs text-fp-text-muted mt-1 leading-relaxed">
+            Settings and member lists are stored locally in your browser only. Inviting a member does not send an email or grant real access — the member is only visible on this device. Project settings do not persist across browsers or survive a cache clear. These will be wired to D1 database tables and real invite-email sending in a future release.
+          </p>
+        </div>
+      </div>
+
       {/* Quick Navigation Filter Bar */}
       <div className="flex items-center gap-2 border-b border-fp-border pb-4 flex-wrap">
         {[

@@ -56,6 +56,16 @@ export async function GET(req: NextRequest) {
       .bind(id, user.organization_id)
       .first();
 
+    // Check whether recon has already been run for this project
+    const reconCheck = await db
+      .prepare(
+        `SELECT MAX(created_at) AS last_recon_at
+         FROM evidence
+         WHERE project_id = ? AND source = 'ai_research' AND doc_type = 'recon_report' AND organization_id = ?`,
+      )
+      .bind(id, user.organization_id)
+      .first();
+
     const shapedProperty = property && {
       apn: property.apn,
       address: property.address,
@@ -73,6 +83,8 @@ export async function GET(req: NextRequest) {
       openFindingsCount: counts?.open_findings ?? 0,
       criticalFindingsCount: counts?.critical_findings ?? 0,
       evidenceCount: evidenceCount?.n ?? 0,
+      reconCompleted: !!reconCheck?.last_recon_at,
+      lastReconAt: reconCheck?.last_recon_at ?? null,
     });
   } catch (err) {
     return NextResponse.json(

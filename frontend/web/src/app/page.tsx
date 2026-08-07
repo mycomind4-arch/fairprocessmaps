@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { LoginModal } from "@/components/LoginModal";
-import { Shield, Map, FileText, Scale, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Shield, Map, FileText, Scale, ArrowRight, CheckCircle2, AlertTriangle } from "lucide-react";
 
 export default function LandingPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, authError, retry } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
@@ -22,6 +22,26 @@ export default function LandingPage() {
       <div className="h-screen flex items-center justify-center bg-fp-bg">
         <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-lg shadow-fp-blue/20 animate-pulse">
           <Shield className="w-5 h-5 text-white" />
+        </div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-fp-bg">
+        <div className="max-w-sm text-center space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-fp-red/15 border border-fp-red/30 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-6 h-6 text-fp-red" />
+          </div>
+          <h2 className="text-lg font-semibold text-fp-text">Something went wrong</h2>
+          <p className="text-sm text-fp-text-muted">{authError}</p>
+          <button
+            onClick={retry}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
