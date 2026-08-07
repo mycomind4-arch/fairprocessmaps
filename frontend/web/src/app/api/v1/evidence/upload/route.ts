@@ -9,6 +9,7 @@
  *   - MIME allowlist + file size limit
  *   - Safe R2 keys (org-scoped)
  *   - Actor provenance on timeline event
+ *   - AI summary generated from extracted text
  *
  * GET /api/v1/evidence/upload?projectId=... — list evidence (org-scoped)
  */
@@ -24,6 +25,7 @@ import {
   MAX_FILE_SIZE,
 } from "@/lib/security/evidence";
 import { runAnalysis } from "@/lib/auto-triggers";
+import { generateSummary } from "@/lib/evidence-summary";
 
 export const runtime = "nodejs";
 
@@ -95,19 +97,22 @@ export async function POST(req: NextRequest) {
         extractedText = text.slice(0, 50000);
       }
 
+      // Generate AI summary from extracted text
+      const aiSummary = generateSummary(extractedText, safeName);
+
       const now = new Date().toISOString();
 
-      // Insert evidence record with full provenance
+      // Insert evidence record with full provenance + AI summary
       await db
         .prepare(
           `INSERT INTO evidence
             (id, project_id, source, doc_type, title, status, extracted_text,
-             r2_key, organization_id, uploaded_by, sha256_hash, content_type,
+             ai_summary, r2_key, organization_id, uploaded_by, sha256_hash, content_type,
              original_filename, uploaded_at)
-           VALUES (?, ?, 'upload', ?, ?, 'processed', ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, 'upload', ?, ?, 'processed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
-          id, projectId, contentType, safeName, extractedText, r2Key,
+          id, projectId, contentType, safeName, extractedText, aiSummary, r2Key,
           user.organization_id, user.id, sha256Hash, contentType,
           file.name, now,
         )
