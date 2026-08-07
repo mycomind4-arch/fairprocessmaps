@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Gavel,
   Shield,
   FileText,
   AlertTriangle,
-  Calendar,
   ChevronRight,
   Plus,
   Loader2,
+  RefreshCw,
+  Link2,
 } from "lucide-react";
 
 interface DefenseArgument {
@@ -21,38 +22,41 @@ interface DefenseArgument {
   description: string;
 }
 
-const STARTER_ARGUMENTS: DefenseArgument[] = [
-  {
-    id: "1",
-    title: "Insufficient Notice Period",
-    category: "procedural",
-    status: "draft",
-    findings: [],
-    description: "The agency failed to provide the statutorily required notice period before taking enforcement action.",
-  },
-];
-
 export default function DefenseBuilderPanel({ projectId }: { projectId: string }) {
-  const [arguments_, setArguments] = useState<DefenseArgument[]>(STARTER_ARGUMENTS);
+  const [arguments_, setArguments] = useState<DefenseArgument[]>([]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     setGenerating(true);
+    setError(null);
     try {
-      // Auto-build defense arguments from due process findings
-      const res = await fetch(`/api/v1/cases/${projectId}/summary`);
-      const summary = await res.json();
+      const res = await fetch(`/api/v1/cases/${projectId}/defense-arguments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // TODO: AI generates defense arguments from findings
-      // For now, just simulate
-      await new Promise((r) => setTimeout(r, 1500));
+      if (!res.ok) {
+        const errData = (await res.json().catch(() => ({ error: "" }))) as { error?: string };
+        throw new Error(errData.error || `Failed to generate (${res.status})`);
+      }
+
+      const data = (await res.json()) as { arguments?: DefenseArgument[] };
+      const generated: DefenseArgument[] = data.arguments ?? [];
+
+      if (generated.length === 0) {
+        setError("No defense arguments could be generated. Run Legal Analysis first to detect due-process findings, or add more timeline events.");
+      }
+
+      setArguments(generated);
+      setHasGenerated(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate defense arguments");
     } finally {
       setGenerating(false);
     }
-  };
+  }, [projectId]);
 
   const categoryColor: Record<DefenseArgument["category"], string> = {
     procedural: "text-fp-blue bg-fp-blue/10 border-fp-blue/30",
@@ -66,6 +70,12 @@ export default function DefenseBuilderPanel({ projectId }: { projectId: string }
     ready: "Ready",
   };
 
+  const statusColor: Record<DefenseArgument["status"], string> = {
+    draft: "text-fp-text-dim",
+    strengthening: "text-fp-amber",
+    ready: "text-fp-green",
+  };
+
   return (
     <div className="space-y-6 pb-8">
       {/* Header */}
@@ -77,30 +87,51 @@ export default function DefenseBuilderPanel({ projectId }: { projectId: string }
               Defense Builder
             </h2>
             <p className="text-sm text-fp-text-muted mt-1">
-              AI-assisted construction of your defense argument. Pulls from findings, timeline gaps, and authority analysis.
+              Auto-generates defense arguments from due-process findings, timeline gaps, and evidence analysis.
+              Each argument is linked to specific findings for traceability.
             </p>
           </div>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="px-4 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Building…
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" />
-                Auto-Build Arguments
-              </>
+          <div className="flex items-center gap-2">
+            {hasGenerated && (
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="px-3 py-2 rounded-lg bg-fp-surface-2 border border-fp-border text-fp-text-muted text-sm font-medium hover:bg-fp-surface transition-colors flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Regenerate
+              </button>
             )}
-          </button>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="px-4 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Building…
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  Auto-Build Arguments
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Defense Strategy Framework */}
+      {/* Error */}
+      {error && (
+        <div className="glass rounded-[14px] p-4 border-fp-amber/30 bg-fp-amber/10 flex items-start gap-3 text-fp-amber text-sm">
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Defense Strategy Framework — always visible */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="glass rounded-[14px] p-5 border-fp-border shadow-lg shadow-black/20">
           <div className="flex items-center gap-2 mb-3">
@@ -143,77 +174,77 @@ export default function DefenseBuilderPanel({ projectId }: { projectId: string }
       </div>
 
       {/* Arguments List */}
-      <div className="space-y-3">
-        <h3 className="text-base font-semibold text-fp-text">Defense Arguments</h3>
+      {arguments_.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-base font-semibold text-fp-text">Defense Arguments</h3>
 
-        {arguments_.map((arg) => (
-          <div
-            key={arg.id}
-            className="glass rounded-[14px] p-5 border-fp-border shadow-lg shadow-black/20 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-3">
-                  <h4 className="text-sm font-semibold text-fp-text">{arg.title}</h4>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${categoryColor[arg.category]}`}>
-                    {arg.category}
-                  </span>
-                </div>
-                <p className="text-xs text-fp-text-muted">{arg.description}</p>
-                {arg.findings.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {arg.findings.map((f, idx) => (
-                      <span
-                        key={idx}
-                        className="text-xs px-2 py-0.5 rounded-md bg-fp-surface-2 text-fp-text-dim border border-fp-border/40"
-                      >
-                        {f}
-                      </span>
-                    ))}
+          {arguments_.map((arg) => (
+            <div
+              key={arg.id}
+              className="glass rounded-[14px] p-5 border-fp-border shadow-lg shadow-black/20 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <h4 className="text-sm font-semibold text-fp-text">{arg.title}</h4>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${categoryColor[arg.category]}`}>
+                      {arg.category}
+                    </span>
                   </div>
-                )}
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="text-xs text-fp-text-dim">{statusLabel[arg.status]}</span>
-                <ChevronRight className="w-4 h-4 text-fp-text-dim group-hover:text-fp-blue group-hover:translate-x-1 transition-all" />
+                  <p className="text-xs text-fp-text-muted leading-relaxed">{arg.description}</p>
+                  {arg.findings.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {arg.findings.map((f, idx) => (
+                        <span
+                          key={idx}
+                          className="text-xs px-2 py-0.5 rounded-md bg-fp-surface-2 text-fp-text-dim border border-fp-border/40 flex items-center gap-1"
+                        >
+                          <Link2 className="w-3 h-3" />
+                          Finding: {f.slice(0, 8)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className={`text-xs font-medium ${statusColor[arg.status]}`}>{statusLabel[arg.status]}</span>
+                  <ChevronRight className="w-4 h-4 text-fp-text-dim group-hover:text-fp-blue group-hover:translate-x-1 transition-all" />
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-
-        {arguments_.length === 0 && (
-          <div className="glass rounded-[14px] p-12 text-center">
-            <Gavel className="w-12 h-12 text-fp-text-dim mx-auto mb-4" />
-            <h4 className="text-base font-semibold text-fp-text">No defense arguments yet</h4>
-            <p className="text-sm text-fp-text-muted mt-1 mb-4">
-              Click "Auto-Build Arguments" to let AI scan findings and generate draft arguments, or create one manually.
-            </p>
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="px-6 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all inline-flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Auto-Build from Findings
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* AI Enhancement Coming Banner */}
-      <div className="glass rounded-[14px] p-6 border-fp-blue/20">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-fp-blue/15 border border-fp-blue/30 flex items-center justify-center shrink-0">
-            <Calendar className="w-5 h-5 text-fp-blue" />
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-fp-text">AI Defense Builder — Coming Soon</h4>
-            <p className="text-xs text-fp-text-muted mt-1">
-              The system will automatically scan all due process findings, timeline gaps, and authority conflicts to generate draft defense arguments. Each argument will be linked to specific evidence, statutory references, and timeline discrepancies. You'll be able to export a complete defense brief.
-            </p>
-          </div>
+          ))}
         </div>
-      </div>
+      )}
+
+      {/* Empty State — before generation */}
+      {arguments_.length === 0 && !generating && !error && (
+        <div className="glass rounded-[14px] p-12 text-center">
+          <Gavel className="w-12 h-12 text-fp-text-dim mx-auto mb-4" />
+          <h4 className="text-base font-semibold text-fp-text">No defense arguments yet</h4>
+          <p className="text-sm text-fp-text-muted mt-1 mb-4 max-w-md mx-auto">
+            Click "Auto-Build Arguments" to scan your due-process findings, timeline gaps, and evidence analysis.
+            The system will generate draft defense arguments linked to specific findings — ready for review and export.
+          </p>
+          <button
+            onClick={handleGenerate}
+            className="px-6 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all inline-flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Auto-Build from Findings
+          </button>
+        </div>
+      )}
+
+      {/* Generating State */}
+      {generating && (
+        <div className="glass rounded-[14px] p-12 text-center">
+          <Loader2 className="w-8 h-8 text-fp-blue mx-auto mb-4 animate-spin" />
+          <h4 className="text-sm font-semibold text-fp-text">Analyzing findings and timeline…</h4>
+          <p className="text-xs text-fp-text-muted mt-1">
+            Scanning due-process findings, detecting timeline gaps, and categorizing defense strategies.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
