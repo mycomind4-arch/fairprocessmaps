@@ -1,3 +1,7 @@
+/**
+ * @deprecated Legacy API client — uses old route patterns that may not match deployed routes.
+ * New code should use inline fetch() calls matching the actual API routes in src/app/api/v1/.
+ */
 import type {
   Property,
   PropertyCreate,

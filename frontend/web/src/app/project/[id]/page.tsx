@@ -8,6 +8,7 @@ import type { ProjectSummary } from "@/lib/types";
 import OverviewPanel from "@/components/panels/OverviewPanel";
 import PropertyIntelligence from "@/components/panels/PropertyIntelligence";
 import EvidenceVaultPanel from "@/components/panels/EvidenceVaultPanel";
+import { BriefGeneratorPanel } from "@/components/panels/BriefGeneratorPanel";
 import DiscrepanciesPanel from "@/components/panels/DiscrepanciesPanel";
 import TimelinePanel from "@/components/panels/TimelinePanel";
 import LegalLibraryPanel from "@/components/panels/LegalLibraryPanel";
@@ -290,7 +291,7 @@ export default function ProjectDashboard() {
 
         <main className="flex-1 relative overflow-y-auto p-6">
           {/* MiniMap floats in top-right for sections that need spatial context */}
-          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && section !== "code-enforcement" && section !== "building" && section !== "timeline" && (
+          {project?.property.centroid && section !== "vault" && section !== "admin" && section !== "connectors" && section !== "legal" && section !== "code-enforcement" && section !== "building" && section !== "timeline" && section !== "briefs" && (
             <MiniMap
               centroid={toLngLat(project.property.centroid)!}
               geomGeoJSON={(project.property.geom as any) ?? undefined}
@@ -306,6 +307,7 @@ export default function ProjectDashboard() {
           {section === "discrepancies" && <DiscrepanciesPanel projectId={id} />}
           {section === "vault" && <EvidenceVaultPanel projectId={id} />}
           {section === "legal" && <LegalLibraryPanel />}
+          {section === "briefs" && <BriefGeneratorPanel projectId={id} />}
           {section === "connectors" && <ConnectorsPanel projectId={id} />}
           {section === "admin" && <AdminPanel projectId={id} />}
         </main>

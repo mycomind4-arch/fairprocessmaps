@@ -51,6 +51,10 @@ export async function GET(req: NextRequest) {
       .bind(id, user.organization_id)
       .first();
 
+    const timelineEventCount = await db
+      .prepare("SELECT COUNT(*) AS n FROM timeline_events WHERE project_id = ? AND organization_id = ?")
+      .bind(id, user.organization_id)
+      .first();
     const evidenceCount = await db
       .prepare("SELECT COUNT(*) AS n FROM evidence WHERE project_id = ? AND organization_id = ?")
       .bind(id, user.organization_id)
@@ -73,6 +77,7 @@ export async function GET(req: NextRequest) {
       openFindingsCount: counts?.open_findings ?? 0,
       criticalFindingsCount: counts?.critical_findings ?? 0,
       evidenceCount: evidenceCount?.n ?? 0,
+      timelineEventCount: timelineEventCount?.n ?? 0,
     });
   } catch (err) {
     return NextResponse.json(
