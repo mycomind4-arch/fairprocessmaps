@@ -50,10 +50,36 @@ function toDashedAPN(apn: string): string {
   return apn;
 }
 
+// FIX: Retry helper for GIS agent fetches. The 12 GIS agents had no retry logic
+// (single fetch + catch → null), while the 4 records agents did. This aligns them.
+async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries = 3): Promise<Response> {
+  let lastErr: any;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const resp = await fetch(url, options);
+      if (resp.ok || resp.status < 500) return resp;
+      lastErr = new Error(`HTTP ${resp.status}`);
+    } catch (e) {
+      lastErr = e;
+    }
+    if (attempt < maxRetries - 1) {
+      const delayMs = Math.min(1000 * Math.pow(2, attempt), 8000);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+  throw lastErr;
+}
+
 const PARCEL_FIELDS = [
   "APN_12", "APN", "FULLADDR", "SITCITY", "ACRES", "LOTSIZE",
   "ZONING", "GEN_PLAN", "YEAR_BUILT", "LEGAL", "SUPD_DIST",
   "CZ", "FZ", "FR", "SRA", "TRANDATE", "BKPG", "OLDAPN",
+  // FIX: Owner fields were missing — PropertyIntelligence.tsx and countyRecorderAgent
+  // both depend on these. Without them, the Owner card always shows "No owner record
+  // on file" and the Tyler-portal recorder search never executes.
+  "OWNER", "OWNER1", "OWNER2",
+  "MAIL_ADD", "MAIL_CITY", "MAIL_STATE", "MAIL_ZIP",
+  "TAX_VALUE",
 ];
 
 interface ParcelData {
@@ -76,7 +102,7 @@ async function fetchParcelByAPN(apn: string): Promise<ParcelData | null> {
   });
 
   try {
-    const resp = await fetch(`${PARCELS_URL}/query?${params}`);
+    const resp = await fetchWithRetry(`${PARCELS_URL}/query?${params}`);
     if (!resp.ok) return null;
     const data: any = await resp.json();
     const feature = data.features?.[0];
@@ -137,7 +163,7 @@ async function queryLayerByGeometry(
   });
 
   try {
-    const resp = await fetch(`${layerUrl}/query?${params}`);
+    const resp = await fetchWithRetry(`${layerUrl}/query?${params}`);
     if (!resp.ok) return null;
     const data: any = await resp.json();
     return data.features?.[0]?.attributes ?? null;
@@ -168,7 +194,7 @@ async function queryLayerByAPN(
   });
 
   try {
-    const resp = await fetch(`${layerUrl}/query?${params}`);
+    const resp = await fetchWithRetry(`${layerUrl}/query?${params}`);
     if (!resp.ok) return null;
     const data: any = await resp.json();
     return data.features?.[0]?.attributes ?? null;
@@ -215,7 +241,7 @@ async function checkIntersection(
   });
 
   try {
-    const resp = await fetch(`${layerUrl}/query?${params}`);
+    const resp = await fetchWithRetry(`${layerUrl}/query?${params}`);
     if (!resp.ok) return false;
     const data: any = await resp.json();
     return (data.features?.length ?? 0) > 0;

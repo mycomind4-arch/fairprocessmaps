@@ -324,17 +324,21 @@ export async function timelineAgent(ctx: AnalysisContext, facts: any[]): Promise
       });
     }
 
-    // SECURITY FIX: org-scoped delete
+    // FIX: Previous delete matched evidence_id IN (ai_research) but inserts used
+    // evidence_id=NULL — so the delete could never find its own prior inserts,
+    // causing duplicate timeline events on every re-run.
+    // Now: use actor_type='timeline_agent' (column from migration 008) as a stable marker
+    // for delete + insert so re-runs replace rather than duplicate.
     await db.prepare(
-      `DELETE FROM timeline_events WHERE project_id = ? AND organization_id = ? AND evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research')`
-    ).bind(projectId, organizationId, projectId).run();
+      `DELETE FROM timeline_events WHERE project_id = ? AND organization_id = ? AND actor_type = 'timeline_agent'`
+    ).bind(projectId, organizationId).run();
 
     for (const event of events) {
       const eventId = crypto.randomUUID();
       const eventType = mapCategoryToEventType(event.category);
       await db.prepare(
-        `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, organization_id)
-         VALUES (?, ?, NULL, ?, ?, ?, ?)`
+        `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, organization_id, actor_type)
+         VALUES (?, ?, NULL, ?, ?, ?, ?, 'timeline_agent')`
       ).bind(eventId, projectId, event.date, eventType, event.event, organizationId).run();
     }
 
@@ -467,25 +471,60 @@ export async function statuteMatchingAgent(ctx: AnalysisContext, facts: any[]): 
     const matches = results.filter(r => r.status === "matches expected window");
     const unknown = results.filter(r => r.status === "unable to determine");
 
-    // SECURITY FIX: org-scoped delete
-    await db.prepare("DELETE FROM due_process_findings WHERE project_id = ? AND organization_id = ? AND rule LIKE 'statute_%'").bind(projectId, organizationId).run();
+    // FIX: Fingerprint-based upsert instead of destructive delete+insert.
+    // Preserves review state on re-runs; marks stale findings as 'superseded'.
+    function statuteFingerprint(rule: string, detail: string): string {
+      const input = `${rule}|${detail.slice(0, 200)}`;
+      let hash = 0;
+      for (let i = 0; i < input.length; i++) {
+        const char = input.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return `fp_${Math.abs(hash).toString(36)}`;
+    }
 
-    for (const r of results) {
-      const severity = r.status === "deviation detected" ? "critical" : r.status === "unable to determine" ? "warning" : "info";
-      const statuteMissingInfo = r.status === "unable to determine" ? 1 : 0;
+    const statuteFindings = results.map(r => ({
+      rule: `statute_${r.statute_ref.replace(/[^a-zA-Z0-9]/g, "_")}`,
+      rule_name: `${r.statute_ref}: ${r.statute_title}`,
+      severity: r.status === "deviation detected" ? "critical" : r.status === "unable to determine" ? "warning" : "info",
+      detail: `[${r.statute_ref}] Case ${r.case_ref || "N/A"} — ${r.note} Status: ${r.status}.`,
+      missing_info: r.status === "unable to determine" ? 1 : 0,
+    }));
+
+    const statuteNewFps = new Set(statuteFindings.map(f => statuteFingerprint(f.rule, f.detail)));
+
+    const statuteExisting = (await db.prepare(
+      `SELECT id, rule, detail, finding_fingerprint FROM due_process_findings
+       WHERE project_id = ? AND organization_id = ? AND rule LIKE 'statute_%' AND status != 'superseded'`
+    ).bind(projectId, organizationId).all()).results as any[] || [];
+
+    const statuteByFp = new Map(statuteExisting.map(ef => [
+      ef.finding_fingerprint || statuteFingerprint(ef.rule, ef.detail), ef
+    ]));
+
+    const statuteToInsert: any[] = [];
+    const statuteToSupersede: string[] = [];
+
+    for (const f of statuteFindings) {
+      const fp = statuteFingerprint(f.rule, f.detail);
+      const existing = statuteByFp.get(fp);
+      if (existing) {
+        statuteByFp.delete(fp); // preserved — keep review state
+      } else {
+        statuteToInsert.push({ ...f, id: crypto.randomUUID(), fingerprint: fp });
+      }
+    }
+    for (const [_, ef] of statuteByFp) statuteToSupersede.push((ef as any).id);
+
+    for (const f of statuteToInsert) {
       await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
-      ).bind(
-        crypto.randomUUID(),
-        projectId,
-        `statute_${r.statute_ref.replace(/[^a-zA-Z0-9]/g, "_")}`,
-        `${r.statute_ref}: ${r.statute_title}`,
-        severity,
-        `[${r.statute_ref}] Case ${r.case_ref || "N/A"} — ${r.note} Status: ${r.status}.`,
-        organizationId,
-        statuteMissingInfo,
-      ).run();
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info, finding_fingerprint)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`
+      ).bind(f.id, projectId, f.rule, f.rule_name, f.severity, f.detail, organizationId, f.missing_info, f.fingerprint).run();
+    }
+    for (const id of statuteToSupersede) {
+      await db.prepare("UPDATE due_process_findings SET status = 'superseded' WHERE id = ?").bind(id).run();
     }
 
     const hash = await sha256(JSON.stringify({ projectId, organizationId, agent: "Statute Matching Agent", results: results.length }));
@@ -644,24 +683,60 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
       }
     }
 
-    // SECURITY FIX: org-scoped delete
-    await db.prepare("DELETE FROM due_process_findings WHERE project_id = ? AND organization_id = ? AND rule LIKE 'discrepancy_%'").bind(projectId, organizationId).run();
+    // FIX: Fingerprint-based upsert instead of destructive delete+insert.
+    // Preserves review state on re-runs; marks stale findings as 'superseded'.
+    function discrepancyFingerprint(rule: string, detail: string): string {
+      const input = `${rule}|${detail.slice(0, 200)}`;
+      let hash = 0;
+      for (let i = 0; i < input.length; i++) {
+        const char = input.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return `fp_${Math.abs(hash).toString(36)}`;
+    }
 
-    for (const c of conflicts) {
-      const discMissingInfo = (c.characterization?.toLowerCase().includes('missing') ?? false) ? 1 : 0;
+    const discFindings = conflicts.map(c => ({
+      rule: `discrepancy_${c.conflict_type}`,
+      rule_name: c.conflict_type.replace(/_/g, " ").replace(/\b\w/g, (c2: string) => c2.toUpperCase()),
+      severity: c.severity,
+      detail: c.characterization,
+      missing_info: (c.characterization?.toLowerCase().includes('missing') ?? false) ? 1 : 0,
+    }));
+
+    const discNewFps = new Set(discFindings.map(f => discrepancyFingerprint(f.rule, f.detail)));
+
+    const discExisting = (await db.prepare(
+      `SELECT id, rule, detail, finding_fingerprint FROM due_process_findings
+       WHERE project_id = ? AND organization_id = ? AND rule LIKE 'discrepancy_%' AND status != 'superseded'`
+    ).bind(projectId, organizationId).all()).results as any[] || [];
+
+    const discByFp = new Map(discExisting.map(ef => [
+      ef.finding_fingerprint || discrepancyFingerprint(ef.rule, ef.detail), ef
+    ]));
+
+    const discToInsert: any[] = [];
+    const discToSupersede: string[] = [];
+
+    for (const f of discFindings) {
+      const fp = discrepancyFingerprint(f.rule, f.detail);
+      const existing = discByFp.get(fp);
+      if (existing) {
+        discByFp.delete(fp);
+      } else {
+        discToInsert.push({ ...f, id: crypto.randomUUID(), fingerprint: fp });
+      }
+    }
+    for (const [_, ef] of discByFp) discToSupersede.push((ef as any).id);
+
+    for (const f of discToInsert) {
       await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
-      ).bind(
-        crypto.randomUUID(),
-        projectId,
-        `discrepancy_${c.conflict_type}`,
-        c.conflict_type.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
-        c.severity,
-        c.characterization,
-        organizationId,
-        discMissingInfo,
-      ).run();
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info, finding_fingerprint)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`
+      ).bind(f.id, projectId, f.rule, f.rule_name, f.severity, f.detail, organizationId, f.missing_info, f.fingerprint).run();
+    }
+    for (const id of discToSupersede) {
+      await db.prepare("UPDATE due_process_findings SET status = 'superseded' WHERE id = ?").bind(id).run();
     }
 
     const hash = await sha256(JSON.stringify({ projectId, organizationId, agent: "Discrepancy Agent", conflicts: conflicts.length }));

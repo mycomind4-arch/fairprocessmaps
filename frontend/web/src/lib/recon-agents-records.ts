@@ -1035,33 +1035,103 @@ const dueProcessAnalysisAgent: ReconAgent = async (ctx): Promise<ReconAgentResul
     }
 
     // ── Store findings in D1 ──
+    // FIX: Replaced blanket DELETE with fingerprint-based upsert.
+    // Previously this engine wiped ALL findings (including from auto-triggers.ts
+    // and analysis-agents.ts), destroying human review state on every recon re-run.
+    // Now: only touches THIS engine's rules, preserves reviewed findings by fingerprint,
+    // marks stale findings as 'superseded' instead of deleting.
 
-    // Delete ALL old due process findings for this project (we're regenerating them)
-    await db.prepare(
-      `DELETE FROM due_process_findings WHERE project_id = ? AND organization_id = ?`
-    ).bind(projectId, ctx.organizationId).run();
+    const ENGINE_RULES = [
+      'right_to_hearing', 'hearing_notice_adequacy', 'lien_without_due_process',
+      'appeal_rights', 'work_without_permit', 'expired_permit',
+      'permit_after_ce_notice', 'lien_without_ce_case', 'incomplete_records',
+    ];
+    // NOTE: 'notice_timing' is shared with auto-triggers.ts::runAnalysis.
+    // We handle it via fingerprint upsert — if the same finding already exists
+    // (matching fingerprint), we preserve it rather than clobbering it.
+
+    function findingFingerprint(rule: string, detail: string): string {
+      const input = `${rule}|${detail.slice(0, 200)}`;
+      let hash = 0;
+      for (let i = 0; i < input.length; i++) {
+        const char = input.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return `fp_${Math.abs(hash).toString(36)}`;
+    }
+
+    const newFingerprints = new Set(
+      findings.map(f => findingFingerprint(f.rule, f.detail))
+    );
+
+    // Fetch existing findings for THIS engine's rules only (scoped, not blanket)
+    const rulesPlaceholder = [...ENGINE_RULES, 'notice_timing'].map(() => '?').join(',');
+    const existingResult = await db.prepare(
+      `SELECT id, rule, detail, finding_fingerprint, status, reviewed_by, reviewed_at
+       FROM due_process_findings
+       WHERE project_id = ? AND organization_id = ? AND rule IN (${rulesPlaceholder})
+       AND status != 'superseded'`
+    ).bind(projectId, ctx.organizationId, ...ENGINE_RULES, 'notice_timing').all();
+    const existingFindings = (existingResult.results || []) as any[];
+
+    const existingByFingerprint = new Map(
+      existingFindings.map((ef: any) => [
+        ef.finding_fingerprint || findingFingerprint(ef.rule, ef.detail),
+        ef
+      ])
+    );
+
+    const toInsert: any[] = [];
+    const toSupersede: string[] = [];
+    let preservedCount = 0;
 
     for (const finding of findings) {
-      // Determine if this finding is about missing information
-      const isMissingInfo = finding.rule === 'missing_data_sources' ||
-        (finding.detail?.toLowerCase().includes('missing') ?? false) ||
-        (finding.detail?.toLowerCase().includes('no corresponding') ?? false) ||
-        (finding.detail?.toLowerCase().includes('not found') ?? false) ||
-        (finding.detail?.toLowerCase().includes('absent') ?? false);
+      const fp = findingFingerprint(finding.rule, finding.detail);
+      const existing = existingByFingerprint.get(fp);
+      if (existing) {
+        // Same finding already exists — preserve status, reviewed_by, reviewed_at
+        preservedCount++;
+        existingByFingerprint.delete(fp);
+      } else {
+        const isMissingInfo = finding.rule === 'missing_data_sources' ||
+          (finding.detail?.toLowerCase().includes('missing') ?? false) ||
+          (finding.detail?.toLowerCase().includes('no corresponding') ?? false) ||
+          (finding.detail?.toLowerCase().includes('not found') ?? false) ||
+          (finding.detail?.toLowerCase().includes('absent') ?? false);
+        toInsert.push({
+          id: crypto.randomUUID(),
+          rule: finding.rule,
+          rule_name: finding.rule_name,
+          severity: finding.severity,
+          detail: finding.detail,
+          missing_info: isMissingInfo ? 1 : 0,
+          fingerprint: fp,
+        });
+      }
+    }
 
+    // Remaining existing findings are stale → mark superseded (not deleted)
+    for (const [_, ef] of existingByFingerprint) {
+      toSupersede.push((ef as any).id);
+    }
+
+    // Insert new findings with fingerprints
+    for (const f of toInsert) {
       await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info, finding_fingerprint)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`
       ).bind(
-        crypto.randomUUID(),
-        projectId,
-        finding.rule,
-        finding.rule_name,
-        finding.severity,
-        finding.detail,
-        ctx.organizationId,
-        isMissingInfo ? 1 : 0,
+        f.id, projectId, f.rule, f.rule_name, f.severity,
+        f.detail, ctx.organizationId, f.missing_info, f.fingerprint,
       ).run();
+    }
+
+    // Mark stale findings as superseded (preserving their review history)
+    for (const id of toSupersede) {
+      await db.prepare(
+        "UPDATE due_process_findings SET status = 'superseded' WHERE id = ?"
+      ).bind(id).run();
     }
 
     // Build summary
