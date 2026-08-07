@@ -46,6 +46,9 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-fp-bg/80 backdrop-blur-md p-4 animate-[fade-in_0.2s_ease-out]"
       onClick={onClose}
+      role="button"
+      tabIndex={0}
+      aria-label="Close modal"
     >
       <div
         className="w-full max-w-sm glass rounded-[14px] p-6 shadow-2xl shadow-black/50 animate-[scale-in_0.2s_cubic-bezier(0.16,1,0.3,1)] space-y-6"

@@ -531,7 +531,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
 
       {/* Invite Member Modal */}
       {showInvite && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4" onClick={() => setShowInvite(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4" onClick={() => setShowInvite(false)} role="button" tabIndex={0} aria-label="Close invite modal">
           <div className="w-full max-w-md rounded-[14px] glass p-6 shadow-2xl shadow-black/50 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-3 border-b border-fp-border">
               <h3 className="text-base font-semibold text-fp-text">Invite Team Member</h3>

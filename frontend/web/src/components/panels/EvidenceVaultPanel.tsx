@@ -144,6 +144,7 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
             ref={fileRef}
             type="file"
             multiple
+            aria-label="Upload document files"
             className="hidden"
             onChange={(e) => handleUpload(e.target.files)}
           />
@@ -173,6 +174,7 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search evidence documents…"
+            aria-label="Search evidence documents"
             className="w-full pl-10 pr-4 py-2 rounded-lg bg-fp-surface border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue focus:ring-1 focus:ring-fp-blue transition-all"
           />
         </div>

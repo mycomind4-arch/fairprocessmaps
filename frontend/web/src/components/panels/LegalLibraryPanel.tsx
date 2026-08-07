@@ -134,6 +134,7 @@ export default function LegalLibraryPanel() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search statutes, case citations, legal topics, or keywords…"
+              aria-label="Search statutes and legal references"
               className="w-full pl-12 pr-4 py-4 rounded-[14px] glass shadow-lg shadow-black/20 text-base text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue focus:ring-2 focus:ring-fp-blue/30 transition-all"
             />
           </div>

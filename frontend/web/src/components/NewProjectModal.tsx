@@ -117,8 +117,9 @@ export default function NewProjectModal({
             
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-fp-text-dim mb-1">Project Name</label>
+                <label htmlFor="project-name" className="block text-xs text-fp-text-dim mb-1">Project Name</label>
                 <input
+                  id="project-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. 2026 Code Abatement Appeal"

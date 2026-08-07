@@ -800,7 +800,7 @@ function DetailField({ label, value, icon: Icon }: { label: string; value: strin
 // ── Modal wrapper ──
 function Modal({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title: string }) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose} role="button" tabIndex={0} aria-label="Close modal">
       <div
         className="bg-fp-surface border border-fp-border rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
