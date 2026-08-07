@@ -314,10 +314,13 @@ export async function runAnalysis(projectId: string): Promise<{
 
   // Insert new findings
   for (const finding of findings) {
+    const isMissingInfo = (finding.detail?.toLowerCase().includes('missing') ?? false) ||
+      (finding.detail?.toLowerCase().includes('not found') ?? false) ||
+      (finding.detail?.toLowerCase().includes('absent') ?? false);
     await db
       .prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, evidence_id)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, evidence_id, missing_info)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
       )
       .bind(
         crypto.randomUUID(),
@@ -326,7 +329,8 @@ export async function runAnalysis(projectId: string): Promise<{
         RULES[finding.rule]?.name ?? finding.rule,
         finding.severity,
         finding.detail,
-        finding.evidence_id
+        finding.evidence_id,
+        isMissingInfo ? 1 : 0,
       )
       .run();
   }

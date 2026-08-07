@@ -19,6 +19,7 @@ import {
   BookOpen,
   TrendingDown,
   CircleDot,
+  RefreshCw,
 } from "lucide-react";
 
 // ── Types ──
@@ -105,19 +106,23 @@ function fmtDate(dateStr: string | null): string {
 export default function CodeEnforcementPanel({ projectId }: { projectId: string }) {
   const [cases, setCases] = useState<EnforcementCase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [selectedCase, setSelectedCase] = useState<EnforcementCase | null>(null);
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/v1/enforcement?projectId=${projectId}`, {
         headers: { "Cache-Control": "no-cache" },
       });
+      if (!res.ok) throw new Error(`Failed to load cases (${res.status})`);
       const data = await res.json() as { items?: EnforcementCase[] };
       setCases(data.items ?? []);
-    } catch {
+    } catch (err) {
       setCases([]);
+      setError(err instanceof Error ? err.message : "Failed to load cases");
     } finally {
       setLoading(false);
     }
@@ -174,6 +179,19 @@ export default function CodeEnforcementPanel({ projectId }: { projectId: string 
       {/* Cases list */}
       {loading ? (
         <div className="text-sm text-fp-text-dim text-center py-12">Loading enforcement cases…</div>
+      ) : error ? (
+        <div className="rounded-[14px] border border-dashed border-fp-red/40 bg-fp-red/5 p-16 text-center">
+          <AlertTriangle className="w-10 h-10 text-fp-red mx-auto mb-4" />
+          <h3 className="text-sm font-medium text-fp-text">Couldn't load cases</h3>
+          <p className="text-xs text-fp-text-dim mt-1 mb-4">{error}</p>
+          <button
+            onClick={fetchCases}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </button>
+        </div>
       ) : cases.length === 0 ? (
         <div className="rounded-[14px] border border-dashed border-fp-border bg-fp-surface/20 p-16 text-center">
           <ShieldAlert className="w-10 h-10 text-fp-text-dim mx-auto mb-4" />

@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS due_process_findings (
   status TEXT NOT NULL DEFAULT 'open',
   detail TEXT,
   evidence_id TEXT REFERENCES evidence(id),
+  missing_info INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 

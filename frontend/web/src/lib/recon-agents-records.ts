@@ -538,9 +538,16 @@ const dueProcessAnalysisAgent: ReconAgent = async (ctx): Promise<ReconAgentResul
     ).bind(projectId, ctx.organizationId).run();
     
     for (const finding of findings) {
+      // Determine if this finding is about missing information
+      const isMissingInfo = finding.rule === 'missing_data_sources' ||
+        (finding.detail?.toLowerCase().includes('missing') ?? false) ||
+        (finding.detail?.toLowerCase().includes('no corresponding') ?? false) ||
+        (finding.detail?.toLowerCase().includes('not found') ?? false) ||
+        (finding.detail?.toLowerCase().includes('absent') ?? false);
+
       await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
       ).bind(
         crypto.randomUUID(),
         projectId,
@@ -549,6 +556,7 @@ const dueProcessAnalysisAgent: ReconAgent = async (ctx): Promise<ReconAgentResul
         finding.severity,
         finding.detail,
         ctx.organizationId,
+        isMissingInfo ? 1 : 0,
       ).run();
     }
     

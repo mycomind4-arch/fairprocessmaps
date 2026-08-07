@@ -5,9 +5,11 @@ import { Map as MaplibreMap, NavigationControl, GeolocateControl, ScaleControl, 
 import "maplibre-gl/dist/maplibre-gl.css";
 
 interface PropertyMapProps {
-  onSelectProperty: (id: string | null) => void;
-  selectedProperty: string | null;
+  onSelectProperty?: (id: string | null) => void;
+  selectedProperty?: string | null;
   onOpenAsProject?: (info: ParcelInfo, lngLat: [number, number]) => void;
+  initialCenter?: [number, number];
+  initialZoom?: number;
 }
 
 type BaseLayer = "satellite" | "street" | "dark";
@@ -175,7 +177,7 @@ function buildStyle(layer: BaseLayer): StyleSpecification {
   };
 }
 
-function addPropertyLayers(map: MaplibreMapType, selectedId: string | null) {
+function addPropertyLayers(map: MaplibreMapType, selectedId: string | null | undefined) {
   if (!map.getSource("properties")) {
     map.addSource("properties", {
       type: "geojson",
@@ -204,7 +206,7 @@ function loadPropertyData(map: MaplibreMapType, properties: any[]) {
   source?.setData({ type: "FeatureCollection", features });
 }
 
-export default function PropertyMap({ onSelectProperty, selectedProperty, onOpenAsProject }: PropertyMapProps) {
+export default function PropertyMap({ onSelectProperty, selectedProperty, onOpenAsProject, initialCenter, initialZoom }: PropertyMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMapType | null>(null);
   const popupRef = useRef<Popup | null>(null);
@@ -225,8 +227,8 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
     const map = new MaplibreMap({
       container: mapContainer.current,
       style: buildStyle("satellite"),
-      center: HUMBOLDT_CENTER,
-      zoom: HUMBOLDT_ZOOM,
+      center: initialCenter ?? HUMBOLDT_CENTER,
+      zoom: initialZoom ?? HUMBOLDT_ZOOM,
       attributionControl: { compact: true },
     });
 
@@ -240,13 +242,13 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
     // Hide loading indicator once tiles start rendering
     map.on("load", () => {
       setMapLoading(false);
-      addPropertyLayers(map, selectedProperty);
+      addPropertyLayers(map, selectedProperty ?? null);
 
       // Click on a tracked property
       map.on("click", "property-fill", (e) => {
         const feature = e.features?.[0];
         if (feature?.properties?.id) {
-          onSelectProperty(feature.properties.id);
+          onSelectProperty?.(feature.properties.id);
         }
       });
 
@@ -375,7 +377,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
     map.setStyle(buildStyle(baseLayer));
     map.once("style.load", () => {
       setMapLoading(false);
-      addPropertyLayers(map, selectedProperty);
+      addPropertyLayers(map, selectedProperty ?? null);
       loadPropertyData(map, properties);
     });
     // Fallback: hide loading after 3s

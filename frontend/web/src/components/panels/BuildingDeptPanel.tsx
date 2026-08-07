@@ -18,6 +18,7 @@ import {
   DollarSign,
   HardHat,
   CircleDot,
+  RefreshCw,
 } from "lucide-react";
 
 // ── Types ──
@@ -100,19 +101,23 @@ function fmtDate(dateStr: string | null): string {
 export default function BuildingDeptPanel({ projectId }: { projectId: string }) {
   const [permits, setPermits] = useState<Permit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
 
   const fetchPermits = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/v1/permits?projectId=${projectId}`, {
         headers: { "Cache-Control": "no-cache" },
       });
+      if (!res.ok) throw new Error(`Failed to load permits (${res.status})`);
       const data = await res.json() as { items?: Permit[] };
       setPermits(data.items ?? []);
-    } catch {
+    } catch (err) {
       setPermits([]);
+      setError(err instanceof Error ? err.message : "Failed to load permits");
     } finally {
       setLoading(false);
     }
@@ -161,6 +166,19 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
       {/* Permits list */}
       {loading ? (
         <div className="text-sm text-fp-text-dim text-center py-12">Loading permits…</div>
+      ) : error ? (
+        <div className="rounded-[14px] border border-dashed border-fp-red/40 bg-fp-red/5 p-16 text-center">
+          <AlertTriangle className="w-10 h-10 text-fp-red mx-auto mb-4" />
+          <h3 className="text-sm font-medium text-fp-text">Couldn't load permits</h3>
+          <p className="text-xs text-fp-text-dim mt-1 mb-4">{error}</p>
+          <button
+            onClick={fetchPermits}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </button>
+        </div>
       ) : permits.length === 0 ? (
         <div className="rounded-[14px] border border-dashed border-fp-border bg-fp-surface/20 p-16 text-center">
           <Building2 className="w-10 h-10 text-fp-text-dim mx-auto mb-4" />

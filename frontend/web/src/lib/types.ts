@@ -82,6 +82,7 @@ export interface ProjectSummary extends Project {
   openFindingsCount: number;
   criticalFindingsCount: number;
   evidenceCount: number;
+  timelineCount?: number;
   reconCompleted?: boolean;
   lastReconAt?: string | null;
 }

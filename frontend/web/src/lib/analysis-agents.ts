@@ -472,9 +472,10 @@ export async function statuteMatchingAgent(ctx: AnalysisContext, facts: any[]): 
 
     for (const r of results) {
       const severity = r.status === "deviation detected" ? "critical" : r.status === "unable to determine" ? "warning" : "info";
+      const statuteMissingInfo = r.status === "unable to determine" ? 1 : 0;
       await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
       ).bind(
         crypto.randomUUID(),
         projectId,
@@ -483,6 +484,7 @@ export async function statuteMatchingAgent(ctx: AnalysisContext, facts: any[]): 
         severity,
         `[${r.statute_ref}] Case ${r.case_ref || "N/A"} — ${r.note} Status: ${r.status}.`,
         organizationId,
+        statuteMissingInfo,
       ).run();
     }
 
@@ -646,9 +648,10 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
     await db.prepare("DELETE FROM due_process_findings WHERE project_id = ? AND organization_id = ? AND rule LIKE 'discrepancy_%'").bind(projectId, organizationId).run();
 
     for (const c of conflicts) {
+      const discMissingInfo = (c.characterization?.toLowerCase().includes('missing') ?? false) ? 1 : 0;
       await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`
+        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info)
+         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
       ).bind(
         crypto.randomUUID(),
         projectId,
@@ -657,6 +660,7 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
         c.severity,
         c.characterization,
         organizationId,
+        discMissingInfo,
       ).run();
     }
 

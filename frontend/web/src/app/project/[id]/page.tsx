@@ -2,6 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+
+const PropertyMap = dynamic(() => import("@/components/PropertyMap"), { ssr: false });
 import ProjectNav, { type ProjectSection } from "@/components/ProjectNav";
 import MiniMap from "@/components/MiniMap";
 import type { ProjectSummary } from "@/lib/types";
@@ -20,7 +23,7 @@ import BuildingDeptPanel from "@/components/panels/BuildingDeptPanel";
 import InvestigationGraph from "@/components/InvestigationGraph";
 import TimelineList from "@/components/TimelineList";
 import DetailPanel from "@/components/DetailPanel";
-import { ArrowLeft, Shield, Loader2, CheckCircle2, AlertCircle, RefreshCw, ExternalLink, Network, Clock, Filter, ChevronDown } from "lucide-react";
+import { ArrowLeft, Shield, Loader2, CheckCircle2, AlertCircle, RefreshCw, ExternalLink, Network, Clock, Filter, ChevronDown, X } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
   return point ? { lng: point.coordinates[0], lat: point.coordinates[1] } : null;
@@ -369,7 +372,7 @@ export default function ProjectDashboard() {
 
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-fp-text-dim uppercase tracking-wide font-medium">Timeline Events:</span>
-            <span className="font-semibold text-fp-text text-sm">{project?.evidenceCount ?? 0}</span>
+            <span className="font-semibold text-fp-text text-sm">{project?.timelineCount ?? 0}</span>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -548,12 +551,28 @@ export default function ProjectDashboard() {
       </div>
 
       {mapExpanded && (
-        <div
-          className="fixed inset-0 z-40 bg-fp-bg/90 backdrop-blur-sm flex items-center justify-center"
-          onClick={() => setMapExpanded(false)}
-        >
-          <div className="text-fp-text-muted text-sm">
-            Swap in the full PropertyMap component here, centered on this project&apos;s parcel.
+        <div className="fixed inset-0 z-50 bg-fp-bg/95 backdrop-blur-sm flex flex-col">
+          {/* Top bar with close button */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-fp-border shrink-0">
+            <h2 className="text-lg font-semibold text-fp-text">
+              {project?.property.address || "Property Map"}
+            </h2>
+            <button
+              onClick={() => setMapExpanded(false)}
+              className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all"
+              title="Close map"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          {/* Full PropertyMap centered on this parcel */}
+          <div className="flex-1 relative">
+            <PropertyMap
+              initialCenter={project?.property.centroid ? [project.property.centroid.coordinates[0], project.property.centroid.coordinates[1]] : undefined}
+              initialZoom={16}
+              onSelectProperty={() => {}}
+              selectedProperty={null}
+            />
           </div>
         </div>
       )}
