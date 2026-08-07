@@ -24,6 +24,7 @@ export type NodeType =
 export type EdgeStatus = "pending_review" | "accepted" | "rejected" | "superseded";
 
 export interface EdgeProvenance {
+  id?: string;
   source: "derived" | "relationship_table";
   created_by?: string | null;
   created_by_type?: string | null;
