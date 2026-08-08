@@ -93,7 +93,7 @@ export default function AIReviewPanel({ projectId }: { projectId: string }) {
   const pendingProposals = data.proposals.filter(p => p.status === "pending");
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-4 pb-8" role="region" aria-label="AI Review">
       {/* Header */}
       <div className="glass rounded-xl p-4">
         <div className="flex items-center justify-between">

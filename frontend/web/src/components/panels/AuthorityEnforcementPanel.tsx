@@ -18,7 +18,7 @@ export default function AuthorityEnforcementPanel({ projectId }: { projectId: st
   const [subTab, setSubTab] = useState<SubTab>("agencies");
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-4 pb-8" role="region" aria-label="Authority and Enforcement">
       {/* Sub-tab navigation */}
       <div className="flex items-center gap-1 border-b border-fp-border pb-px overflow-x-auto" role="tablist">
         {SUB_TABS.map((tab) => {

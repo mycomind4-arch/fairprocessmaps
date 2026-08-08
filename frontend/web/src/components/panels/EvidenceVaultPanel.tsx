@@ -116,7 +116,7 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
   };
 
   return (
-    <div className="space-y-4 pb-8 max-w-5xl">
+    <div className="space-y-4 pb-8 max-w-5xl" role="region" aria-label="Evidence Vault">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>

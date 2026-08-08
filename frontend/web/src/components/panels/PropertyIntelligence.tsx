@@ -199,7 +199,7 @@ export default function PropertyIntelligence({
   const nextActionSection: ProjectSection = criticalFindings.length > 0 ? "analysis" : evCount === 0 ? "vault" : tlCount === 0 ? "timeline" : "analysis";
 
   return (
-    <div className="space-y-4 pb-8 max-w-5xl">
+    <div className="space-y-4 pb-8 max-w-5xl" role="region" aria-label="Property Intelligence">
       {/* ── Investigation Brief ── */}
       <div className="glass rounded-xl p-4 space-y-4">
         <div className="flex items-start justify-between gap-3">

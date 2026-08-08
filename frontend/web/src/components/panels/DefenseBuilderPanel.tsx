@@ -209,7 +209,7 @@ export default function DefenseBuilderPanel({ projectId }: { projectId: string }
   const evidentiaryCount = arguments_.filter(a => a.category === "evidentiary").length;
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-4 pb-8" role="region" aria-label="Defense Builder">
       {/* Header */}
       <div className="glass rounded-xl p-4">
         <div className="flex items-center justify-between">
