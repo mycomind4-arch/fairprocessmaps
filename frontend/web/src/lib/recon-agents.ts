@@ -91,7 +91,7 @@ interface ParcelData {
   apn: string;
 }
 
-async function fetchParcelByAPN(apn: string): Promise<ParcelData | null> {
+export async function fetchParcelByAPN(apn: string): Promise<ParcelData | null> {
   const cleanAPN = apn.replace(/[-\s]/g, "");
   const dashedAPN = toDashedAPN(apn);
   const where = `APN_12='${dashedAPN}' OR APN_12='${cleanAPN}' OR APN='${cleanAPN}' OR APN='${dashedAPN}'`;

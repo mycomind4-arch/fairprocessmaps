@@ -16,6 +16,7 @@ import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
 import AuthorityEnforcementPanel from "@/components/panels/AuthorityEnforcementPanel";
 import AIReviewPanel from "@/components/panels/AIReviewPanel";
+import ReconProgressModal from "@/components/ReconProgressModal";
 import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Menu } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
@@ -42,6 +43,8 @@ export default function ProjectDashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [recon, setRecon] = useState<ReconStatus | null>(null);
   const [reconTriggered, setReconTriggered] = useState(false);
+  const [showReconModal, setShowReconModal] = useState(false);
+  const [reconForce, setReconForce] = useState(false);
 
   const fetchProject = useCallback(() => {
     setFetchError(null);
@@ -69,38 +72,30 @@ export default function ProjectDashboard() {
 
   useEffect(() => { fetchProject(); }, [fetchProject]);
 
+  // Listen for manual recon trigger from PropertyIntelligence panel
+  useEffect(() => {
+    const handler = () => {
+      setReconForce(true);
+      setShowReconModal(true);
+    };
+    window.addEventListener("trigger-recon", handler);
+    return () => window.removeEventListener("trigger-recon", handler);
+  }, []);
+
+  // Auto-trigger recon modal when opening a project that hasn't been scanned
   useEffect(() => {
     if (!id || reconTriggered) return;
     if (project && !project.reconCompleted) {
       setReconTriggered(true);
-      setRecon({ running: true, agentCount: 12, succeeded: 0, failed: 0, noData: 0, message: "Running property intelligence recon…", agents: [] });
-      fetch(`/api/v1/intelligence/recon?projectId=${id}`, { method: "POST", headers: { "Cache-Control": "no-cache" } })
-        .then((r) => r.json())
-        .then((data: any) => {
-          if (data.error) {
-            setRecon({ running: false, agentCount: 0, succeeded: 0, failed: 0, noData: 0, message: `Recon error: ${data.error}`, agents: [] });
-            return;
-          }
-          const succeeded = data.succeeded ?? 0, failed = data.failed ?? 0, noData = data.noData ?? 0;
-          const agentCount = data.agentCount ?? 12;
-          const wasSkipped = data.agentCount > 0 && data.succeeded === 0 && data.intelligenceSummary?.includes("already completed");
-          setRecon({ running: false, agentCount, succeeded, failed, noData, message: wasSkipped ? "Recon already completed" : `Recon complete: ${succeeded}/${agentCount} agents succeeded`, agents: data.results ?? [] });
-          if (!wasSkipped) setTimeout(() => fetchProject(), 1000);
-        })
-        .catch((err) => { setRecon({ running: false, agentCount: 0, succeeded: 0, failed: 0, noData: 0, message: `Recon failed: ${err.message}`, agents: [] }); });
+      setReconForce(false);
+      setShowReconModal(true);
     }
-  }, [id, project, reconTriggered, fetchProject]);
+  }, [id, project, reconTriggered]);
 
   const reRunRecon = useCallback(() => {
-    setRecon({ running: true, agentCount: 12, succeeded: 0, failed: 0, noData: 0, message: "Re-running full recon (forced)…", agents: [] });
-    fetch(`/api/v1/intelligence/recon?projectId=${id}&force=true`, { method: "POST", headers: { "Cache-Control": "no-cache" } })
-      .then((r) => r.json())
-      .then((data: any) => {
-        setRecon({ running: false, agentCount: data.agentCount ?? 12, succeeded: data.succeeded ?? 0, failed: data.failed ?? 0, noData: data.noData ?? 0, message: `Recon complete: ${data.succeeded ?? 0}/${data.agentCount ?? 12} agents succeeded`, agents: data.results ?? [] });
-        setTimeout(() => fetchProject(), 1000);
-      })
-      .catch((err) => { setRecon({ running: false, agentCount: 0, succeeded: 0, failed: 0, noData: 0, message: `Recon failed: ${err.message}`, agents: [] }); });
-  }, [id, fetchProject]);
+    setReconForce(true);
+    setShowReconModal(true);
+  }, []);
 
   if (fetchError && !project) {
     return (
@@ -241,6 +236,16 @@ export default function ProjectDashboard() {
             />
           </div>
         </div>
+      )}
+
+      {showReconModal && (
+        <ReconProgressModal
+          projectId={id}
+          force={reconForce}
+          onComplete={(result) => { setRecon(result ? { running: false, agentCount: result.total, succeeded: result.succeeded, failed: result.failed, noData: result.noData, message: `Recon complete: ${result.succeeded}/${result.total} agents succeeded`, agents: [] } : null); fetchProject(); }}
+          onClose={() => setShowReconModal(false)}
+          autoStart={true}
+        />
       )}
     </div>
   );

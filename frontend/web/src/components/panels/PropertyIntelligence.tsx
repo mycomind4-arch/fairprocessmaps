@@ -213,7 +213,10 @@ export default function PropertyIntelligence({
             <button onClick={() => onNavigate("vault")} className="px-3 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all flex items-center gap-1.5">
               <Plus className="w-4 h-4" /> Upload Evidence
             </button>
-            <button onClick={fetchData} className="px-3 py-1.5 rounded-lg bg-fp-surface-2 border border-fp-border text-xs text-fp-text hover:bg-fp-surface transition-colors flex items-center gap-2" title="Refresh">
+            <button onClick={() => window.dispatchEvent(new CustomEvent("trigger-recon"))} className="px-3 py-1.5 rounded-lg bg-fp-blue text-white text-xs font-medium hover:bg-fp-blue/90 transition-colors flex items-center gap-2" title="Run full recon">
+              <Bot className="w-3.5 h-3.5" /> Run Full Recon
+            </button>
+            <button onClick={fetchData} className="px-3 py-1.5 rounded-lg bg-fp-surface-2 border border-fp-border text-xs text-fp-text hover:bg-fp-surface transition-colors flex items-center gap-2" title="Refresh data">
               <RefreshCw className="w-3.5 h-3.5" /> Refresh
             </button>
           </div>
