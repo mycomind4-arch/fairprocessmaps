@@ -123,6 +123,7 @@ export default function NewProjectModal({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. 2026 Code Abatement Appeal"
+                  aria-describedby="project-name-hint"
                   className="w-full px-4 py-2.5 rounded-xl bg-fp-surface border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim outline-none focus:border-fp-blue focus:ring-2 focus:ring-fp-blue/10 transition-all"
                 />
               </div>

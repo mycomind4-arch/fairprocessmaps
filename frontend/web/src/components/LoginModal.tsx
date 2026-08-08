@@ -25,7 +25,6 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       } else {
         await signUp(name, email, password);
       }
-      // Reset form on success
       setName("");
       setEmail("");
       setPassword("");
@@ -46,19 +45,19 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-fp-bg/80 backdrop-blur-md p-4 animate-[fade-in_0.2s_ease-out]"
       onClick={onClose}
-      role="button"
-      tabIndex={0}
-      aria-label="Close modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label={mode === "signin" ? "Sign in" : "Create account"}
     >
       <div
-        className="w-full max-w-sm glass rounded-[14px] p-6 shadow-2xl shadow-black/50 animate-[scale-in_0.2s_cubic-bezier(0.16,1,0.3,1)] space-y-6"
+        className="w-full max-w-sm glass rounded-xl p-5 shadow-2xl shadow-black/50 animate-[scale-in_0.2s_cubic-bezier(0.16,1,0.3,1)] space-y-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-center text-center space-y-2">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-lg shadow-fp-blue/20">
-            <Shield className="w-6 h-6 text-white" />
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-lg shadow-fp-blue/20">
+            <Shield className="w-5 h-5 text-white" />
           </div>
-          <h2 className="text-2xl font-semibold tracking-tight text-fp-text">
+          <h2 className="text-xl font-semibold tracking-tight text-fp-text">
             {mode === "signin" ? "Welcome Back" : "Create Account"}
           </h2>
           <p className="text-xs text-fp-text-dim uppercase tracking-wide">FairProcess Workspace</p>
@@ -74,7 +73,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                   placeholder="Jane Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl bg-fp-surface border border-fp-border px-4 py-2.5 text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue focus:ring-2 focus:ring-fp-blue/10 transition-all"
+                  className="w-full rounded-lg bg-fp-surface border border-fp-border px-3 py-2.5 text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue focus:ring-2 focus:ring-fp-blue/10 transition-all"
                   required
                   minLength={2}
                 />
@@ -87,7 +86,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl bg-fp-surface border border-fp-border px-4 py-2.5 text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue focus:ring-2 focus:ring-fp-blue/10 transition-all"
+                className="w-full rounded-lg bg-fp-surface border border-fp-border px-3 py-2.5 text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue focus:ring-2 focus:ring-fp-blue/10 transition-all"
                 required
               />
             </div>
@@ -98,19 +97,19 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl bg-fp-surface border border-fp-border px-4 py-2.5 text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue focus:ring-2 focus:ring-fp-blue/10 transition-all"
+                className="w-full rounded-lg bg-fp-surface border border-fp-border px-3 py-2.5 text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue focus:ring-2 focus:ring-fp-blue/10 transition-all"
                 required
                 minLength={8}
               />
             </div>
           </div>
 
-          {error && <p className="text-xs text-fp-red p-3 rounded-xl bg-fp-red/10 border border-fp-red/20">{error}</p>}
+          {error && <p className="text-xs text-fp-red p-3 rounded-lg bg-fp-red/10 border border-fp-red/20">{error}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-fp-blue text-white text-sm font-semibold py-3 hover:shadow-lg hover:shadow-fp-blue/25 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 disabled:opacity-50"
+            className="w-full rounded-lg bg-fp-blue text-white text-sm font-semibold py-2.5 hover:bg-fp-blue/90 transition-all disabled:opacity-50"
           >
             {loading
               ? mode === "signin" ? "Authenticating…" : "Creating account…"

@@ -160,8 +160,8 @@ export default function DetailPanel({
               return e;
             });
             // We can't mutate graph directly, but the parent will re-fetch
-            // Force a refresh by reloading
-            window.location.reload();
+            // Optimistically update — parent will re-fetch on next render
+            
           }
         }
       })

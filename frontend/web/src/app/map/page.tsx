@@ -130,7 +130,7 @@ export default function Home() {
         </div>
 
         {sidebarOpen && (
-          <aside className="w-[400px] border-l border-fp-border bg-fp-surface/80 backdrop-blur-xl flex flex-col overflow-hidden shrink-0 animate-[slide-right_0.3s_cubic-bezier(0.16,1,0.3,1)_forwards]">
+          <aside className="w-full sm:w-[380px] border-l border-fp-border bg-fp-surface/80 backdrop-blur-xl flex flex-col overflow-hidden shrink-0 animate-[slide-right_0.3s_cubic-bezier(0.16,1,0.3,1)_forwards]">
             <nav className="flex border-b border-fp-border shrink-0">
               {TABS.map((tab) => {
                 const Icon = tab.icon;

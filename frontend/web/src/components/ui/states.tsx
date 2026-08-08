@@ -27,7 +27,7 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-16 px-6 glass rounded-[14px] text-center max-w-lg mx-auto shadow-lg shadow-black/20">
+    <div className="flex flex-col items-center justify-center gap-4 py-16 px-6 surface-flat rounded-xl text-center max-w-lg mx-auto">
       <div className="w-16 h-16 rounded-[14px] glass flex items-center justify-center text-fp-blue shadow-md">
         <svg className="h-8 w-8 text-fp-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path

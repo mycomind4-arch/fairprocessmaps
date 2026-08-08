@@ -79,7 +79,7 @@ export default function SearchBar({ onSelectResult }: SearchBarProps) {
       </div>
 
       {showResults && results.length > 0 && (
-        <div className="absolute top-full mt-2 w-full glass rounded-[14px] shadow-2xl shadow-black/40 z-50 max-h-80 overflow-y-auto animate-[slide-down_0.2s_ease-out] p-2 space-y-1">
+        <div className="absolute top-full mt-2 w-full glass rounded-[14px] shadow-2xl shadow-black/40 z-50 max-h-80 overflow-y-auto animate-[slide-down_0.2s_ease-out] p-2 space-y-1 [mask-image:linear-gradient(to_bottom,black_85%,transparent)]">
           {results.map((r) => (
             <button
               key={`${r.type}-${r.id}`}

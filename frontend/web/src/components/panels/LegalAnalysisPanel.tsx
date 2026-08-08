@@ -20,7 +20,7 @@ export default function LegalAnalysisPanel({ projectId }: { projectId: string })
   return (
     <div className="space-y-4 pb-8">
       {/* Sub-tab navigation */}
-      <div className="flex items-center gap-1 border-b border-fp-border pb-px">
+      <div className="flex items-center gap-1 border-b border-fp-border pb-px overflow-x-auto" role="tablist">
         {SUB_TABS.map((tab) => {
           const Icon = tab.icon;
           const active = subTab === tab.id;
@@ -28,6 +28,8 @@ export default function LegalAnalysisPanel({ projectId }: { projectId: string })
             <button
               key={tab.id}
               onClick={() => setSubTab(tab.id)}
+              role="tab"
+              aria-selected={active}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all relative border-b-2 ${
                 active
                   ? "border-fp-blue text-fp-text"

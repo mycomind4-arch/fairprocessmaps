@@ -135,7 +135,7 @@ export default function InvestigationGraph({
 
   return (
     <div className="w-full h-full overflow-hidden relative">
-      <svg viewBox="0 0 800 400" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox="0 0 800 400" className="w-full h-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Investigation relationship graph">
         {/* Edges */}
         {edges.map((edge, i) => {
           const source = positions.get(edge.source);

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import {
-  FolderArchive,
   FileText,
   Loader2,
   AlertCircle,
@@ -110,35 +109,36 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
         const txt = await res.text().catch(() => "");
         throw new Error(`Upload failed: ${res.status} ${txt.slice(0, 200)}`);
       }
-      fetchData(); // refresh list
+      fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     }
   };
 
   return (
-    <div className="space-y-6 pb-8 max-w-5xl">
+    <div className="space-y-4 pb-8 max-w-5xl">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-fp-text">Document Vault</h2>
-          <p className="text-sm text-fp-text-muted mt-1">
+          <h2 className="text-xl font-semibold tracking-tight text-fp-text">Document Vault</h2>
+          <p className="text-sm text-fp-text-muted mt-0.5">
             Evidence files, extracted text, and AI due process analysis
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={fetchData}
-            className="p-2.5 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-colors border border-fp-border"
+            className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-colors border border-fp-border"
             title="Refresh"
+            aria-label="Refresh evidence"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
             onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all shadow-md hover:shadow-fp-blue/20"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all"
           >
-            <Upload className="w-4 h-4" /> Upload Document
+            <Upload className="w-4 h-4" /> Upload
           </button>
           <input
             ref={fileRef}
@@ -152,15 +152,15 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
       </div>
 
       {/* Filters and Search */}
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           {["all", "upload", "building_dept", "code_enforcement", "ai_research"].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 filter === f
-                  ? "bg-fp-blue/15 text-fp-blue border border-fp-blue/40 shadow-sm"
+                  ? "bg-fp-blue/15 text-fp-blue border border-fp-blue/40"
                   : "bg-fp-surface/60 text-fp-text-muted hover:text-fp-text border border-fp-border hover:border-fp-border-hover"
               }`}
             >
@@ -169,85 +169,80 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
           ))}
         </div>
         <div className="flex-1 max-w-sm relative min-w-[200px]">
-          <Search className="w-4 h-4 text-fp-text-dim absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-fp-text-dim absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search evidence documents…"
+            placeholder="Search evidence…"
             aria-label="Search evidence documents"
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-fp-surface border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue focus:ring-1 focus:ring-fp-blue transition-all"
+            className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-fp-surface border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue transition-all"
           />
         </div>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-3 text-fp-red text-sm p-4 rounded-[14px] bg-fp-red/10 border border-fp-red/20 shadow-sm">
-          <AlertCircle className="w-5 h-5 shrink-0" />
+        <div className="flex items-center gap-3 text-fp-red text-sm p-3 rounded-lg bg-fp-red/10 border border-fp-red/20">
+          <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center gap-3 py-16 text-fp-text-muted text-sm">
-          <Loader2 className="w-5 h-5 animate-spin text-fp-blue" />
+        <div className="flex items-center justify-center gap-3 py-12 text-fp-text-muted text-sm">
+          <Loader2 className="w-4 h-4 animate-spin text-fp-blue" />
           <span>Loading evidence vault…</span>
         </div>
       )}
 
       {/* Evidence list */}
       {!loading && filtered.length > 0 && (
-        <div className="grid gap-4">
+        <div className="grid gap-2.5">
           {filtered.map((item) => {
             const TypeIcon = getEvidenceTypeIcon(item.doc_type, item.source);
             return (
               <div
                 key={item.id}
-                className="rounded-[14px] glass p-6 shadow-lg shadow-black/20 transition-all duration-200 hover:-translate-y-0.5 hover:border-fp-blue/40 cursor-pointer group"
+                className="rounded-xl surface-flat hover:border-fp-blue/40 cursor-pointer group p-3 transition-all"
               >
-                <div className="flex items-start gap-5">
-                  {/* Larger Thumbnail Preview Tile */}
-                  <div className="w-16 h-16 rounded-xl bg-fp-surface-2 border border-fp-border flex items-center justify-center shrink-0 group-hover:border-fp-blue/40 transition-colors shadow-inner">
-                    <TypeIcon className="w-8 h-8 text-fp-blue group-hover:scale-105 transition-transform" />
+                <div className="flex items-start gap-3">
+                  {/* Compact icon */}
+                  <div className="w-10 h-10 rounded-lg bg-fp-surface-2 border border-fp-border flex items-center justify-center shrink-0 group-hover:border-fp-blue/40 transition-colors">
+                    <TypeIcon className="w-5 h-5 text-fp-blue" />
                   </div>
 
-                  {/* Document Details */}
                   <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-base font-semibold text-fp-text truncate group-hover:text-fp-blue transition-colors">
+                        <h3 className="text-sm font-semibold text-fp-text truncate group-hover:text-fp-blue transition-colors">
                           {item.title ?? "Untitled Document"}
                         </h3>
-                        
-                        {/* Type & Source Metadata */}
-                        <div className="flex items-center gap-2 flex-wrap mt-2">
-                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${sourceBadge(item.source)}`}>
+                        <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sourceBadge(item.source)}`}>
                             {item.source.replace(/_/g, " ")}
                           </span>
-
                           {item.doc_type && (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-fp-text-dim uppercase tracking-wide bg-fp-surface-2 px-2.5 py-0.5 rounded-md border border-fp-border font-medium">
-                              <TypeIcon className="w-3.5 h-3.5 text-fp-blue" />
+                            <span className="inline-flex items-center gap-1.5 text-xs text-fp-text-dim uppercase tracking-wide bg-fp-surface-2 px-2 py-0.5 rounded-md border border-fp-border font-medium">
+                              <TypeIcon className="w-3 h-3 text-fp-blue" />
                               {item.doc_type}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      {/* Consistently Aligned Status Badge & Right-Aligned Date */}
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusBadge(item.status)}`}>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusBadge(item.status)}`}>
                           {item.status}
                         </span>
-                        <span className="text-xs text-fp-text-dim tracking-wide font-mono">
+                        <span className="text-xs text-fp-text-dim tabular-nums">
                           {item.created_at?.slice(0, 10)}
                         </span>
                       </div>
                     </div>
 
                     {item.ai_summary && (
-                      <p className="text-sm text-fp-text-muted mt-3 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-fp-text-muted mt-2 leading-relaxed line-clamp-2">
                         {item.ai_summary}
                       </p>
                     )}
@@ -260,19 +255,13 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
       )}
 
       {/* Empty state */}
-      {!loading && filtered.length === 0 && !error && (
-        <div className="rounded-[14px] glass border-dashed border-fp-border p-12 text-center shadow-lg shadow-black/20">
-          <FolderArchive className="w-12 h-12 text-fp-text-dim mx-auto mb-4" />
-          <h3 className="text-base font-semibold text-fp-text">No documents in vault</h3>
-          <p className="text-sm text-fp-text-muted mt-2 mb-6 max-w-md mx-auto">
-            Upload PDFs, photos, or correspondence to build your evidence file and evaluate due process compliance.
-          </p>
-          <button
-            onClick={() => fileRef.current?.click()}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all shadow-md hover:shadow-fp-blue/20"
-          >
-            <Upload className="w-4 h-4" /> Upload Evidence
-          </button>
+      {!loading && filtered.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-12 h-12 rounded-xl surface-flat flex items-center justify-center mb-3">
+            <FileText className="w-6 h-6 text-fp-text-dim" />
+          </div>
+          <p className="text-sm text-fp-text-muted">No evidence documents found</p>
+          <p className="text-xs text-fp-text-dim mt-1">Upload documents or adjust filters.</p>
         </div>
       )}
     </div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { LoginModal } from "@/components/LoginModal";
-import { Shield, Map, FileText, Scale, ArrowRight, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Shield, Map, FileText, Scale, ArrowRight, AlertTriangle, Clock, Network, CheckCircle2 } from "lucide-react";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -47,6 +47,13 @@ export default function LandingPage() {
     );
   }
 
+  const features = [
+    { icon: Map, title: "Property-Centric GIS", desc: "Parcel boundaries, zoning overlays, and ownership data from county ArcGIS APIs." },
+    { icon: FileText, title: "AI Evidence Extraction", desc: "OCR and LLM-powered analysis of uploaded documents for legal relevance." },
+    { icon: Clock, title: "Timeline Reconstruction", desc: "Automated chronological sequencing of notices, hearings, and enforcement actions." },
+    { icon: Scale, title: "Due-Process Detection", desc: "Statute matching and procedural discrepancy detection against California code." },
+  ];
+
   return (
     <div className="min-h-screen bg-fp-bg flex flex-col">
       <header className="h-16 flex items-center justify-between px-6 glass shrink-0 z-20 border-b border-fp-border">
@@ -67,25 +74,51 @@ export default function LandingPage() {
         </button>
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-6">
-        <div className="max-w-2xl text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-xl shadow-fp-blue/30 mx-auto mb-8">
-            <Shield className="w-8 h-8 text-white" />
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+        <div className="max-w-3xl w-full text-center">
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-xl shadow-fp-blue/30 mx-auto mb-6">
+            <Shield className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-fp-text tracking-tight mb-4">
+          <h1 className="text-3xl font-bold text-fp-text tracking-tight mb-3">
             Evidence-First Due-Process Analysis
           </h1>
-          <p className="text-lg text-fp-text-muted mb-8">
+          <p className="text-base text-fp-text-muted mb-8 max-w-xl mx-auto">
             Property-centric GIS, public-record ingestion, AI extraction, timeline generation,
             and automated due-process discrepancy detection.
           </p>
-          <button
-            onClick={() => setShowLogin(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-fp-blue text-white font-medium hover:bg-fp-blue/90 transition-colors"
-          >
-            Get Started
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center justify-center gap-3 mb-12">
+            <button
+              onClick={() => setShowLogin(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-fp-blue text-white font-medium text-sm hover:bg-fp-blue/90 transition-colors"
+            >
+              Get Started
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowLogin(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-fp-border text-fp-text-muted font-medium text-sm hover:text-fp-text hover:border-fp-border-hover transition-colors"
+            >
+              View Dashboard
+            </button>
+          </div>
+
+          {/* Feature highlights */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+            {features.map((f) => {
+              const Icon = f.icon;
+              return (
+                <div key={f.title} className="surface-flat rounded-xl p-4 flex items-start gap-3 transition-all">
+                  <div className="w-9 h-9 rounded-lg bg-fp-blue/15 border border-fp-blue/30 flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 text-fp-blue" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-fp-text">{f.title}</h3>
+                    <p className="text-xs text-fp-text-muted mt-1 leading-relaxed">{f.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </main>
 

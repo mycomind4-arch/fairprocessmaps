@@ -67,15 +67,15 @@ export default function DocumentUpload({ propertyId, onUploaded }: DocumentUploa
   };
 
   return (
-    <div className="p-4 space-y-4 animate-[fade-in_0.3s_ease-out]">
+    <div className="p-4 space-y-3 animate-[fade-in_0.3s_ease-out]">
       <h2 className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider">Upload Evidence</h2>
 
       <div>
-        <label className="text-xs text-fp-text-dim block mb-1.5">Evidence Type</label>
+        <label className="text-xs text-fp-text-dim block mb-1">Evidence Type</label>
         <select
           value={evidenceType}
           onChange={(e) => setEvidenceType(e.target.value as EvidenceType)}
-          className="w-full text-sm rounded-xl bg-fp-surface border border-fp-border px-3 py-2 focus:outline-none focus:border-fp-blue/50 focus:ring-2 focus:ring-fp-blue/10 transition-all"
+          className="w-full text-sm rounded-lg bg-fp-surface border border-fp-border px-3 py-2 focus:outline-none focus:border-fp-blue/50 focus:ring-2 focus:ring-fp-blue/10 transition-all"
         >
           {EVIDENCE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
@@ -85,13 +85,13 @@ export default function DocumentUpload({ propertyId, onUploaded }: DocumentUploa
         onDrop={handleDrop}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
-        className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
-          dragOver ? "border-fp-blue bg-fp-blue/10 scale-[1.02]" : "border-fp-border hover:border-fp-border-hover glass"
+        className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
+          dragOver ? "border-fp-blue bg-fp-blue/10" : "border-fp-border hover:border-fp-border-hover surface-flat"
         }`}
         onClick={() => document.getElementById("file-input")?.click()}
       >
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 transition-all ${dragOver ? "bg-fp-blue/20 scale-110" : "bg-fp-surface-2"}`}>
-          <Upload className={`w-6 h-6 transition-colors ${dragOver ? "text-fp-blue" : "text-fp-text-dim"}`} />
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2 transition-all ${dragOver ? "bg-fp-blue/20" : "bg-fp-surface-2"}`}>
+          <Upload className={`w-5 h-5 transition-colors ${dragOver ? "text-fp-blue" : "text-fp-text-dim"}`} />
         </div>
         <p className="text-sm text-fp-text-muted">Drag & drop files here, or click to browse</p>
         <p className="text-xs text-fp-text-dim mt-1">PDF, images, documents — up to 50MB each</p>
@@ -99,16 +99,16 @@ export default function DocumentUpload({ propertyId, onUploaded }: DocumentUploa
       </div>
 
       {files.length > 0 && (
-        <div className="space-y-2 animate-[slide-down_0.2s_ease-out]">
+        <div className="space-y-1.5 animate-[slide-down_0.2s_ease-out]">
           {files.map((file, idx) => (
-            <div key={idx} className="flex items-center gap-2.5 glass rounded-lg px-3 py-2">
-              <div className="w-8 h-8 rounded-lg bg-fp-surface-2 flex items-center justify-center shrink-0">
-                <FileText className="w-4 h-4 text-fp-text-muted" />
+            <div key={idx} className="flex items-center gap-2.5 surface-flat rounded-lg px-3 py-2">
+              <div className="w-7 h-7 rounded-lg bg-fp-surface-2 flex items-center justify-center shrink-0">
+                <FileText className="w-3.5 h-3.5 text-fp-text-muted" />
               </div>
               <span className="text-sm flex-1 truncate text-fp-text">{file.name}</span>
               <span className="text-xs text-fp-text-dim shrink-0 tabular-nums">{formatSize(file.size)}</span>
-              <button onClick={() => removeFile(idx)} className="text-fp-text-dim hover:text-fp-red transition-colors p-1">
-                <X className="w-4 h-4" />
+              <button onClick={() => removeFile(idx)} className="text-fp-text-dim hover:text-fp-red transition-colors p-1" aria-label="Remove file">
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           ))}
@@ -116,27 +116,27 @@ export default function DocumentUpload({ propertyId, onUploaded }: DocumentUploa
       )}
 
       {files.length > 0 && status !== "uploading" && (
-        <button onClick={upload} className="w-full bg-gradient-to-r from-fp-blue to-fp-cyan text-white text-sm font-medium py-2.5 rounded-xl hover:shadow-lg hover:shadow-fp-blue/25 transition-all hover:scale-[1.01] active:scale-[0.99]">
+        <button onClick={upload} className="w-full bg-fp-blue text-white text-sm font-medium py-2.5 rounded-lg hover:bg-fp-blue/90 transition-all">
           Upload {files.length} file{files.length > 1 ? "s" : ""}
         </button>
       )}
 
       {status === "uploading" && (
-        <div className="flex items-center justify-center gap-2 text-sm text-fp-text-muted glass rounded-xl px-3 py-3">
+        <div className="flex items-center justify-center gap-2 text-sm text-fp-text-muted surface-flat rounded-lg px-3 py-2.5">
           <Loader2 className="w-4 h-4 animate-spin" />
           Uploading & queuing for processing...
         </div>
       )}
 
       {status === "success" && (
-        <div className="flex items-center gap-2 text-sm text-fp-green bg-fp-green/10 border border-fp-green/20 rounded-xl px-3 py-2.5 animate-[scale-in_0.25s_ease-out]">
+        <div className="flex items-center gap-2 text-sm text-fp-green bg-fp-green/10 border border-fp-green/20 rounded-lg px-3 py-2.5 animate-[scale-in_0.25s_ease-out]">
           <CheckCircle className="w-4 h-4 shrink-0" />
           Upload complete — processing queued
         </div>
       )}
 
       {status === "error" && (
-        <div className="flex items-center gap-2 text-sm text-fp-red bg-fp-red/10 border border-fp-red/20 rounded-xl px-3 py-2.5">
+        <div className="flex items-center gap-2 text-sm text-fp-red bg-fp-red/10 border border-fp-red/20 rounded-lg px-3 py-2.5">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {errorMsg}
         </div>

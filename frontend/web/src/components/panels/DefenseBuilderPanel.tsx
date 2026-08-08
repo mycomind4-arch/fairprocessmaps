@@ -6,14 +6,13 @@ import {
   Shield,
   FileText,
   AlertTriangle,
+  AlertCircle,
   ChevronRight,
   Plus,
   Loader2,
-  AlertCircle,
   RefreshCw,
   CheckCircle2,
   XCircle,
-  Link2,
 } from "lucide-react";
 
 interface Finding {
@@ -38,10 +37,7 @@ interface DefenseArgument {
   statutoryRef?: string;
 }
 
-// ── Rule → defense category mapping ──────────────────────────────────────
-
 const RULE_TO_CATEGORY: Record<string, "procedural" | "substantive" | "evidentiary"> = {
-  // Procedural: notice, hearing, appeal process violations
   notice_timing: "procedural",
   hearing_right: "procedural",
   appeal_pathway: "procedural",
@@ -52,21 +48,19 @@ const RULE_TO_CATEGORY: Record<string, "procedural" | "substantive" | "evidentia
   lien_without_due_process: "procedural",
   appeal_rights: "procedural",
   permit_review_right: "procedural",
-  // Substantive: code interpretation, classification, overreach
   work_without_permit: "substantive",
   expired_permit: "substantive",
   no_permit: "substantive",
   nuisance: "substantive",
   substandard: "substantive",
-  // Evidentiary: missing docs, contradictory records, chain of custody
   permit_after_ce_notice: "evidentiary",
   lien_without_ce_case: "evidentiary",
   incomplete_records: "evidentiary",
 };
 
 function categorizeRule(rule: string): "procedural" | "substantive" | "evidentiary" {
-  if (rule.startsWith("statute_")) return "procedural"; // statute matches are procedural deadlines
-  if (rule.startsWith("discrepancy_")) return "evidentiary"; // cross-source conflicts are evidentiary
+  if (rule.startsWith("statute_")) return "procedural";
+  if (rule.startsWith("discrepancy_")) return "evidentiary";
   return RULE_TO_CATEGORY[rule] ?? "procedural";
 }
 
@@ -106,10 +100,7 @@ function ruleToDefenseDescription(finding: Finding): string {
 }
 
 function generateArguments(findings: Finding[]): DefenseArgument[] {
-  // Only use open findings (not superseded/closed/resolved)
   const activeFindings = findings.filter(f => f.status === "open");
-
-  // Group findings by defense category
   const byCategory: Record<string, Finding[]> = {};
   for (const f of activeFindings) {
     const cat = categorizeRule(f.rule);
@@ -117,8 +108,6 @@ function generateArguments(findings: Finding[]): DefenseArgument[] {
     byCategory[cat].push(f);
   }
 
-  // Group findings within each category into distinct arguments
-  // Each unique rule becomes its own argument
   const arguments_: DefenseArgument[] = [];
   for (const [category, catFindings] of Object.entries(byCategory)) {
     const byRule: Record<string, Finding[]> = {};
@@ -144,7 +133,6 @@ function generateArguments(findings: Finding[]): DefenseArgument[] {
     }
   }
 
-  // Sort: procedural first, then substantive, then evidentiary
   const catOrder = { procedural: 0, substantive: 1, evidentiary: 2 };
   arguments_.sort((a, b) => catOrder[a.category] - catOrder[b.category]);
 
@@ -184,7 +172,6 @@ export default function DefenseBuilderPanel({ projectId }: { projectId: string }
     setGenerating(true);
     setError(null);
     try {
-      // Re-fetch findings and regenerate arguments
       await fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate defense arguments");
@@ -222,31 +209,32 @@ export default function DefenseBuilderPanel({ projectId }: { projectId: string }
   const evidentiaryCount = arguments_.filter(a => a.category === "evidentiary").length;
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-4 pb-8">
       {/* Header */}
-      <div className="glass rounded-[14px] p-6 border-fp-border shadow-lg shadow-black/20">
+      <div className="glass rounded-xl p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-fp-text flex items-center gap-2">
-              <Gavel className="w-5 h-5 text-fp-blue" />
+            <h2 className="text-base font-semibold text-fp-text flex items-center gap-2">
+              <Gavel className="w-4 h-4 text-fp-blue" />
               Defense Builder
             </h2>
-            <p className="text-sm text-fp-text-muted mt-1">
-              Auto-generated defense arguments from {findings.filter(f => f.status === "open").length} active due process findings. Each argument links to specific findings and statutory references.
+            <p className="text-xs text-fp-text-muted mt-0.5">
+              Auto-generated defense arguments from {findings.filter(f => f.status === "open").length} active due process findings.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={fetchData}
-              className="p-2.5 rounded-lg bg-fp-surface-2 border border-fp-border text-fp-text-muted hover:text-fp-text hover:bg-fp-surface transition-colors"
+              className="p-2 rounded-lg bg-fp-surface-2 border border-fp-border text-fp-text-muted hover:text-fp-text hover:bg-fp-surface transition-colors"
               title="Refresh findings"
+              aria-label="Refresh findings"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
             <button
               onClick={handleGenerate}
               disabled={generating}
-              className="px-4 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
+              className="px-3.5 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all flex items-center gap-2 disabled:opacity-50"
             >
               {generating ? (
                 <>
@@ -256,7 +244,7 @@ export default function DefenseBuilderPanel({ projectId }: { projectId: string }
               ) : (
                 <>
                   <Plus className="w-4 h-4" />
-                  Auto-Build Arguments
+                  Auto-Build
                 </>
               )}
             </button>
@@ -265,188 +253,111 @@ export default function DefenseBuilderPanel({ projectId }: { projectId: string }
       </div>
 
       {error && (
-        <div className="glass rounded-[14px] p-4 border-fp-red/30 bg-fp-red/10 flex items-center gap-3 text-fp-red text-sm">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          <span>{error}</span>
+        <div className="surface-flat rounded-lg p-3 border-fp-red/30 bg-fp-red/10 flex items-center gap-3 text-fp-red text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Category summary */}
+      {arguments_.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {[
+            { label: "Procedural", count: proceduralCount, color: "text-fp-blue" },
+            { label: "Substantive", count: substantiveCount, color: "text-fp-amber" },
+            { label: "Evidentiary", count: evidentiaryCount, color: "text-fp-green" },
+          ].map((cat) => (
+            <span key={cat.label} className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+              cat.count > 0
+                ? cat.color === "text-fp-blue" ? "bg-fp-blue/15 text-fp-blue border-fp-blue/30" : cat.color === "text-fp-amber" ? "bg-fp-amber/15 text-fp-amber border-fp-amber/30" : "bg-fp-green/15 text-fp-green border-fp-green/30"
+                : "bg-fp-surface-2 text-fp-text-dim border-fp-border"
+            }`}>
+              {cat.count} {cat.label}
+            </span>
+          ))}
         </div>
       )}
 
       {loading && (
-        <div className="flex items-center justify-center p-12 text-fp-text-muted text-sm gap-2">
-          <Loader2 className="w-4 h-4 animate-spin text-fp-blue" /> Loading defense arguments…
+        <div className="flex items-center justify-center gap-2 py-8 text-fp-text-muted text-sm">
+          <Loader2 className="w-4 h-4 animate-spin text-fp-blue" />
+          Loading defense arguments…
         </div>
       )}
 
-      {/* Defense Strategy Framework */}
-      {!loading && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="glass rounded-[14px] p-5 border-fp-border shadow-lg shadow-black/20">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle className="w-4 h-4 text-fp-blue" />
-              <h3 className="text-sm font-semibold text-fp-text">Procedural Defenses</h3>
-            </div>
-            <p className="text-xs text-fp-text-dim mb-3">
-              Notice defects, missed deadlines, jurisdiction errors, failure to follow required procedures.
-            </p>
-            <div className="text-2xl font-semibold text-fp-blue">{proceduralCount}</div>
+      {/* Arguments list */}
+      {!loading && arguments_.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-12 h-12 rounded-xl surface-flat flex items-center justify-center mb-3">
+            <Gavel className="w-6 h-6 text-fp-text-dim" />
           </div>
-
-          <div className="glass rounded-[14px] p-5 border-fp-border shadow-lg shadow-black/20">
-            <div className="flex items-center gap-2 mb-3">
-              <Shield className="w-4 h-4 text-fp-amber" />
-              <h3 className="text-sm font-semibold text-fp-text">Substantive Defenses</h3>
-            </div>
-            <p className="text-xs text-fp-text-dim mb-3">
-              Misinterpretation of code, overreach, improper classification, factual disputes.
-            </p>
-            <div className="text-2xl font-semibold text-fp-amber">{substantiveCount}</div>
-          </div>
-
-          <div className="glass rounded-[14px] p-5 border-fp-border shadow-lg shadow-black/20">
-            <div className="flex items-center gap-2 mb-3">
-              <FileText className="w-4 h-4 text-fp-green" />
-              <h3 className="text-sm font-semibold text-fp-text">Evidentiary Defenses</h3>
-            </div>
-            <p className="text-xs text-fp-text-dim mb-3">
-              Missing documentation, unreliable evidence, chain of custody, contradictory records.
-            </p>
-            <div className="text-2xl font-semibold text-fp-green">{evidentiaryCount}</div>
-          </div>
+          <p className="text-sm text-fp-text-muted">No defense arguments yet</p>
+          <p className="text-xs text-fp-text-dim mt-1">Run analysis agents to generate arguments from findings.</p>
         </div>
       )}
 
-      {/* Arguments List */}
-      {!loading && (
-        <div className="space-y-3">
-          <h3 className="text-base font-semibold text-fp-text">
-            Defense Arguments {arguments_.length > 0 && `(${arguments_.length})`}
-          </h3>
-
+      {!loading && arguments_.length > 0 && (
+        <div className="space-y-2">
           {arguments_.map((arg) => {
             const CatIcon = categoryIcon[arg.category];
             const StatusIcon = statusIcon[arg.status];
             const isExpanded = expandedId === arg.id;
-
             return (
-              <div
-                key={arg.id}
-                className="glass rounded-[14px] p-5 border-fp-border shadow-lg shadow-black/20 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-                onClick={() => setExpandedId(isExpanded ? null : arg.id)}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <h4 className="text-sm font-semibold text-fp-text">{arg.title}</h4>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${categoryColor[arg.category]}`}>
-                        {arg.category}
-                      </span>
-                      {arg.statutoryRef && (
-                        <span className="text-xs px-2 py-0.5 rounded-md bg-fp-surface-2 text-fp-text-dim border border-fp-border font-mono">
-                          {arg.statutoryRef}
-                        </span>
-                      )}
+              <div key={arg.id} className="rounded-xl surface-flat overflow-hidden">
+                <button
+                  onClick={() => setExpandedId(isExpanded ? null : arg.id)}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-fp-surface-2/40 transition-colors"
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${categoryColor[arg.category]}`}>
+                    <CatIcon className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-fp-text truncate">{arg.title}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-xs ${categoryColor[arg.category].split(" ")[0]}`}>{arg.category}</span>
+                      <span className="text-xs text-fp-text-dim">·</span>
+                      <span className="text-xs text-fp-text-dim">{arg.findings.length} finding{arg.findings.length !== 1 ? "s" : ""}</span>
                     </div>
-                    <p className="text-xs text-fp-text-muted">{arg.description}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <StatusIcon className={`w-3.5 h-3.5 ${
+                        arg.status === "ready" ? "text-fp-green" : arg.status === "strengthening" ? "text-fp-amber" : "text-fp-red"
+                      }`} />
+                      <span className="text-fp-text-dim hidden sm:inline">{statusLabel[arg.status]}</span>
+                    </div>
+                    <ChevronRight className={`w-4 h-4 text-fp-text-dim transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                  </div>
+                </button>
 
-                    {isExpanded && (
-                      <div className="pt-3 space-y-2 border-t border-fp-border/50">
-                        <div className="text-xs font-semibold text-fp-text-dim uppercase tracking-wide">
-                          Supporting Findings ({arg.findings.length})
-                        </div>
-                        {arg.findings.map((f) => (
-                          <div key={f.id} className="flex items-start gap-2 p-2 rounded-lg bg-fp-surface-2/40 border border-fp-border/40">
-                            <Link2 className="w-3.5 h-3.5 text-fp-blue shrink-0 mt-0.5" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                                  f.severity === "critical" ? "bg-fp-red/15 text-fp-red" :
-                                  f.severity === "warning" ? "bg-fp-amber/15 text-fp-amber" :
-                                  "bg-fp-surface-2 text-fp-text-dim"
-                                }`}>
-                                  {f.severity}
-                                </span>
-                                <span className="text-xs text-fp-text-muted font-mono">{f.rule}</span>
-                              </div>
-                              <p className="text-xs text-fp-text-muted mt-1">{f.detail}</p>
-                              {f.evidence_id && (
-                                <span className="text-xs text-fp-green flex items-center gap-1 mt-1">
-                                  <Link2 className="w-3 h-3" /> Evidence linked
-                                </span>
-                              )}
+                {isExpanded && (
+                  <div className="px-3 pb-3 pt-1 border-t border-fp-border/30 space-y-2">
+                    <p className="text-sm text-fp-text-muted leading-relaxed">{arg.description}</p>
+                    {arg.statutoryRef && (
+                      <div className="text-xs text-fp-text-dim">
+                        Statutory ref: <span className="font-mono text-fp-blue">{arg.statutoryRef}</span>
+                      </div>
+                    )}
+                    {arg.findings.length > 1 && (
+                      <div className="space-y-1.5 pt-2 border-t border-fp-border/30">
+                        {arg.findings.slice(1).map((f) => (
+                          <div key={f.id} className="flex items-start gap-2 text-xs p-2 rounded-lg bg-fp-surface-2/40 border border-fp-border/40">
+                            <AlertTriangle className={`w-3 h-3 shrink-0 mt-0.5 ${
+                              f.severity === "critical" ? "text-fp-red" : f.severity === "warning" ? "text-fp-amber" : "text-fp-text-dim"
+                            }`} />
+                            <div className="min-w-0">
+                              <span className="text-fp-text font-medium">{f.rule_name || f.rule}</span>
+                              {f.detail && <span className="text-fp-text-muted block truncate">{f.detail}</span>}
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
-
-                    {!isExpanded && arg.findings.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {arg.findings.slice(0, 3).map((f) => (
-                          <span
-                            key={f.id}
-                            className="text-xs px-2 py-0.5 rounded-md bg-fp-surface-2 text-fp-text-dim border border-fp-border/40 font-mono"
-                          >
-                            {f.rule}
-                          </span>
-                        ))}
-                        {arg.findings.length > 3 && (
-                          <span className="text-xs text-fp-text-dim">
-                            +{arg.findings.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-1.5">
-                      <StatusIcon className={`w-3.5 h-3.5 ${
-                        arg.status === "ready" ? "text-fp-green" :
-                        arg.status === "strengthening" ? "text-fp-amber" :
-                        "text-fp-text-dim"
-                      }`} />
-                      <span className="text-xs text-fp-text-dim">{statusLabel[arg.status]}</span>
-                    </div>
-                    <ChevronRight className={`w-4 h-4 text-fp-text-dim group-hover:text-fp-blue transition-all ${isExpanded ? "rotate-90" : ""}`} />
-                  </div>
-                </div>
+                )}
               </div>
             );
           })}
-
-          {arguments_.length === 0 && !loading && (
-            <div className="glass rounded-[14px] p-12 text-center">
-              <Gavel className="w-12 h-12 text-fp-text-dim mx-auto mb-4" />
-              <h4 className="text-base font-semibold text-fp-text">No defense arguments yet</h4>
-              <p className="text-sm text-fp-text-muted mt-1 mb-4">
-                Run property intelligence recon to generate due process findings, then click "Auto-Build Arguments" to generate defense arguments from those findings.
-              </p>
-              <button
-                onClick={handleGenerate}
-                disabled={generating}
-                className="px-6 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-all inline-flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Auto-Build from Findings
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Export hint */}
-      {!loading && arguments_.length > 0 && (
-        <div className="glass rounded-[14px] p-6 border-fp-blue/20">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-fp-blue/15 border border-fp-blue/30 flex items-center justify-center shrink-0">
-              <FileText className="w-5 h-5 text-fp-blue" />
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-fp-text">Generate Legal Brief</h4>
-              <p className="text-xs text-fp-text-muted mt-1">
-                These defense arguments feed directly into the Brief Generator. Navigate to Legal Analysis → Brief Generator to export a motion, appeal letter, or complaint that cites these findings and statutory references.
-              </p>
-            </div>
-          </div>
         </div>
       )}
     </div>

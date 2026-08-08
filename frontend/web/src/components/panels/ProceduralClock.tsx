@@ -141,7 +141,7 @@ export default function ProceduralClock({
 
     // Check for missing steps (pending deadlines)
     const completedSteps = new Set(proceduralSteps.map((s) => s.step));
-    const expectedOrder = ["complaint", "inspection", "notice", "heearing", "appeal", "decision"];
+    // (dead code removed — expectedOrder was unused)
 
     return checks;
   }, [proceduralSteps]);
