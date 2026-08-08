@@ -65,10 +65,11 @@ export async function buildInputSnapshot(
   ).bind(projectId, organizationId).all();
 
   // Relationships (semantic only — derived edges are computed, not stored)
+  // Scoped to organization_id for defense-in-depth (C4)
   const relationships = await db.prepare(
     `SELECT id, source_type, source_id, target_type, target_id, relationship_type, status, confidence
-     FROM relationships WHERE case_id = ? AND status != 'superseded'`,
-  ).bind(projectId).all();
+     FROM relationships WHERE case_id = ? AND organization_id = ? AND status != 'superseded'`,
+  ).bind(projectId, organizationId).all();
 
   return {
     case_id: p.id as string,

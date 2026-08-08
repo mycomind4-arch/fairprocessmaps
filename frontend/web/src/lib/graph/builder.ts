@@ -585,8 +585,8 @@ export async function buildInvestigationFocus(
   // ── Authority gap detection ──
   // Check if findings reference statutes/authorities (via relationships)
   const semanticRels = await db.prepare(
-    `SELECT COUNT(*) AS n FROM relationships WHERE case_id = ? AND status != 'superseded'`,
-  ).bind(projectId).first();
+    `SELECT COUNT(*) AS n FROM relationships WHERE case_id = ? AND organization_id = ? AND status != 'superseded'`,
+  ).bind(projectId, organizationId).first();
   if ((semanticRels?.n as number) === 0 && ((findings as any)?.total ?? 0) as number > 0) {
     observations.push({
       type: "authority_gap",
