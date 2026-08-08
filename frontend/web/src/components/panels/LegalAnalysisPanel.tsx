@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, BookOpen, FileText } from "lucide-react";
+import { AlertTriangle, BookOpen, FileText, Gavel } from "lucide-react";
 import DiscrepanciesPanel from "./DiscrepanciesPanel";
 import LegalLibraryPanel from "./LegalLibraryPanel";
 import { BriefGeneratorPanel } from "./BriefGeneratorPanel";
+import DefenseBuilderPanel from "./DefenseBuilderPanel";
 
-type SubTab = "findings" | "library" | "briefs";
+type SubTab = "findings" | "defense" | "library" | "briefs";
 
 const SUB_TABS: { id: SubTab; label: string; icon: typeof BookOpen }[] = [
   { id: "findings", label: "Due Process Findings", icon: AlertTriangle },
-  { id: "library", label: "Legal & Law Library", icon: BookOpen },
+  { id: "defense", label: "Defense Builder", icon: Gavel },
+  { id: "library", label: "Legal Library", icon: BookOpen },
   { id: "briefs", label: "Brief Generator", icon: FileText },
 ];
 
@@ -30,7 +32,7 @@ export default function LegalAnalysisPanel({ projectId }: { projectId: string })
               onClick={() => setSubTab(tab.id)}
               role="tab"
               aria-selected={active}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all relative border-b-2 ${
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all relative border-b-2 whitespace-nowrap ${
                 active
                   ? "border-fp-blue text-fp-text"
                   : "border-transparent text-fp-text-dim hover:text-fp-text-muted"
@@ -49,9 +51,8 @@ export default function LegalAnalysisPanel({ projectId }: { projectId: string })
       {/* Sub-tab content */}
       <div className="animate-[fade-in_0.3s_ease-out]">
         {subTab === "findings" && <DiscrepanciesPanel projectId={projectId} />}
-
+        {subTab === "defense" && <DefenseBuilderPanel projectId={projectId} />}
         {subTab === "library" && <LegalLibraryPanel />}
-
         {subTab === "briefs" && <BriefGeneratorPanel projectId={projectId} />}
       </div>
     </div>

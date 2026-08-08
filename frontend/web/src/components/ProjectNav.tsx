@@ -3,30 +3,29 @@
 import {
   Search,
   Building2,
-  ScaleIcon,
   FolderArchive,
   Plug,
   Settings,
   Calendar,
-  Gavel,
+  ScaleIcon,
+  Bot,
 } from "lucide-react";
 
 export type ProjectSection =
   | "intelligence"
-  | "timeline"
   | "authority"
+  | "timeline"
   | "vault"
-  | "legal"
-  | "defense-builder"
+  | "analysis"
+  | "ai-review"
   | "connectors"
-  | "admin"
-  | "graph";
+  | "admin";
 
 interface NavItem {
   id: ProjectSection;
   label: string;
   icon: typeof Search;
-  badgeKey?: "findings";
+  badgeKey?: "findings" | "ai-review";
 }
 
 interface NavGroup {
@@ -36,19 +35,14 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: "CASE BUILDING",
+    title: "INVESTIGATION",
     items: [
       { id: "intelligence", label: "Property Intelligence", icon: Search },
-      { id: "timeline", label: "Timeline", icon: Calendar },
       { id: "authority", label: "Authority & Enforcement", icon: Building2 },
+      { id: "timeline", label: "Timeline", icon: Calendar },
       { id: "vault", label: "Evidence", icon: FolderArchive },
-    ],
-  },
-  {
-    title: "ANALYSIS & DEFENSE",
-    items: [
-      { id: "legal", label: "Legal Analysis", icon: ScaleIcon, badgeKey: "findings" },
-      { id: "defense-builder", label: "Defense Builder", icon: Gavel },
+      { id: "analysis", label: "Analysis", icon: ScaleIcon, badgeKey: "findings" },
+      { id: "ai-review", label: "AI Review", icon: Bot, badgeKey: "ai-review" },
     ],
   },
   {
@@ -64,9 +58,10 @@ interface ProjectNavProps {
   active: ProjectSection;
   onSelect: (section: ProjectSection) => void;
   criticalFindingsCount?: number;
+  aiReviewCount?: number;
 }
 
-export default function ProjectNav({ active, onSelect, criticalFindingsCount = 0 }: ProjectNavProps) {
+export default function ProjectNav({ active, onSelect, criticalFindingsCount = 0, aiReviewCount = 0 }: ProjectNavProps) {
   return (
     <nav className="w-56 shrink-0 border-r border-fp-border bg-fp-surface/60 backdrop-blur-xl flex flex-col py-3 overflow-y-auto lg:w-64" aria-label="Project navigation">
       {NAV_GROUPS.map((group, groupIdx) => (
@@ -78,8 +73,9 @@ export default function ProjectNav({ active, onSelect, criticalFindingsCount = 0
           <div className="space-y-0.5">
             {group.items.map((section) => {
               const Icon = section.icon;
-              const isActive = active === section.id || (section.id === "intelligence" && active === "graph");
+              const isActive = active === section.id;
               const showBadge = section.badgeKey === "findings" && criticalFindingsCount > 0;
+              const showAI = section.badgeKey === "ai-review" && aiReviewCount > 0;
               return (
                 <button
                   key={section.id}
@@ -96,6 +92,11 @@ export default function ProjectNav({ active, onSelect, criticalFindingsCount = 0
                   {showBadge && (
                     <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-fp-red/20 text-fp-red">
                       {criticalFindingsCount}
+                    </span>
+                  )}
+                  {showAI && (
+                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-fp-blue/20 text-fp-blue">
+                      {aiReviewCount}
                     </span>
                   )}
                 </button>

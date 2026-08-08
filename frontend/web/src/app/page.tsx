@@ -74,36 +74,46 @@ export default function LandingPage() {
         </button>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <div className="max-w-3xl w-full text-center">
-          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-xl shadow-fp-blue/30 mx-auto mb-6">
-            <Shield className="w-7 h-7 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-fp-text tracking-tight mb-3">
-            Evidence-First Due-Process Analysis
-          </h1>
-          <p className="text-base text-fp-text-muted mb-8 max-w-xl mx-auto">
-            Property-centric GIS, public-record ingestion, AI extraction, timeline generation,
-            and automated due-process discrepancy detection.
-          </p>
-          <div className="flex items-center justify-center gap-3 mb-12">
-            <button
-              onClick={() => setShowLogin(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-fp-blue text-white font-medium text-sm hover:bg-fp-blue/90 transition-colors"
-            >
-              Get Started
-              <ArrowRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setShowLogin(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-fp-border text-fp-text-muted font-medium text-sm hover:text-fp-text hover:border-fp-border-hover transition-colors"
-            >
-              View Dashboard
-            </button>
-          </div>
+      <main className="flex-1 flex flex-col">
+        {/* Hero — background image with dark overlay for legibility */}
+        <div className="relative flex flex-col items-center justify-center px-6 py-20 sm:py-28 overflow-hidden">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: "url(/images/hero-fairprocess.png)" }}
+            aria-hidden="true"
+          />
+          <div className="absolute inset-0 bg-fp-bg/70" aria-hidden="true" />
+          <div className="absolute inset-0 bg-gradient-to-t from-fp-bg via-fp-bg/40 to-transparent" aria-hidden="true" />
 
-          {/* Feature highlights */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+          <div className="relative max-w-2xl w-full text-center">
+            <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mb-3 drop-shadow-sm">
+              Evidence-First Due-Process Analysis
+            </h1>
+            <p className="text-base text-white/80 mb-8 max-w-xl mx-auto">
+              Property-centric GIS, public-record ingestion, AI extraction, timeline generation,
+              and automated due-process discrepancy detection.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setShowLogin(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-fp-blue text-white font-medium text-sm hover:bg-fp-blue/90 transition-colors"
+              >
+                Get Started
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowLogin(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/30 text-white/90 font-medium text-sm hover:text-white hover:border-white/50 transition-colors"
+              >
+                View Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature highlights — below the fold, on normal surface */}
+        <div className="flex-1 px-6 py-12">
+          <div className="max-w-3xl w-full mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
             {features.map((f) => {
               const Icon = f.icon;
               return (
