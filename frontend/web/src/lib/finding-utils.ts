@@ -13,18 +13,34 @@
  * Used for upsert: if fingerprint matches, preserve existing status/reviews.
  */
 export function findingFingerprint(
-  rule: string,
-  evidenceId: string | null,
-  detail: string,
+  ruleOrFinding: string | { project_id?: string; rule: string; evidence_id?: string | null; detail?: string | null },
+  evidenceId?: string | null,
+  detail?: string,
 ): string {
-  const input = `${rule}|${evidenceId ?? "none"}|${detail.slice(0, 200)}`;
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
+  // Accept both call patterns:
+  //   findingFingerprint({ project_id, rule, evidence_id, detail })  — object form
+  //   findingFingerprint(rule, evidenceId, detail)                  — args form
+  let projectId: string | undefined;
+  let rule: string;
+  let evId: string | null;
+  let det: string;
+
+  if (typeof ruleOrFinding === "object" && ruleOrFinding !== null) {
+    projectId = ruleOrFinding.project_id;
+    rule = ruleOrFinding.rule;
+    evId = ruleOrFinding.evidence_id ?? null;
+    det = ruleOrFinding.detail ?? "";
+  } else {
+    rule = ruleOrFinding as string;
+    evId = evidenceId ?? null;
+    det = detail ?? "";
   }
-  return `fp_${Math.abs(hash).toString(36)}`;
+
+  // Readable fingerprint format: project_id:rule:evidenceId:detail (truncated)
+  const pid = projectId ?? "none";
+  const eid = evId ?? "none";
+  const detSlug = det.slice(0, 100) || "none";
+  return `${pid}:${rule}:${eid}:${detSlug}`;
 }
 
 export interface FindingInput {
@@ -66,7 +82,7 @@ export async function fingerprintUpsertFindings(
 ): Promise<UpsertResult> {
   // Generate fingerprints for new findings
   const newFingerprints = new Set(
-    newFindings.map(f => findingFingerprint(f.rule, f.evidence_id ?? null, f.detail))
+    newFindings.map(f => findingFingerprint(f.rule, f.evidence_id ?? null, f.detail ?? ""))
   );
 
   // Build the scope filter
@@ -110,7 +126,7 @@ export async function fingerprintUpsertFindings(
   let preserved = 0;
 
   for (const finding of newFindings) {
-    const fp = findingFingerprint(finding.rule, finding.evidence_id ?? null, finding.detail);
+    const fp = findingFingerprint(finding.rule, finding.evidence_id ?? null, finding.detail ?? "");
     const existing = existingByFingerprint.get(fp);
     if (existing) {
       // Finding already exists — preserve status, reviewed_by, reviewed_at

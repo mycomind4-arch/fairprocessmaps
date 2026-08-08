@@ -17,6 +17,10 @@
  */
 
 import type { D1Database } from "@opennextjs/cloudflare";
+import { findingFingerprint } from "./finding-utils";
+
+// Re-export for backward compatibility — tests and other modules import from here
+export { findingFingerprint };
 
 // ── Types ──
 
@@ -547,6 +551,7 @@ export async function getAuthorityChain(
 export function eventToTimelineDisplay(event: any): {
   event_type: string;
   description: string;
+  event_date: string;
 } {
   const payload = event.payload ? JSON.parse(event.payload) : {};
   const typeMap: Record<string, { event_type: string; description: string }> = {
@@ -577,7 +582,11 @@ export function eventToTimelineDisplay(event: any): {
     "relationship.created": { event_type: "relationship_created", description: `Relationship created: ${payload.relationship_type ?? "Unknown"}` },
   };
 
-  return typeMap[event.event_type] ?? { event_type: event.event_type, description: event.event_type };
+  const mapped = typeMap[event.event_type] ?? { event_type: event.event_type, description: event.event_type };
+  return {
+    ...mapped,
+    event_date: event.event_date ?? event.created_at ?? new Date().toISOString(),
+  };
 }
 
 // ── Replay: Reconstruct views from the event store ──
