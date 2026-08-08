@@ -1,10 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import {
-  CheckCircle2, XCircle, Loader2, AlertCircle,
-  Bot, RefreshCw, X, FileText, Database, Search,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, X, Bot, Maximize2, Minimize2 } from "lucide-react";
 
 type AgentStatus = "pending" | "running" | "success" | "no_data" | "error";
 
@@ -15,206 +12,264 @@ interface AgentState {
   message?: string;
 }
 
-interface ReconProgressModalProps {
+interface ReconState {
+  running: boolean;
+  agents: AgentState[];
+  total: number;
+  completed: number;
+  succeeded: number;
+  failed: number;
+  noData: number;
+  done: boolean;
+  error: string | null;
+}
+
+interface TopProgressBarProps {
   projectId: string;
   force?: boolean;
   onComplete?: (result: { succeeded: number; failed: number; noData: number; total: number }) => void;
-  onClose?: () => void;
   autoStart?: boolean;
 }
 
-// Category labels for grouping
-const AGENT_CATEGORIES: Record<string, { label: string; icon: typeof Bot }> = {
-  parcel: { label: "County GIS", icon: Database },
-  zoning: { label: "County GIS", icon: Database },
-  coastal_zone: { label: "Environmental", icon: Search },
-  flood: { label: "Environmental", icon: Search },
-  fire: { label: "Environmental", icon: Search },
-  tsunami: { label: "Environmental", icon: Search },
-  seismic: { label: "Environmental", icon: Search },
-  sea_level_rise: { label: "Environmental", icon: Search },
-  airport: { label: "Environmental", icon: Search },
-  jurisdiction: { label: "Jurisdiction", icon: FileText },
-  natural_resources: { label: "Environmental", icon: Search },
-  adu: { label: "Permits", icon: FileText },
-  building_permits: { label: "Records", icon: Database },
-  code_enforcement: { label: "Records", icon: Database },
-  county_recorder: { label: "Records", icon: Database },
-  due_process_analysis: { label: "Analysis", icon: Bot },
-};
+export function useReconStream(projectId: string, force: boolean, onComplete?: (r: any) => void) {
+  const [state, setState] = useState<ReconState>({
+    running: false,
+    agents: [],
+    total: 0,
+    completed: 0,
+    succeeded: 0,
+    failed: 0,
+    noData: 0,
+    done: false,
+    error: null,
+  });
 
-export default function ReconProgressModal({
-  projectId,
-  force = false,
-  onComplete,
-  onClose,
-  autoStart = true,
-}: ReconProgressModalProps) {
-  const [agents, setAgents] = useState<AgentState[]>([]);
-  const [running, setRunning] = useState(false);
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<{ succeeded: number; failed: number; noData: number; total: number } | null>(null);
-  const [minimized, setMinimized] = useState(false);
-  const eventSourceRef = useRef<EventSource | null>(null);
-
-  const startRecon = useCallback(() => {
-    setRunning(true);
-    setDone(false);
-    setError(null);
-    setSummary(null);
-    setAgents([]);
+  const start = () => {
+    setState({
+      running: true,
+      agents: [],
+      total: 0,
+      completed: 0,
+      succeeded: 0,
+      failed: 0,
+      noData: 0,
+      done: false,
+      error: null,
+    });
 
     const url = `/api/v1/intelligence/recon/stream?projectId=${encodeURIComponent(projectId)}${force ? "&force=true" : ""}`;
     const es = new EventSource(url);
-    eventSourceRef.current = es;
 
     es.addEventListener("agent_start", (e: MessageEvent) => {
       const data = JSON.parse(e.data);
-      setAgents((prev) => {
-        // Replace if exists, otherwise add
-        const existing = prev.findIndex((a) => a.name === data.agent);
+      setState((prev) => {
+        const existing = prev.agents.findIndex((a) => a.name === data.agent);
         const newAgent: AgentState = { name: data.agent, description: data.description, status: "running" };
-        if (existing >= 0) {
-          const copy = [...prev];
-          copy[existing] = newAgent;
-          return copy;
-        }
-        return [...prev, newAgent];
+        const agents = existing >= 0
+          ? prev.agents.map((a, i) => i === existing ? newAgent : a)
+          : [...prev.agents, newAgent];
+        return { ...prev, agents, total: data.total || agents.length };
       });
     });
 
     es.addEventListener("agent_done", (e: MessageEvent) => {
       const data = JSON.parse(e.data);
-      setAgents((prev) =>
-        prev.map((a) =>
+      setState((prev) => ({
+        ...prev,
+        agents: prev.agents.map((a) =>
           a.name === data.agent
             ? { ...a, status: data.status, message: data.message }
             : a,
         ),
-      );
+        completed: data.completed,
+        succeeded: prev.agents.filter((a) => a.name !== data.agent && a.status === "success").length + (data.status === "success" ? 1 : 0),
+        failed: prev.agents.filter((a) => a.name !== data.agent && a.status === "error").length + (data.status === "error" ? 1 : 0),
+        noData: prev.agents.filter((a) => a.name !== data.agent && a.status === "no_data").length + (data.status === "no_data" ? 1 : 0),
+      }));
     });
 
     es.addEventListener("complete", (e: MessageEvent) => {
       const data = JSON.parse(e.data);
-      if (data.skipped) {
-        setDone(true);
-        setRunning(false);
-        setSummary({ succeeded: 0, failed: 0, noData: 0, total: 0 });
-      } else {
-        setSummary({ succeeded: data.succeeded, failed: data.failed, noData: data.noData, total: data.total });
-        setDone(true);
-        setRunning(false);
-        onComplete?.({ succeeded: data.succeeded, failed: data.failed, noData: data.noData, total: data.total });
-      }
+      setState((prev) => ({
+        ...prev,
+        running: false,
+        done: true,
+        succeeded: data.succeeded ?? prev.succeeded,
+        failed: data.failed ?? prev.failed,
+        noData: data.noData ?? prev.noData,
+        total: data.total ?? prev.total,
+      }));
+      onComplete?.({ succeeded: data.succeeded, failed: data.failed, noData: data.noData, total: data.total });
       es.close();
-      eventSourceRef.current = null;
     });
 
     es.addEventListener("error", (e: MessageEvent) => {
-      // Check if it's a data error event or a connection error
       try {
         const data = e.data ? JSON.parse(e.data) : null;
         if (data?.message) {
-          setError(data.message);
+          setState((prev) => ({ ...prev, running: false, error: data.message }));
         }
       } catch {
-        // Connection error — EventSource will auto-retry, but if we're done, close
-        if (done) {
-          es.close();
-          eventSourceRef.current = null;
-        }
+        // Connection error
+        setState((prev) => ({ ...prev, running: false }));
       }
-      setRunning(false);
+      es.close();
     });
 
-    return () => {
-      es.close();
-      eventSourceRef.current = null;
-    };
-  }, [projectId, force, onComplete, done]);
+    return () => es.close();
+  };
 
-  // Auto-start recon
+  return { state, start };
+}
+
+// ── Top Progress Bar — shows at the very top of the page ──
+export function TopProgressBar({ state }: { state: ReconState }) {
+  const [progress, setProgress] = useState(0);
+  const [label, setLabel] = useState("");
+
   useEffect(() => {
-    if (autoStart) startRecon();
-    return () => {
-      eventSourceRef.current?.close();
-      eventSourceRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!state.running && !state.done) return;
 
-  const completedCount = agents.filter((a) => a.status === "success" || a.status === "no_data" || a.status === "error").length;
-  const totalCount = agents.length;
-  const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+    if (state.done) {
+      setProgress(100);
+      if (state.failed > 0) {
+        setLabel(`Recon complete: ${state.succeeded}/${state.total} succeeded, ${state.failed} failed`);
+      } else {
+        setLabel(`Recon complete: ${state.succeeded}/${state.total} agents succeeded`);
+      }
+      const t = setTimeout(() => setProgress(0), 4000);
+      return () => clearTimeout(t);
+    }
 
-  const succeededCount = agents.filter((a) => a.status === "success").length;
-  const failedCount = agents.filter((a) => a.status === "error").length;
-  const noDataCount = agents.filter((a) => a.status === "no_data").length;
+    if (state.total > 0) {
+      setProgress((state.completed / state.total) * 100);
+      const running = state.agents.find((a) => a.status === "running");
+      if (running) {
+        setLabel(`Running: ${running.name.replace(/_/g, " ")} (${state.completed}/${state.total})`);
+      } else {
+        setLabel(`Processing agents… (${state.completed}/${state.total})`);
+      }
+    } else {
+      setProgress(5);
+      setLabel("Starting recon agents…");
+    }
+  }, [state]);
 
-  // Group agents by category
-  const categoryOrder = ["County GIS", "Environmental", "Jurisdiction", "Permits", "Records", "Analysis"];
-  const groupedAgents = categoryOrder.map((cat) => ({
-    category: cat,
-    items: agents.filter((a) => AGENT_CATEGORIES[a.name]?.label === cat),
-  })).filter((g) => g.items.length > 0);
+  if (progress === 0) return null;
 
-  // Render minimized bar
-  if (minimized && (running || done)) {
+  const isComplete = state.done;
+  const isError = state.error && state.failed > 0;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[100] h-1.5 pointer-events-none">
+      <div
+        className={`h-full transition-all duration-500 ease-out ${
+          isComplete
+            ? isError ? "bg-fp-red" : "bg-fp-green"
+            : "bg-fp-blue"
+        }`}
+        style={{ width: `${progress}%` }}
+      />
+      {state.running && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 pointer-events-auto">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass shadow-lg text-xs font-medium">
+            <Loader2 className="w-3 h-3 animate-spin text-fp-blue" />
+            <span className="text-fp-text">{label}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Agent Popup Window — shows all agents running in a draggable/floating panel ──
+export function AgentPopup({
+  state,
+  onClose,
+  onMinimize,
+  minimized,
+}: {
+  state: ReconState;
+  onClose: () => void;
+  onMinimize: () => void;
+  minimized: boolean;
+}) {
+  if (minimized && (state.running || state.done)) {
     return (
       <div className="fixed bottom-4 right-4 z-50 animate-[slide-up_0.2s_ease-out]">
-        <div className="surface-flat rounded-xl shadow-2xl shadow-black/40 p-3 flex items-center gap-3 min-w-[280px]">
-          {running ? (
+        <button
+          onClick={onMinimize}
+          className="surface-flat rounded-xl shadow-2xl shadow-black/40 p-3 flex items-center gap-3 min-w-[280px] hover:border-fp-blue/30 border border-transparent transition-colors"
+        >
+          {state.running ? (
             <Loader2 className="w-4 h-4 text-fp-blue animate-spin shrink-0" />
           ) : (
-            <CheckCircle2 className="w-4 h-4 text-fp-green shrink-0" />
+            <Bot className="w-4 h-4 text-fp-green shrink-0" />
           )}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 text-left">
             <div className="text-xs font-semibold text-fp-text">
-              {running ? "Recon running" : "Recon complete"}
+              {state.running ? "Recon in progress" : "Recon complete"}
             </div>
             <div className="text-[10px] text-fp-text-dim">
-              {completedCount}/{totalCount} agents · {succeededCount} succeeded
+              {state.completed}/{state.total} agents · {state.succeeded} succeeded · {state.failed} failed
             </div>
           </div>
-          <button onClick={() => setMinimized(false)} className="p-1.5 rounded-lg text-fp-text-dim hover:text-fp-text hover:bg-fp-surface-2 transition-colors" aria-label="Expand">
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-        </div>
+          <Maximize2 className="w-3.5 h-3.5 text-fp-text-dim" />
+        </button>
       </div>
     );
   }
 
+  const progressPct = state.total > 0 ? (state.completed / state.total) * 100 : 0;
+
+  // Group agents by category
+  const AGENT_CATEGORIES: Record<string, string> = {
+    parcel: "County GIS", zoning: "County GIS",
+    coastal_zone: "Environmental", flood: "Environmental", fire: "Environmental",
+    tsunami: "Environmental", seismic: "Environmental", sea_level_rise: "Environmental",
+    airport: "Environmental", natural_resources: "Environmental",
+    jurisdiction: "Jurisdiction", adu: "Permits",
+    building_permits: "Records", code_enforcement: "Records", county_recorder: "Records",
+    due_process_analysis: "Analysis",
+  };
+  const categoryOrder = ["County GIS", "Environmental", "Jurisdiction", "Permits", "Records", "Analysis"];
+  const groupedAgents = categoryOrder.map((cat) => ({
+    category: cat,
+    items: state.agents.filter((a) => AGENT_CATEGORIES[a.name] === cat),
+  })).filter((g) => g.items.length > 0);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-fp-bg/80 backdrop-blur-sm p-4 animate-[fade-in_0.2s_ease-out]" onClick={() => (done || error) && onClose?.()}>
-      <div
-        className="w-full max-w-2xl rounded-xl surface-flat shadow-2xl shadow-black/50 animate-[scale-in_0.2s_cubic-bezier(0.16,1,0.3,1)] max-h-[85vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Property Intelligence Recon"
-      >
+    <div
+      className="fixed bottom-4 right-4 z-50 w-[420px] max-w-[calc(100vw-2rem)] max-h-[70vh] animate-[slide-up_0.2s_ease-out]"
+      role="dialog"
+      aria-label="Agent activity"
+    >
+      <div className="surface-flat rounded-xl shadow-2xl shadow-black/50 flex flex-col max-h-[70vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-fp-border shrink-0">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${running ? "bg-fp-blue/15" : done ? "bg-fp-green/15" : "bg-fp-surface-2"}`}>
-              {running ? <Loader2 className="w-4 h-4 text-fp-blue animate-spin" /> : done ? <CheckCircle2 className="w-4 h-4 text-fp-green" /> : <Bot className="w-4 h-4 text-fp-text-dim" />}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-fp-border shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${state.running ? "bg-fp-blue/15" : state.done ? "bg-fp-green/15" : "bg-fp-surface-2"}`}>
+              {state.running ? <Loader2 className="w-3.5 h-3.5 text-fp-blue animate-spin" /> : state.done ? <Bot className="w-3.5 h-3.5 text-fp-green" /> : <Bot className="w-3.5 h-3.5 text-fp-text-dim" />}
             </div>
             <div>
-              <h2 className="text-base font-semibold text-fp-text">Property Intelligence Recon</h2>
-              <p className="text-xs text-fp-text-dim mt-0.5">
-                {running ? "Agents gathering data from county systems…" : done ? `Complete: ${succeededCount} succeeded, ${failedCount} failed, ${noDataCount} no data` : "Ready to start"}
+              <h2 className="text-sm font-semibold text-fp-text">Agent Activity</h2>
+              <p className="text-[10px] text-fp-text-dim mt-0.5">
+                {state.running
+                  ? `${state.completed}/${state.total} agents complete`
+                  : state.done
+                  ? `Done: ${state.succeeded} ✓ ${state.failed} ✗ ${state.noData} —`
+                  : "Waiting to start…"}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            {running && (
-              <button onClick={() => setMinimized(true)} className="p-1.5 rounded-lg text-fp-text-dim hover:text-fp-text hover:bg-fp-surface-2 transition-colors" title="Minimize" aria-label="Minimize">
-                <RefreshCw className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-1">
+            {state.running && (
+              <button onClick={onMinimize} className="p-1.5 rounded-lg text-fp-text-dim hover:text-fp-text hover:bg-fp-surface-2 transition-colors" title="Minimize" aria-label="Minimize">
+                <Minimize2 className="w-3.5 h-3.5" />
               </button>
             )}
-            {(done || error) && (
-              <button onClick={() => onClose?.()} className="p-1.5 rounded-lg text-fp-text-dim hover:text-fp-text hover:bg-fp-surface-2 transition-colors" title="Close" aria-label="Close">
+            {(state.done || state.error) && (
+              <button onClick={onClose} className="p-1.5 rounded-lg text-fp-text-dim hover:text-fp-text hover:bg-fp-surface-2 transition-colors" title="Close" aria-label="Close">
                 <X className="w-4 h-4" />
               </button>
             )}
@@ -222,15 +277,15 @@ export default function ReconProgressModal({
         </div>
 
         {/* Progress bar */}
-        {totalCount > 0 && (
-          <div className="px-5 py-3 border-b border-fp-border/50 shrink-0">
+        {state.total > 0 && (
+          <div className="px-4 py-2.5 border-b border-fp-border/50 shrink-0">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] uppercase tracking-wide text-fp-text-dim font-medium">Overall Progress</span>
-              <span className="text-xs font-mono text-fp-text">{completedCount}/{totalCount}</span>
+              <span className="text-[10px] uppercase tracking-wide text-fp-text-dim font-medium">Progress</span>
+              <span className="text-xs font-mono text-fp-text">{state.completed}/{state.total}</span>
             </div>
             <div className="h-1.5 rounded-full bg-fp-surface-2 overflow-hidden">
               <div
-                className="h-full rounded-full bg-fp-blue transition-all duration-300 ease-out"
+                className={`h-full rounded-full transition-all duration-300 ease-out ${state.done ? "bg-fp-green" : "bg-fp-blue"}`}
                 style={{ width: `${progressPct}%` }}
               />
             </div>
@@ -238,50 +293,41 @@ export default function ReconProgressModal({
         )}
 
         {/* Agent list — scrollable */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {error && (
-            <div className="flex items-center gap-3 text-fp-red text-sm p-3 rounded-lg bg-fp-red/10 border border-fp-red/20">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          {state.error && (
+            <div className="flex items-center gap-2 text-fp-red text-sm p-3 rounded-lg bg-fp-red/10 border border-fp-red/20">
+              <X className="w-4 h-4 shrink-0" />
+              <span>{state.error}</span>
             </div>
           )}
 
           {groupedAgents.map(({ category, items }) => (
-            <div key={category} className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wide text-fp-text-dim font-semibold flex items-center gap-1.5 mb-1">
-                {category}
-              </div>
+            <div key={category} className="space-y-1">
+              <div className="text-[10px] uppercase tracking-wide text-fp-text-dim font-semibold mb-1">{category}</div>
               {items.map((agent) => (
-                <div
-                  key={agent.name}
-                  className="flex items-start gap-3 p-2.5 rounded-lg bg-fp-surface-2/40 border border-fp-border/60 transition-colors"
-                >
-                  {/* Status icon */}
+                <div key={agent.name} className="flex items-start gap-2.5 p-2 rounded-lg bg-fp-surface-2/40 border border-fp-border/60 transition-colors">
                   <div className="shrink-0 mt-0.5">
-                    {agent.status === "pending" && <div className="w-4 h-4 rounded-full border-2 border-fp-border" />}
-                    {agent.status === "running" && <Loader2 className="w-4 h-4 text-fp-blue animate-spin" />}
-                    {agent.status === "success" && <CheckCircle2 className="w-4 h-4 text-fp-green" />}
-                    {agent.status === "no_data" && <div className="w-4 h-4 rounded-full border-2 border-fp-text-dim flex items-center justify-center"><div className="w-1 h-1 rounded-full bg-fp-text-dim" /></div>}
-                    {agent.status === "error" && <XCircle className="w-4 h-4 text-fp-red" />}
+                    {agent.status === "pending" && <div className="w-3.5 h-3.5 rounded-full border-2 border-fp-border" />}
+                    {agent.status === "running" && <Loader2 className="w-3.5 h-3.5 text-fp-blue animate-spin" />}
+                    {agent.status === "success" && <div className="w-3.5 h-3.5 rounded-full bg-fp-green flex items-center justify-center text-white text-[8px]">✓</div>}
+                    {agent.status === "no_data" && <div className="w-3.5 h-3.5 rounded-full border-2 border-fp-text-dim flex items-center justify-center"><div className="w-1 h-1 rounded-full bg-fp-text-dim" /></div>}
+                    {agent.status === "error" && <div className="w-3.5 h-3.5 rounded-full bg-fp-red flex items-center justify-center text-white text-[8px]">✕</div>}
                   </div>
-
-                  {/* Agent info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-fp-text capitalize">{agent.name.replace(/_/g, " ")}</span>
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium text-fp-text capitalize">{agent.name.replace(/_/g, " ")}</span>
+                      <span className={`text-[9px] font-medium px-1 py-0.5 rounded ${
                         agent.status === "success" ? "text-fp-green bg-fp-green/10" :
                         agent.status === "error" ? "text-fp-red bg-fp-red/10" :
                         agent.status === "no_data" ? "text-fp-text-dim bg-fp-surface-2" :
                         agent.status === "running" ? "text-fp-blue bg-fp-blue/10" :
                         "text-fp-text-dim"
                       }`}>
-                        {agent.status === "pending" ? "queued" : agent.status === "running" ? "running" : agent.status}
+                        {agent.status === "pending" ? "queued" : agent.status}
                       </span>
                     </div>
-                    <div className="text-xs text-fp-text-muted mt-0.5">{agent.description}</div>
                     {agent.message && agent.status !== "running" && (
-                      <div className="text-xs text-fp-text-dim mt-1 leading-relaxed line-clamp-2">{agent.message}</div>
+                      <div className="text-[10px] text-fp-text-dim mt-0.5 leading-relaxed line-clamp-2">{agent.message}</div>
                     )}
                   </div>
                 </div>
@@ -289,30 +335,12 @@ export default function ReconProgressModal({
             </div>
           ))}
 
-          {totalCount === 0 && !error && (
-            <div className="flex items-center justify-center py-8 text-fp-text-dim text-sm">
-              <Loader2 className="w-4 h-4 animate-spin text-fp-blue mr-2" />
-              Initializing agents…
+          {state.agents.length === 0 && !state.error && (
+            <div className="flex items-center justify-center py-6 text-fp-text-dim text-xs">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" /> Starting agents…
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        {done && (
-          <div className="px-5 py-3 border-t border-fp-border shrink-0 flex items-center justify-between">
-            <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1.5 text-fp-green"><CheckCircle2 className="w-3.5 h-3.5" /> {succeededCount} succeeded</span>
-              <span className="flex items-center gap-1.5 text-fp-red"><XCircle className="w-3.5 h-3.5" /> {failedCount} failed</span>
-              <span className="flex items-center gap-1.5 text-fp-text-dim"><div className="w-3 h-3 rounded-full border border-fp-text-dim" /> {noDataCount} no data</span>
-            </div>
-            <button
-              onClick={() => onClose?.()}
-              className="px-4 py-2 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
-            >
-              Done
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

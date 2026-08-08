@@ -16,7 +16,7 @@ import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
 import AuthorityEnforcementPanel from "@/components/panels/AuthorityEnforcementPanel";
 import AIReviewPanel from "@/components/panels/AIReviewPanel";
-import ReconProgressModal from "@/components/ReconProgressModal";
+import { useReconStream, TopProgressBar, AgentPopup } from "@/components/ReconProgressModal";
 import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Menu } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
@@ -31,6 +31,31 @@ interface ReconStatus {
   noData: number;
   message: string;
   agents: { name: string; status: string; message: string }[];
+}
+
+// Wrapper component to use the new hook-based recon
+function ProjectRecon({ projectId, force, onComplete, onClose }: {
+  projectId: string;
+  force: boolean;
+  onComplete?: (r: any) => void;
+  onClose?: () => void;
+}) {
+  const { state, start } = useReconStream(projectId, force, onComplete);
+  const [popupMinimized, setPopupMinimized] = useState(false);
+
+  useEffect(() => { start(); /* eslint-disable-next-line */ }, []);
+
+  return (
+    <>
+      <TopProgressBar state={state} />
+      <AgentPopup
+        state={state}
+        onClose={onClose || (() => {})}
+        onMinimize={() => setPopupMinimized(!popupMinimized)}
+        minimized={popupMinimized}
+      />
+    </>
+  );
 }
 
 export default function ProjectDashboard() {
@@ -239,12 +264,11 @@ export default function ProjectDashboard() {
       )}
 
       {showReconModal && (
-        <ReconProgressModal
+        <ProjectRecon
           projectId={id}
           force={reconForce}
           onComplete={(result) => { setRecon(result ? { running: false, agentCount: result.total, succeeded: result.succeeded, failed: result.failed, noData: result.noData, message: `Recon complete: ${result.succeeded}/${result.total} agents succeeded`, agents: [] } : null); fetchProject(); }}
           onClose={() => setShowReconModal(false)}
-          autoStart={true}
         />
       )}
     </div>

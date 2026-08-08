@@ -3,6 +3,10 @@
  *
  * Server-Sent Events endpoint that streams agent results in real-time
  * as each recon agent completes.
+ *
+ * UPDATED: Re-running recon now UPDATES existing records instead of
+ * deleting and recreating them. Property intelligence is always saved
+ * and persists across runs — re-running only refreshes the data.
  */
 import { NextRequest } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
@@ -75,19 +79,10 @@ export async function GET(req: NextRequest) {
       .bind(projectId, project.organization_id as string).first();
     if (existing) {
       return new Response(
-        `event: complete\ndata: ${JSON.stringify({ skipped: true, message: "Recon already completed" })}\n\n`,
+        `event: complete\ndata: ${JSON.stringify({ skipped: true, message: "Recon already completed — use force=true to refresh" })}\n\n`,
         { status: 200, headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store" } },
       );
     }
-  }
-
-  // If forcing, clean up old records
-  if (force) {
-    await db.prepare(`DELETE FROM timeline_events WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?)`).bind(projectId, project.organization_id as string).run();
-    await db.prepare(`DELETE FROM due_process_findings WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?)`).bind(projectId, project.organization_id as string).run();
-    await db.prepare(`DELETE FROM evidence_relations WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?) OR related_evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?)`).bind(projectId, project.organization_id as string, projectId, project.organization_id as string).run();
-    await db.prepare(`DELETE FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?`).bind(projectId, project.organization_id as string).run();
-    await db.prepare(`DELETE FROM property_intelligence WHERE property_id = ?`).bind(project.property_id as string).run();
   }
 
   const encoder = new TextEncoder();
@@ -165,26 +160,60 @@ export async function GET(req: NextRequest) {
           if (result.data) intelligenceData[result.agent] = result.data;
         }
 
-        // Write to property_intelligence cache
-        const reconId = crypto.randomUUID();
-        await db.prepare(
-          `INSERT INTO property_intelligence (id, property_id, apn, zoning, general_plan, acres, coastal_zone, flood_zone, fire_responsibility, legal_description, raw_data, fetched_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-           ON CONFLICT(id) DO UPDATE SET raw_data = excluded.raw_data, fetched_at = datetime('now')`
-        ).bind(
-          reconId, project.property_id, apn,
-          intelligenceData.parcel?.zoning || null,
-          intelligenceData.zoning?.general_plan || null,
-          intelligenceData.parcel?.acres ? parseFloat(intelligenceData.parcel.acres) : null,
-          intelligenceData.coastal_zone?.in_coastal_zone ? "Yes" : "No",
-          intelligenceData.flood?.in_flood_zone ? "Yes" : "No",
-          intelligenceData.fire?.fire_responsibility || null,
-          intelligenceData.parcel?.LEGAL || null,
-          JSON.stringify(intelligenceData),
-        ).run();
+        // ── UPSERT property intelligence (update, not delete) ──
+        // Check if a record already exists for this property
+        const existingIntel = await db
+          .prepare(`SELECT id FROM property_intelligence WHERE property_id = ? ORDER BY fetched_at DESC LIMIT 1`)
+          .bind(project.property_id as string)
+          .first();
 
-        // Create evidence record
-        const evidenceId = crypto.randomUUID();
+        if (existingIntel) {
+          // UPDATE existing record
+          await db.prepare(
+            `UPDATE property_intelligence SET
+              apn = ?, zoning = ?, general_plan = ?, acres = ?,
+              coastal_zone = ?, flood_zone = ?, fire_responsibility = ?,
+              legal_description = ?, raw_data = ?, fetched_at = datetime('now')
+             WHERE id = ?`
+          ).bind(
+            apn,
+            intelligenceData.parcel?.zoning || null,
+            intelligenceData.zoning?.general_plan || null,
+            intelligenceData.parcel?.acres ? parseFloat(intelligenceData.parcel.acres) : null,
+            intelligenceData.coastal_zone?.in_coastal_zone ? "Yes" : "No",
+            intelligenceData.flood?.in_flood_zone ? "Yes" : "No",
+            intelligenceData.fire?.fire_responsibility || null,
+            intelligenceData.parcel?.LEGAL || null,
+            JSON.stringify(intelligenceData),
+            existingIntel.id as string,
+          ).run();
+        } else {
+          // INSERT new record
+          const reconId = crypto.randomUUID();
+          await db.prepare(
+            `INSERT INTO property_intelligence (id, property_id, apn, zoning, general_plan, acres, coastal_zone, flood_zone, fire_responsibility, legal_description, raw_data, fetched_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+          ).bind(
+            reconId, project.property_id, apn,
+            intelligenceData.parcel?.zoning || null,
+            intelligenceData.zoning?.general_plan || null,
+            intelligenceData.parcel?.acres ? parseFloat(intelligenceData.parcel.acres) : null,
+            intelligenceData.coastal_zone?.in_coastal_zone ? "Yes" : "No",
+            intelligenceData.flood?.in_flood_zone ? "Yes" : "No",
+            intelligenceData.fire?.fire_responsibility || null,
+            intelligenceData.parcel?.LEGAL || null,
+            JSON.stringify(intelligenceData),
+          ).run();
+        }
+
+        // ── UPSERT evidence record (update existing, don't delete) ──
+        const existingEvidence = await db
+          .prepare(
+            `SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND doc_type = 'recon_report' AND organization_id = ? LIMIT 1`,
+          )
+          .bind(projectId, project.organization_id as string)
+          .first();
+
         const summaryLines = [
           `FAIRPROCESS PROPERTY INTELLIGENCE RECONNAISSANCE REPORT`,
           `Generated: ${new Date().toISOString()}`,
@@ -198,27 +227,41 @@ export async function GET(req: NextRequest) {
           ...results.map((r) => `[${r.status.toUpperCase()}] ${r.agent}: ${r.message}`),
         ];
 
-        await db.prepare(
-          `INSERT INTO evidence (id, project_id, organization_id, source, doc_type, title, status, extracted_text, ai_summary)
-           VALUES (?, ?, ?, 'ai_research', 'recon_report', ?, 'processed', ?, ?)`
-        ).bind(
-          evidenceId, projectId, project.organization_id as string,
-          `Property Intelligence Recon — APN ${apn}`,
-          summaryLines.join("\n"),
-          `Full recon: ${succeeded}/${total} agents succeeded. ${failed} failed, ${noData} no data.`,
-        ).run();
+        if (existingEvidence) {
+          // UPDATE existing evidence
+          await db.prepare(
+            `UPDATE evidence SET extracted_text = ?, ai_summary = ?, status = 'processed' WHERE id = ?`
+          ).bind(
+            summaryLines.join("\n"),
+            `Full recon: ${succeeded}/${total} agents succeeded. ${failed} failed, ${noData} no data.`,
+            existingEvidence.id as string,
+          ).run();
+        } else {
+          // INSERT new evidence
+          const evidenceId = crypto.randomUUID();
+          await db.prepare(
+            `INSERT INTO evidence (id, project_id, organization_id, source, doc_type, title, status, extracted_text, ai_summary)
+             VALUES (?, ?, ?, 'ai_research', 'recon_report', ?, 'processed', ?, ?)`
+          ).bind(
+            evidenceId, projectId, project.organization_id as string,
+            `Property Intelligence Recon — APN ${apn}`,
+            summaryLines.join("\n"),
+            `Full recon: ${succeeded}/${total} agents succeeded. ${failed} failed, ${noData} no data.`,
+          ).run();
+        }
 
-        // Create timeline event
+        // Create a timeline event for this recon run (always, even on update)
         await db.prepare(
           `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, organization_id)
            VALUES (?, ?, ?, datetime('now'), 'intelligence_gathered', ?, ?)`
         ).bind(
-          crypto.randomUUID(), projectId, evidenceId,
-          `Full property intelligence recon completed: ${succeeded}/${total} agents succeeded (${failed} failed, ${noData} no data).`,
+          crypto.randomUUID(), projectId,
+          existingEvidence?.id as string || null,
+          `Property intelligence ${force ? "refreshed" : "completed"}: ${succeeded}/${total} agents succeeded (${failed} failed, ${noData} no data).`,
           project.organization_id as string,
         ).run();
 
-        // Run analysis agents
+        // Run analysis agents (always — they upsert findings via fingerprint)
         let analysisSummary = "";
         try {
           const analysisResult = await runAnalysisAgents({
@@ -232,7 +275,7 @@ export async function GET(req: NextRequest) {
           analysisSummary = `Analysis agents error: ${err?.message || "unknown"}`;
         }
 
-        send("complete", { succeeded, failed, noData, total, evidenceId, analysisSummary });
+        send("complete", { succeeded, failed, noData, total, evidenceId: existingEvidence?.id || null, analysisSummary, refreshed: force });
       } catch (err: any) {
         send("error", { message: err instanceof Error ? err.message : "Unknown error" });
       } finally {
