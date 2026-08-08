@@ -162,7 +162,7 @@ export default function PropertyIntelligence({
   type AttentionItem = { label: string; sub?: string; section: ProjectSection; severity: "critical" | "warning" | "info" };
   const attentionItems: AttentionItem[] = [];
   criticalFindings.forEach(f => attentionItems.push({ label: f.rule_name || f.rule, sub: f.detail || undefined, section: "analysis", severity: "critical" }));
-  missingInfoFindings.forEach(f => attentionItems.push({ label: `Missing evidence: ${f.rule_name || f.rule}`, sub: f.detail || undefined, section: "evidence" as any, severity: "warning" }));
+  missingInfoFindings.forEach(f => attentionItems.push({ label: `Missing evidence: ${f.rule_name || f.rule}`, sub: f.detail || undefined, section: "vault", severity: "warning" }));
   if (overview && overview.recentTimeline && overview.recentTimeline.length > 0) {
     const latest = overview.recentTimeline[0];
     attentionItems.push({ label: `New timeline event: ${latest.event_type}`, sub: latest.description || latest.event_date, section: "timeline", severity: "info" });
