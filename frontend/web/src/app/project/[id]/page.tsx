@@ -16,7 +16,7 @@ import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
 import AuthorityEnforcementPanel from "@/components/panels/AuthorityEnforcementPanel";
 import AIReviewPanel from "@/components/panels/AIReviewPanel";
-import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, RefreshCw, X } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Menu } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
   return point ? { lng: point.coordinates[0], lat: point.coordinates[1] } : null;
@@ -39,6 +39,7 @@ export default function ProjectDashboard() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [section, setSection] = useState<ProjectSection>("intelligence");
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [recon, setRecon] = useState<ReconStatus | null>(null);
   const [reconTriggered, setReconTriggered] = useState(false);
 
@@ -125,7 +126,7 @@ export default function ProjectDashboard() {
     <div className="h-screen flex flex-col bg-fp-bg">
       {/* Header */}
       <header className="shrink-0 border-b border-fp-border bg-fp-surface/60 backdrop-blur-xl">
-        <div className="flex items-center justify-between px-6 py-3">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3">
           <div className="flex items-center gap-4 min-w-0">
             <button onClick={() => router.push("/dashboard")} className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all shrink-0" title="Back to projects">
               <ArrowLeft className="w-5 h-5" />
@@ -164,7 +165,7 @@ export default function ProjectDashboard() {
         <div className="border-t border-fp-border" />
 
         {/* Compact stat readouts */}
-        <div className="flex items-center gap-8 text-xs overflow-x-auto py-0.5">
+        <div className="flex items-center gap-6 sm:gap-8 text-xs overflow-x-auto py-0.5 px-4 sm:px-6">
           <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Evidence:</span><span className="font-semibold text-fp-text text-sm">{project?.evidenceCount ?? 0}</span></div>
           <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Timeline:</span><span className="font-semibold text-fp-text text-sm">{project?.timelineCount ?? 0}</span></div>
           <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Findings:</span><span className="font-semibold text-fp-text text-sm">{project?.openFindingsCount ?? 0}</span></div>
@@ -180,13 +181,30 @@ export default function ProjectDashboard() {
 
       {/* Main Layout Body */}
       <div className="flex-1 flex overflow-hidden relative">
-        <ProjectNav
-          active={section}
-          onSelect={setSection}
-          criticalFindingsCount={project?.criticalFindingsCount ?? 0}
-        />
+        {/* Desktop sidebar */}
+        <div className="hidden lg:block">
+          <ProjectNav
+            active={section}
+            onSelect={setSection}
+            criticalFindingsCount={project?.criticalFindingsCount ?? 0}
+          />
+        </div>
 
-        <main className="flex-1 relative overflow-y-auto p-6">
+        {/* Mobile nav overlay */}
+        {mobileNavOpen && (
+          <>
+            <div className="fixed inset-0 z-40 bg-fp-bg/60 backdrop-blur-sm lg:hidden" onClick={() => setMobileNavOpen(false)} />
+            <div className="fixed left-0 top-0 bottom-0 z-50 lg:hidden animate-[slide-right_0.2s_ease-out]">
+              <ProjectNav
+                active={section}
+                onSelect={(s) => { setSection(s); setMobileNavOpen(false); }}
+                criticalFindingsCount={project?.criticalFindingsCount ?? 0}
+              />
+            </div>
+          </>
+        )}
+
+        <main className="flex-1 relative overflow-y-auto p-4 sm:p-6">
           {project?.property.centroid && section === "intelligence" && (
             <MiniMap
               centroid={toLngLat(project.property.centroid)!}

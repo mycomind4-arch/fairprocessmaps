@@ -114,7 +114,7 @@ export default function InvestigationView() {
               <div className="h-3 w-32 bg-fp-surface-2 rounded" />
             </div>
           </div>
-          <div className="flex items-center gap-6 px-8 py-3 border-t border-fp-border/50">
+          <div className="flex items-center gap-4 sm:p-6 px-8 py-3 border-t border-fp-border/50">
             <div className="h-3 w-20 bg-fp-surface-2 rounded" />
             <div className="h-3 w-24 bg-fp-surface-2 rounded" />
             <div className="h-3 w-16 bg-fp-surface-2 rounded" />
@@ -122,7 +122,7 @@ export default function InvestigationView() {
         </div>
         {/* Skeleton body */}
         <div className="flex-1 flex min-h-0">
-          <div className="w-72 shrink-0 border-r border-fp-border bg-fp-surface/40 animate-pulse p-6 space-y-3">
+          <div className="w-72 shrink-0 border-r border-fp-border bg-fp-surface/40 animate-pulse p-4 sm:p-6 space-y-3">
             {[0,1,2,3].map(i => <div key={i} className="h-12 bg-fp-surface-2 rounded-lg" />)}
           </div>
           <div className="flex-1 animate-pulse flex items-center justify-center">
@@ -220,7 +220,7 @@ export default function InvestigationView() {
         </div>
 
         {/* Stats row */}
-        <div className="flex items-center gap-6 px-8 py-3 border-t border-fp-border/50 text-sm text-fp-text-dim">
+        <div className="flex items-center gap-4 sm:p-6 px-8 py-3 border-t border-fp-border/50 text-sm text-fp-text-dim">
           <span className="flex items-center gap-2"><FileText className="w-4 h-4" />{summary.evidence_count} Evidence</span>
           <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{summary.open_findings_count} Open Findings{summary.critical_findings_count > 0 && <span className="text-fp-red ml-1">({summary.critical_findings_count} critical)</span>}</span>
           <span className="flex items-center gap-2"><Clock className="w-4 h-4" />{summary.timeline_event_count} Events</span>
@@ -234,7 +234,7 @@ export default function InvestigationView() {
       <div className="flex-1 flex min-h-0">
         {/* Timeline — narrower supporting column */}
         <div className="w-72 shrink-0 border-r border-fp-border bg-fp-surface/40 overflow-hidden flex flex-col">
-          <div className="shrink-0 px-6 py-4 border-b border-fp-border/50 flex items-center gap-2">
+          <div className="shrink-0 px-4 sm:px-6 py-4 border-b border-fp-border/50 flex items-center gap-2">
             <Clock className="w-4 h-4 text-fp-text-dim" />
             <h2 className="text-xs font-semibold text-fp-text-muted uppercase tracking-wide">Timeline</h2>
             <span className="ml-auto text-xs text-fp-text-dim">{timeline?.events.length ?? 0}</span>
@@ -244,7 +244,7 @@ export default function InvestigationView() {
 
         {/* Graph — hero content, dominant space */}
         <div className="flex-1 min-w-0 relative overflow-hidden flex flex-col">
-          <div className="shrink-0 px-6 py-4 border-b border-fp-border/50 flex items-center gap-2">
+          <div className="shrink-0 px-4 sm:px-6 py-4 border-b border-fp-border/50 flex items-center gap-2">
             <Network className="w-4 h-4 text-fp-text-dim" />
             <h2 className="text-xs font-semibold text-fp-text-muted uppercase tracking-wide">Relationship Graph</h2>
 
@@ -306,7 +306,7 @@ export default function InvestigationView() {
       <div className={`shrink-0 border-t border-fp-border bg-fp-surface/60 backdrop-blur-xl overflow-hidden flex flex-col transition-all duration-200 ${detailExpanded ? "h-72" : "h-12"}`}>
         <button
           onClick={() => setDetailExpanded(!detailExpanded)}
-          className="shrink-0 flex items-center gap-2 px-6 py-3 w-full hover:bg-fp-surface-2/40 transition-colors"
+          className="shrink-0 flex items-center gap-2 px-4 sm:px-6 py-3 w-full hover:bg-fp-surface-2/40 transition-colors"
         >
           <ChevronDown className={`w-4 h-4 text-fp-text-dim transition-transform duration-200 ${detailExpanded ? "" : "rotate-180"}`} />
           <span className="text-xs font-semibold text-fp-text-muted uppercase tracking-wide">Details</span>

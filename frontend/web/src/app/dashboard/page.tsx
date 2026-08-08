@@ -117,7 +117,7 @@ export default function Dashboard() {
       </header>
 
       {/* ── Main Content ── */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-6 space-y-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6" role="main">
         {/* ── Page Title + Action ── */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>

@@ -168,7 +168,7 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-6 pb-8">
       {/* Header */}
-      <div className="glass rounded-[14px] p-6 border-fp-border shadow-lg shadow-black/20 flex items-center justify-between">
+      <div className="glass rounded-xl p-6 border-fp-border shadow-lg shadow-black/20 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-fp-text">Investigation Timeline</h1>
           <p className="text-xs text-fp-text-dim mt-1">Chronological record of official notices, hearings, and enforcement milestones</p>
@@ -193,7 +193,7 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
 
       {/* Add Event Form */}
       {showAddForm && (
-        <div className="glass rounded-[14px] p-6 border-fp-border shadow-lg shadow-black/20 space-y-4">
+        <div className="surface-flat rounded-xl p-6 space-y-4">
           <h2 className="text-base font-semibold text-fp-text">Add New Timeline Event</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -247,7 +247,7 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
       )}
 
       {error && (
-        <div className="glass rounded-[14px] p-4 border-fp-red/30 bg-fp-red/10 flex items-center gap-3 text-fp-red text-sm">
+        <div className="glass rounded-xl p-4 border-fp-red/30 bg-fp-red/10 flex items-center gap-3 text-fp-red text-sm">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -267,7 +267,7 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
             return (
               <div
                 key={item.id}
-                className={`glass rounded-[14px] p-6 shadow-lg shadow-black/20 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 ${meta.borderClass} group relative`}
+                className={`glass rounded-xl p-6 shadow-lg shadow-black/20 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 ${meta.borderClass} group relative`}
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-3">
@@ -320,7 +320,7 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
 
       {/* Improved Empty State */}
       {!loading && items.length === 0 && !error && (
-        <div className="glass rounded-[14px] border-dashed border-fp-border p-8 text-center space-y-3 shadow-lg shadow-black/20">
+        <div className="glass rounded-xl border-dashed border-fp-border p-8 text-center space-y-3 shadow-lg shadow-black/20">
           <Calendar className="w-8 h-8 text-fp-text-dim mx-auto" />
           <h2 className="text-base font-semibold text-fp-text">No timeline events recorded</h2>
           <p className="text-sm text-fp-text-muted max-w-md mx-auto">

@@ -218,7 +218,7 @@ export default function EventReconstruction({
   };
 
   return (
-    <div className="glass rounded-[14px] p-4 border-fp-border shadow-lg shadow-black/20 space-y-4">
+    <div className="glass rounded-xl p-4 border-fp-border shadow-lg shadow-black/20 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

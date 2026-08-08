@@ -59,7 +59,7 @@ function FindingCard({ finding, onResolve, onDismiss, onReopen }: {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={`rounded-[14px] border border-fp-border border-l-4 ${severityBorder(finding.severity)} bg-fp-surface/40 overflow-hidden transition-all duration-200 hover:shadow-lg hover:shadow-black/20`}>
+    <div className={`rounded-xl border border-fp-border border-l-4 ${severityBorder(finding.severity)} bg-fp-surface/40 overflow-hidden transition-all duration-200 hover:shadow-lg hover:shadow-black/20`}>
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-4 p-6 text-left hover:bg-fp-surface-2/40 transition-colors"
@@ -242,7 +242,7 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
       </div>
 
       {/* ── Disclaimer ── */}
-      <div className="rounded-[14px] border border-fp-amber/30 bg-fp-amber/10 p-4 flex items-start gap-3">
+      <div className="rounded-xl border border-fp-amber/30 bg-fp-amber/10 p-4 flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-fp-amber shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-medium text-fp-amber">Automated procedural flags — not legal advice</p>
@@ -257,7 +257,7 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
       {/* ── Section 1: Overall Score (Hero) ── */}
       <section>
         <h2 className="text-base font-semibold text-fp-text mb-4">Overall Score</h2>
-        <div className="rounded-[14px] glass p-8 flex items-center gap-8">
+        <div className="rounded-xl glass p-8 flex items-center gap-8">
           <div className="flex flex-col items-center justify-center shrink-0">
             {score !== null ? (
               <div className={`text-6xl font-bold tabular-nums ${scoreColor(score)}`}>
@@ -300,7 +300,7 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
       {analysisResult && !analyzing && (
         <section>
           <h2 className="text-base font-semibold text-fp-text mb-4">AI Agent Results</h2>
-          <div className="rounded-[14px] border border-fp-blue/20 bg-fp-blue/5 p-6">
+          <div className="rounded-xl border border-fp-blue/20 bg-fp-blue/5 p-6">
             <div className="flex items-center gap-2 mb-4">
               <Scale className="w-4 h-4 text-fp-blue" />
               <span className="text-sm font-medium text-fp-text">Analysis Agents Complete</span>
@@ -362,7 +362,7 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
             <Loader2 className="w-5 h-5 animate-spin text-fp-text-dim" />
           </div>
         ) : filteredFindings.length === 0 ? (
-          <div className="rounded-[14px] border border-dashed border-fp-border bg-fp-surface/20 p-12 text-center">
+          <div className="rounded-xl border border-dashed border-fp-border bg-fp-surface/20 p-12 text-center">
             <ShieldCheck className="w-10 h-10 text-fp-text-dim mx-auto mb-4" />
             <h3 className="text-sm font-medium text-fp-text">No findings in this category</h3>
             <p className="text-xs text-fp-text-dim mt-2 max-w-sm mx-auto">
@@ -396,7 +396,7 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
           <h2 className="text-base font-semibold text-fp-text mb-4">Missing Information</h2>
           <div className="space-y-4">
             {missingInfoFindings.map((f) => (
-              <div key={f.id} className="rounded-[14px] border border-fp-border border-l-4 border-l-fp-amber bg-fp-surface/40 p-6">
+              <div key={f.id} className="rounded-xl border border-fp-border border-l-4 border-l-fp-amber bg-fp-surface/40 p-6">
                 <div className="flex items-center gap-3 mb-2">
                   <AlertCircle className="w-4 h-4 text-fp-amber" />
                   <span className="text-sm font-medium text-fp-text">{ruleLabel(f)}</span>

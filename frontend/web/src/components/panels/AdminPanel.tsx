@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Settings,
   Users,
@@ -39,6 +40,7 @@ interface ProjectSettings {
 
 // ── Component ──
 export default function AdminPanel({ projectId }: { projectId: string }) {
+  const router = useRouter();
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -212,7 +214,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             <span className="text-xs uppercase tracking-wide text-fp-text-dim">Project Identity</span>
           </div>
 
-          <div className="rounded-[14px] glass p-6 shadow-lg shadow-black/20 space-y-6">
+          <div className="rounded-xl surface-flat p-6 space-y-6">
             <div>
               <label className="text-xs font-medium uppercase tracking-wide text-fp-text-dim mb-2 block">
                 Project Name
@@ -287,7 +289,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             <span className="text-xs uppercase tracking-wide text-fp-text-dim">Team Access ({members.length})</span>
           </div>
 
-          <div className="rounded-[14px] glass p-6 shadow-lg shadow-black/20 space-y-6">
+          <div className="rounded-xl surface-flat p-6 space-y-6">
             <div className="flex items-center justify-between gap-4">
               <p className="text-sm text-fp-text-muted">
                 Manage team members and collaborators who have access to this project.
@@ -347,7 +349,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             <span className="text-xs uppercase tracking-wide text-fp-text-dim font-medium">Access Control &amp; Alerts</span>
           </div>
 
-          <div className="rounded-[14px] glass p-6 shadow-lg shadow-black/20 space-y-6">
+          <div className="rounded-xl surface-flat p-6 space-y-6">
             <div>
               <h4 className="text-sm font-semibold text-fp-text flex items-center gap-2 mb-3">
                 <Activity className="h-4 w-4 text-fp-blue" />
@@ -415,7 +417,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             <span className="text-xs uppercase tracking-wide text-fp-text-dim font-medium">Jurisdiction &amp; Data</span>
           </div>
 
-          <div className="rounded-[14px] glass p-6 shadow-lg shadow-black/20 space-y-6">
+          <div className="rounded-xl surface-flat p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="text-xs font-medium uppercase tracking-wide text-fp-text-dim mb-2 block">
@@ -482,7 +484,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
             <span className="text-xs uppercase tracking-wide text-fp-red font-medium">Irreversible Actions</span>
           </div>
 
-          <div className="rounded-[14px] bg-fp-red/5 border border-fp-red/40 p-6 shadow-lg shadow-black/20 space-y-4">
+          <div className="rounded-xl bg-fp-red/5 border border-fp-red/40 p-6 shadow-lg shadow-black/20 space-y-4">
             <div>
               <h4 className="text-base font-semibold text-fp-text">Delete Project</h4>
               <p className="text-sm text-fp-text-muted mt-1 leading-relaxed">
@@ -515,7 +517,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
                       localStorage.removeItem(`fairprocess_admin_settings_${projectId}`);
                       localStorage.removeItem(`fairprocess_admin_members_${projectId}`);
                       localStorage.removeItem(`fairprocess_connectors_${projectId}`);
-                      window.location.href = "/";
+                      router.push("/");
                     }}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-fp-red text-white text-xs font-medium hover:bg-fp-red/90 transition-all shadow-md"
                   >
@@ -532,7 +534,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
       {/* Invite Member Modal */}
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4" onClick={() => setShowInvite(false)} role="button" tabIndex={0} aria-label="Close invite modal">
-          <div className="w-full max-w-md rounded-[14px] glass p-6 shadow-2xl shadow-black/50 space-y-4" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md rounded-xl glass p-6 shadow-2xl shadow-black/50 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-3 border-b border-fp-border">
               <h3 className="text-base font-semibold text-fp-text">Invite Team Member</h3>
               <button onClick={() => setShowInvite(false)} className="p-1.5 text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 rounded-lg transition-colors">

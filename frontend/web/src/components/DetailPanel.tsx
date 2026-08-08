@@ -9,7 +9,7 @@ import type {
 
 import type { AgentProposal, ProposalStatus } from "@/lib/agents/types";
 import type { RelationshipLineage } from "@/lib/agents/proposals";
-import { FileText, AlertTriangle, Scale, Network, Eye, HelpCircle, CheckCircle2, XCircle, Clock, Bot, Loader2, ChevronDown, GitBranch, ThumbsUp, ThumbsDown, Play } from "lucide-react";
+import { FileText, AlertTriangle, Scale, Network, Eye, HelpCircle, CheckCircle2, XCircle, Clock, Calendar, Paperclip, Bot, Loader2, ChevronDown, GitBranch, ThumbsUp, ThumbsDown, Play } from "lucide-react";
 
 interface Props {
   graph: CaseGraph | null;
@@ -24,9 +24,13 @@ interface Props {
 const TAB_ICONS = { evidence: FileText, findings: AlertTriangle, authority: Scale, focus: Eye, agents: Bot };
 const TAB_LABELS = { evidence: "Evidence", findings: "Findings", authority: "Authority", focus: "Investigation Focus", agents: "Agent Proposals" };
 
-const OBSERVATION_ICONS: Record<string, string> = {
-  timeline_gap: "⏱", sequence_anomaly: "⚠", missing_notice: "📋",
-  deadline_passed: "📅", authority_gap: "⚖", evidence_gap: "📎",
+const OBSERVATION_ICONS: Record<string, { Icon: typeof FileText; color: string }> = {
+  timeline_gap: { Icon: Clock, color: "text-fp-amber" },
+  sequence_anomaly: { Icon: AlertTriangle, color: "text-fp-amber" },
+  missing_notice: { Icon: FileText, color: "text-fp-red" },
+  deadline_passed: { Icon: Calendar, color: "text-fp-red" },
+  authority_gap: { Icon: Scale, color: "text-fp-purple" },
+  evidence_gap: { Icon: Paperclip, color: "text-fp-cyan" },
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -242,13 +246,13 @@ export default function DetailPanel({
                       <span className="text-fp-purple ml-1.5">({(reason.confidence * 100).toFixed(0)}% confidence)</span>
                     )}
                     {reason.edge_provenance?.status === "rejected" && (
-                      <span className="text-fp-red ml-1.5">⚠ rejected: {reason.edge_provenance.review_reason}</span>
+                      <span className="text-fp-red ml-1.5 flex items-center gap-1 inline-flex"><AlertTriangle className="w-3 h-3" /> rejected: {reason.edge_provenance.review_reason}</span>
                     )}
                     {reason.edge_provenance?.status === "pending_review" && reason.edge_provenance.source === "relationship_table" && (
                       <span className="text-fp-amber ml-1.5">⏳ pending review</span>
                     )}
                     {reason.evidence_ids && reason.evidence_ids.length > 0 && (
-                      <span className="text-fp-cyan ml-1.5">📎 {reason.evidence_ids.length} evidence</span>
+                      <span className="text-fp-cyan ml-1.5 flex items-center gap-1 inline-flex"><Paperclip className="w-3 h-3" /> {reason.evidence_ids.length} evidence</span>
                     )}
                   </div>
                 </div>
@@ -497,7 +501,7 @@ export default function DetailPanel({
                       {focus.observations.map((obs, i) => (
                         <div key={i} className={`p-2.5 rounded-lg border text-xs ${SEVERITY_COLORS[obs.severity] || SEVERITY_COLORS.info}`}>
                           <div className="flex items-center gap-2 mb-1">
-                            <span>{OBSERVATION_ICONS[obs.type] || "•"}</span>
+                            {(() => { const obsIcon = OBSERVATION_ICONS[obs.type]; if (!obsIcon) return <span>•</span>; const OI = obsIcon.Icon; return <OI className={`w-3.5 h-3.5 ${obsIcon.color}`} />; })()}
                             <span className="font-medium">{obs.type.replace(/_/g, " ")}</span>
                             {obs.date && <span className="text-fp-text-dim ml-auto">{obs.date}</span>}
                           </div>
@@ -530,7 +534,7 @@ export default function DetailPanel({
                                 {check.detail && <span className="ml-1.5">— {check.detail}</span>}
                               </div>
                               {check.evidence_ids.length > 0 && (
-                                <div className="text-fp-cyan mt-0.5">📎 {check.evidence_ids.length} evidence</div>
+                                <div className="text-fp-cyan mt-0.5 flex items-center gap-1"><Paperclip className="w-3 h-3" /> {check.evidence_ids.length} evidence</div>
                               )}
                             </div>
                           </div>
@@ -636,7 +640,7 @@ export default function DetailPanel({
                   </div>
                   {Boolean(data.detail) && <p className="text-xs text-fp-text-dim mt-1">{String(data.detail)}</p>}
                   {Boolean(data.generated_by_agent) && (
-                    <div className="text-[10px] text-fp-purple mt-1">🤖 {String(data.generated_by_agent)}{data.agent_version ? ` v${data.agent_version}` : ""}</div>
+                    <div className="text-[10px] text-fp-purple mt-1 flex items-center gap-1"><Bot className="w-3 h-3" /> {String(data.generated_by_agent)}{data.agent_version ? ` v${data.agent_version}` : ""}</div>
                   )}
                 </div>
               );
@@ -670,7 +674,7 @@ export default function DetailPanel({
                       Semantic claim
                       {edge.provenance.confidence != null && ` • ${(edge.provenance.confidence * 100).toFixed(0)}% confidence`}
                       {edge.provenance.created_by && ` • by ${edge.provenance.created_by}`}
-                      {edge.provenance.status === "rejected" && ` • ⚠ rejected: ${edge.provenance.review_reason}`}
+                      {edge.provenance.status === "rejected" && ` • rejected: ${edge.provenance.review_reason}`}
                       {edge.provenance.status === "pending_review" && ` • ⏳ pending review`}
                     </div>
                   )}
@@ -735,7 +739,7 @@ export default function DetailPanel({
                   {runResult.rejected_reasons.length > 0 && (
                     <div className="mt-1 space-y-0.5">
                       {runResult.rejected_reasons.map((r, i) => (
-                        <div key={i} className="text-fp-text-dim text-[11px]">⚠ {r}</div>
+                        <div key={i} className="text-fp-text-dim text-[11px] flex items-start gap-1"><AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" /> {r}</div>
                       ))}
                     </div>
                   )}

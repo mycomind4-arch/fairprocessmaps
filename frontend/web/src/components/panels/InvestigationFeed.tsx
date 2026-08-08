@@ -109,7 +109,7 @@ export default function InvestigationFeed({
   };
 
   return (
-    <div className="glass rounded-[14px] p-4 border-fp-border shadow-lg shadow-black/20">
+    <div className="glass rounded-xl p-4 border-fp-border shadow-lg shadow-black/20">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">

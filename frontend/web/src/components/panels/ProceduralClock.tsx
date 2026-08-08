@@ -161,7 +161,7 @@ export default function ProceduralClock({
 
   if (proceduralSteps.length < 2) {
     return (
-      <div className="glass rounded-[14px] p-6 border-fp-border shadow-lg shadow-black/20">
+      <div className="glass rounded-xl p-6 border-fp-border shadow-lg shadow-black/20">
         <div className="flex items-center gap-2 mb-2">
           <Clock className="w-4 h-4 text-fp-blue" />
           <h3 className="text-sm font-semibold text-fp-text">Procedural Clock</h3>
@@ -175,7 +175,7 @@ export default function ProceduralClock({
   }
 
   return (
-    <div className="glass rounded-[14px] p-4 border-fp-border shadow-lg shadow-black/20 space-y-4">
+    <div className="glass rounded-xl p-4 border-fp-border shadow-lg shadow-black/20 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
