@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import {
   Calendar, Loader2, AlertCircle, RefreshCw, Plus, X, Trash2, FileText,
+  GitBranch, Clock,
 } from "lucide-react";
+import EventReconstruction from "./EventReconstruction";
+import ProceduralClock from "./ProceduralClock";
 
 interface TimelineItem {
   id: string;
@@ -11,7 +14,28 @@ interface TimelineItem {
   event_type: string;
   description: string | null;
   evidence_title: string | null;
+  evidence_id: string | null;
+  actor_type: string | null;
 }
+
+interface Finding {
+  id: string;
+  rule: string;
+  rule_name: string | null;
+  severity: string;
+  status: string;
+  detail: string | null;
+  evidence_id: string | null;
+  created_at: string;
+}
+
+type SubTab = "timeline" | "reconstruction" | "clock";
+
+const SUB_TABS: { id: SubTab; label: string; icon: typeof Calendar }[] = [
+  { id: "timeline", label: "Timeline", icon: Calendar },
+  { id: "reconstruction", label: "Event Reconstruction", icon: GitBranch },
+  { id: "clock", label: "Procedural Clock", icon: Clock },
+];
 
 function getEventMeta(type: string) {
   switch (type) {
@@ -70,9 +94,11 @@ const EVENT_TYPES = [
 
 export default function TimelinePanel({ projectId }: { projectId: string }) {
   const [items, setItems] = useState<TimelineItem[]>([]);
+  const [findings, setFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [subTab, setSubTab] = useState<SubTab>("timeline");
   const [adding, setAdding] = useState(false);
   const [newEvent, setNewEvent] = useState({
     event_date: "",
@@ -84,12 +110,22 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/timeline?projectId=${projectId}`, {
-        headers: { "Cache-Control": "no-cache" },
-      });
-      if (!res.ok) throw new Error(`Failed to load timeline: ${res.status}`);
-      const json: { items?: TimelineItem[] } = await res.json();
+      const [timelineRes, findingsRes] = await Promise.all([
+        fetch(`/api/v1/timeline?projectId=${projectId}`, {
+          headers: { "Cache-Control": "no-cache" },
+        }),
+        fetch(`/api/v1/findings?projectId=${projectId}`, {
+          headers: { "Cache-Control": "no-cache" },
+        }),
+      ]);
+      if (!timelineRes.ok) throw new Error(`Failed to load timeline: ${timelineRes.status}`);
+      const json: { items?: TimelineItem[] } = await timelineRes.json();
       setItems(json.items ?? []);
+
+      if (findingsRes.ok) {
+        const fjson: { items?: Finding[]; score?: number } = await findingsRes.json();
+        setFindings((fjson.items ?? []).filter(f => f.status !== "superseded"));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load timeline");
     } finally {

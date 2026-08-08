@@ -27,3 +27,7 @@ export {
 export {
   STATUTE_MATCHER_AGENT,
 } from "./statute-matcher";
+
+export {
+  EVIDENCE_EXTRACTOR_AGENT,
+} from "./evidence-extractor";

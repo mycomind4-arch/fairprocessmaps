@@ -12,6 +12,7 @@
  */
 
 import type { ReconAgentResult, ReconContext, ReconAgent } from "./recon-agents";
+import { findingFingerprint } from "./finding-utils";
 
 // ── Shared helpers ──
 
@@ -1036,32 +1037,75 @@ const dueProcessAnalysisAgent: ReconAgent = async (ctx): Promise<ReconAgentResul
 
     // ── Store findings in D1 ──
 
-    // Delete ALL old due process findings for this project (we're regenerating them)
-    await db.prepare(
-      `DELETE FROM due_process_findings WHERE project_id = ? AND organization_id = ?`
-    ).bind(projectId, ctx.organizationId).run();
+    // FIX: Use fingerprint-based upsert instead of destructive DELETE ALL.
+    // The old code wiped ALL findings (including from other engines) on every recon.
+    // Now we only touch findings whose rules this agent produces, and preserve
+    // review state (status, reviewed_by, reviewed_at) on matching fingerprints.
+    const reconRuleScope = [
+      "notice_timing", "right_to_hearing", "hearing_notice_adequacy",
+      "lien_without_due_process", "appeal_rights", "work_without_permit",
+      "expired_permit", "permit_after_ce_notice", "lien_without_ce_case",
+      "incomplete_records",
+    ];
 
-    for (const finding of findings) {
-      // Determine if this finding is about missing information
-      const isMissingInfo = finding.rule === 'missing_data_sources' ||
-        (finding.detail?.toLowerCase().includes('missing') ?? false) ||
-        (finding.detail?.toLowerCase().includes('no corresponding') ?? false) ||
-        (finding.detail?.toLowerCase().includes('not found') ?? false) ||
-        (finding.detail?.toLowerCase().includes('absent') ?? false);
+    // Generate fingerprints for new findings
+    const newFindingsWithFp = findings.map(f => {
+      const isMissingInfo = f.rule === 'missing_data_sources' ||
+        (f.detail?.toLowerCase().includes('missing') ?? false) ||
+        (f.detail?.toLowerCase().includes('no corresponding') ?? false) ||
+        (f.detail?.toLowerCase().includes('not found') ?? false) ||
+        (f.detail?.toLowerCase().includes('absent') ?? false);
+      return {
+        ...f,
+        fingerprint: findingFingerprint(f.rule, null, f.detail),
+        missing_info: isMissingInfo,
+      };
+    });
 
-      await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
-      ).bind(
-        crypto.randomUUID(),
-        projectId,
-        finding.rule,
-        finding.rule_name,
-        finding.severity,
-        finding.detail,
-        ctx.organizationId,
-        isMissingInfo ? 1 : 0,
-      ).run();
+    // Fetch existing findings for our rules only (preserving other engines' findings)
+    const placeholders = reconRuleScope.map(() => "?").join(", ");
+    const existingResult = await db.prepare(
+      `SELECT id, finding_fingerprint, status FROM due_process_findings
+       WHERE project_id = ? AND organization_id = ? AND rule IN (${placeholders}) AND status != 'superseded'`
+    ).bind(projectId, ctx.organizationId, ...reconRuleScope).all();
+    const existingByFp = new Map(
+      (existingResult.results ?? []).map((ef: any) => [ef.finding_fingerprint, ef])
+    );
+
+    const toInsert: any[] = [];
+    const toSupersede: string[] = [];
+    let preserved = 0;
+
+    for (const f of newFindingsWithFp) {
+      const existing = existingByFp.get(f.fingerprint);
+      if (existing) {
+        preserved++;
+        existingByFp.delete(f.fingerprint);
+      } else {
+        toInsert.push(f);
+      }
+    }
+    for (const [_fp, ef] of existingByFp) {
+      toSupersede.push((ef as any).id);
+    }
+
+    // Insert new findings with fingerprints
+    if (toInsert.length > 0) {
+      const stmts = toInsert.map(f =>
+        db.prepare(
+          `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info, finding_fingerprint)
+           VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`
+        ).bind(crypto.randomUUID(), projectId, f.rule, f.rule_name, f.severity, f.detail, ctx.organizationId, f.missing_info ? 1 : 0, f.fingerprint)
+      );
+      await db.batch(stmts);
+    }
+
+    // Mark stale findings as superseded
+    if (toSupersede.length > 0) {
+      const stmts = toSupersede.map(id =>
+        db.prepare("UPDATE due_process_findings SET status = 'superseded' WHERE id = ?").bind(id)
+      );
+      await db.batch(stmts);
     }
 
     // Build summary

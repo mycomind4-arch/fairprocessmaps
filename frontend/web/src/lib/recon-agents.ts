@@ -51,10 +51,39 @@ function toDashedAPN(apn: string): string {
 }
 
 const PARCEL_FIELDS = [
+  "OWNER", "OWNER1", "MAIL_ADD", "TAX_VALUE",
   "APN_12", "APN", "FULLADDR", "SITCITY", "ACRES", "LOTSIZE",
   "ZONING", "GEN_PLAN", "YEAR_BUILT", "LEGAL", "SUPD_DIST",
   "CZ", "FZ", "FR", "SRA", "TRANDATE", "BKPG", "OLDAPN",
 ];
+
+
+// ── Retry helper for GIS fetches ────────────────────────────────────────────
+
+async function fetchWithRetry(
+  url: string,
+  options?: RequestInit,
+  maxRetries = 3,
+  baseDelayMs = 500,
+): Promise<Response | null> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const resp = await fetch(url, options);
+      if (resp.ok) return resp;
+      if (resp.status >= 400 && resp.status < 500 && resp.status !== 429) {
+        // Don't retry client errors (except rate limit)
+        return resp;
+      }
+    } catch {
+      // Network error — will retry
+    }
+    if (attempt < maxRetries - 1) {
+      const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 200;
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  return null;
+}
 
 interface ParcelData {
   geometry: any;
@@ -76,8 +105,8 @@ async function fetchParcelByAPN(apn: string): Promise<ParcelData | null> {
   });
 
   try {
-    const resp = await fetch(`${PARCELS_URL}/query?${params}`);
-    if (!resp.ok) return null;
+    const resp = await fetchWithRetry(`${PARCELS_URL}/query?${params}`);
+    if (!resp || !resp.ok) return null;
     const data: any = await resp.json();
     const feature = data.features?.[0];
     if (!feature) return null;
@@ -137,8 +166,8 @@ async function queryLayerByGeometry(
   });
 
   try {
-    const resp = await fetch(`${layerUrl}/query?${params}`);
-    if (!resp.ok) return null;
+    const resp = await fetchWithRetry(`${layerUrl}/query?${params}`);
+    if (!resp || !resp.ok) return null;
     const data: any = await resp.json();
     return data.features?.[0]?.attributes ?? null;
   } catch {
@@ -168,8 +197,8 @@ async function queryLayerByAPN(
   });
 
   try {
-    const resp = await fetch(`${layerUrl}/query?${params}`);
-    if (!resp.ok) return null;
+    const resp = await fetchWithRetry(`${layerUrl}/query?${params}`);
+    if (!resp || !resp.ok) return null;
     const data: any = await resp.json();
     return data.features?.[0]?.attributes ?? null;
   } catch {
@@ -215,8 +244,8 @@ async function checkIntersection(
   });
 
   try {
-    const resp = await fetch(`${layerUrl}/query?${params}`);
-    if (!resp.ok) return false;
+    const resp = await fetchWithRetry(`${layerUrl}/query?${params}`);
+    if (!resp || !resp.ok) return false;
     const data: any = await resp.json();
     return (data.features?.length ?? 0) > 0;
   } catch {

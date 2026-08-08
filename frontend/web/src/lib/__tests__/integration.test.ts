@@ -8,6 +8,14 @@ import {
 } from "@/lib/analysis-agents";
 import { STATUTES, evaluateDeadline } from "@/lib/statutes";
 
+// Mock global.fetch to prevent real HTTP calls during tests.
+// Return ok:true with empty HTML so fetchWithRetry doesn't retry (avoiding timeouts),
+// but HTML parsing finds nothing and falls back to GIS-derived records.
+const mockFetch = vi.fn(async (url: string) => {
+  return { ok: true, status: 200, json: async () => ({}), text: async () => '<html><body></body></html>' } as any;
+});
+vi.stubGlobal('fetch', mockFetch);
+
 // ── Mock D1 Database ──
 // Simulates the Cloudflare D1 binding for local testing
 

@@ -14,6 +14,7 @@
  */
 
 import { STATUTES, evaluateDeadline, businessDaysBetween, calendarDaysBetween, type StatuteRule } from "./statutes";
+import { fingerprintUpsertFindings, type FindingInput } from "./finding-utils";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 // ── Neutrality Guardrail ──
@@ -324,18 +325,18 @@ export async function timelineAgent(ctx: AnalysisContext, facts: any[]): Promise
       });
     }
 
-    // SECURITY FIX: org-scoped delete
+    // FIX: Delete prior AI-derived events by actor_type (not evidence_id which is always NULL)
     await db.prepare(
-      `DELETE FROM timeline_events WHERE project_id = ? AND organization_id = ? AND evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research')`
-    ).bind(projectId, organizationId, projectId).run();
+      `DELETE FROM timeline_events WHERE project_id = ? AND organization_id = ? AND actor_type = 'ai_analysis'`
+    ).bind(projectId, organizationId).run();
 
     for (const event of events) {
       const eventId = crypto.randomUUID();
       const eventType = mapCategoryToEventType(event.category);
       await db.prepare(
-        `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, organization_id)
-         VALUES (?, ?, NULL, ?, ?, ?, ?)`
-      ).bind(eventId, projectId, event.date, eventType, event.event, organizationId).run();
+        `INSERT INTO timeline_events (id, project_id, evidence_id, event_date, event_type, description, organization_id, actor_type, actor_id)
+         VALUES (?, ?, NULL, ?, ?, ?, ?, 'ai_analysis', ?)`
+      ).bind(eventId, projectId, event.date, eventType, event.event, organizationId, `timeline_agent`).run();
     }
 
     const flaggedGaps = gaps.filter(g => g.flagged).length;
@@ -467,26 +468,20 @@ export async function statuteMatchingAgent(ctx: AnalysisContext, facts: any[]): 
     const matches = results.filter(r => r.status === "matches expected window");
     const unknown = results.filter(r => r.status === "unable to determine");
 
-    // SECURITY FIX: org-scoped delete
-    await db.prepare("DELETE FROM due_process_findings WHERE project_id = ? AND organization_id = ? AND rule LIKE 'statute_%'").bind(projectId, organizationId).run();
-
-    for (const r of results) {
-      const severity = r.status === "deviation detected" ? "critical" : r.status === "unable to determine" ? "warning" : "info";
-      const statuteMissingInfo = r.status === "unable to determine" ? 1 : 0;
-      await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
-      ).bind(
-        crypto.randomUUID(),
-        projectId,
-        `statute_${r.statute_ref.replace(/[^a-zA-Z0-9]/g, "_")}`,
-        `${r.statute_ref}: ${r.statute_title}`,
+    // FIX: Use fingerprint-based upsert instead of destructive delete
+    const statuteFindings: FindingInput[] = results.map(r => {
+      const severity = r.status === "deviation detected" ? "critical" as const : r.status === "unable to determine" ? "warning" as const : "info" as const;
+      return {
+        rule: `statute_${r.statute_ref.replace(/[^a-zA-Z0-9]/g, "_")}`,
+        rule_name: `${r.statute_ref}: ${r.statute_title}`,
         severity,
-        `[${r.statute_ref}] Case ${r.case_ref || "N/A"} — ${r.note} Status: ${r.status}.`,
-        organizationId,
-        statuteMissingInfo,
-      ).run();
-    }
+        detail: `[${r.statute_ref}] Case ${r.case_ref || "N/A"} — ${r.note} Status: ${r.status}.`,
+        evidence_id: null,
+        missing_info: r.status === "unable to determine",
+      };
+    });
+
+    const upsertResult = await fingerprintUpsertFindings(db, projectId, organizationId, statuteFindings, ["statute_"]);
 
     const hash = await sha256(JSON.stringify({ projectId, organizationId, agent: "Statute Matching Agent", results: results.length }));
 
@@ -644,25 +639,17 @@ export async function discrepancyAgent(ctx: AnalysisContext, facts: any[]): Prom
       }
     }
 
-    // SECURITY FIX: org-scoped delete
-    await db.prepare("DELETE FROM due_process_findings WHERE project_id = ? AND organization_id = ? AND rule LIKE 'discrepancy_%'").bind(projectId, organizationId).run();
+    // FIX: Use fingerprint-based upsert instead of destructive delete
+    const discFindings: FindingInput[] = conflicts.map(c => ({
+      rule: `discrepancy_${c.conflict_type}`,
+      rule_name: c.conflict_type.replace(/_/g, " ").replace(/\b\w/g, (ch: string) => ch.toUpperCase()),
+      severity: c.severity as "critical" | "warning" | "info",
+      detail: c.characterization,
+      evidence_id: null,
+      missing_info: (c.characterization?.toLowerCase().includes('missing') ?? false),
+    }));
 
-    for (const c of conflicts) {
-      const discMissingInfo = (c.characterization?.toLowerCase().includes('missing') ?? false) ? 1 : 0;
-      await db.prepare(
-        `INSERT INTO due_process_findings (id, project_id, rule, rule_name, severity, status, detail, organization_id, missing_info)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)`
-      ).bind(
-        crypto.randomUUID(),
-        projectId,
-        `discrepancy_${c.conflict_type}`,
-        c.conflict_type.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
-        c.severity,
-        c.characterization,
-        organizationId,
-        discMissingInfo,
-      ).run();
-    }
+    const discUpsertResult = await fingerprintUpsertFindings(db, projectId, organizationId, discFindings, ["discrepancy_"]);
 
     const hash = await sha256(JSON.stringify({ projectId, organizationId, agent: "Discrepancy Agent", conflicts: conflicts.length }));
 
