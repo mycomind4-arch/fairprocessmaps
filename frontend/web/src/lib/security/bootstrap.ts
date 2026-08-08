@@ -56,7 +56,7 @@ export async function bootstrapAdmin(
       await db
         .prepare(
           `INSERT INTO organizations (id, name, slug, org_type, status)
-           VALUES (?, ?, 'organization', 'active')`,
+           VALUES (?, ?, ?, 'organization', 'active')`,
         )
         .bind(orgId, organizationName, slug)
         .run();
