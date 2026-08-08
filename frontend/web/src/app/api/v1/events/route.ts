@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     // ── Authority Chain view ──
     if (view === "authority" && findingId) {
-      const chain = await getAuthorityChain(db, findingId);
+      const chain = await getAuthorityChain(db, findingId, caseId || '');
       return NextResponse.json({ chain }, { headers: { "Cache-Control": "no-store" } });
     }
 

@@ -16,7 +16,7 @@
  * - AI agent permission enforcement
  */
 
-import type { D1Database } from "@opennextjs/cloudflare";
+// D1Database is a global type provided by Cloudflare Workers runtime (see cloudflare-env.d.ts)
 import { findingFingerprint } from "./finding-utils";
 
 // Re-export for backward compatibility — tests and other modules import from here
@@ -98,6 +98,94 @@ export interface RelationshipPayload {
   validTo?: string;
   jurisdictionId?: string;
   metadata?: Record<string, unknown>;
+}
+
+
+
+// ── Stored types (for API routes) ──
+
+export interface StoredEvent {
+  id: string;
+  case_id: string;
+  event_type: EventType;
+  entity_type: EntityType;
+  entity_id: string;
+  actor_type: ActorType;
+  actor_id: string | null;
+  severity: Severity;
+  event_date: string | null;
+  effective_date: string | null;
+  jurisdiction_id: string | null;
+  source_system: string | null;
+  source_record_id: string | null;
+  payload: string | null;
+  created_at: string;
+}
+
+export interface StoredRelationship {
+  id: string;
+  case_id: string;
+  source_type: EntityType;
+  source_id: string;
+  target_type: EntityType;
+  target_id: string;
+  relationship_type: RelationshipType;
+  valid_from: string | null;
+  valid_to: string | null;
+  jurisdiction_id: string | null;
+  metadata: string | null;
+  created_at: string;
+}
+
+// ── Query Events (generic filtered query) ──
+
+export async function queryEvents(
+  db: D1Database,
+  params: {
+    case_id?: string;
+    event_type?: string;
+    entity_type?: string;
+    entity_id?: string;
+    actor_type?: string;
+    severity?: string;
+    limit?: number;
+    offset?: number;
+  }
+): Promise<StoredEvent[]> {
+  const conditions: string[] = [];
+  const binds: (string | number)[] = [];
+
+  if (params.case_id) { conditions.push("case_id = ?"); binds.push(params.case_id); }
+  if (params.event_type) { conditions.push("event_type = ?"); binds.push(params.event_type); }
+  if (params.entity_type) { conditions.push("entity_type = ?"); binds.push(params.entity_type); }
+  if (params.entity_id) { conditions.push("entity_id = ?"); binds.push(params.entity_id); }
+  if (params.actor_type) { conditions.push("actor_type = ?"); binds.push(params.actor_type); }
+  if (params.severity) { conditions.push("severity = ?"); binds.push(params.severity); }
+
+  const where = conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
+  const limit = params.limit ?? 100;
+  const offset = params.offset ?? 0;
+  binds.push(limit, offset);
+
+  try {
+    const result = await db.prepare(
+      `SELECT * FROM events ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+    ).bind(...binds).all();
+    return (result.results || []) as unknown as StoredEvent[];
+  } catch (err) {
+    console.error("[event-store] queryEvents failed:", err);
+    return [];
+  }
+}
+
+// ── Alias: getCaseRelationships (wraps getRelationships for API route compat) ──
+
+export async function getCaseRelationships(
+  db: D1Database,
+  caseId: string
+): Promise<StoredRelationship[]> {
+  const result = await getRelationships(db, { caseId });
+  return (result || []) as unknown as StoredRelationship[];
 }
 
 // ── AI Agent Permission Boundary ──

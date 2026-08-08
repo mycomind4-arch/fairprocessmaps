@@ -1,3 +1,4 @@
+// @ts-nocheck — frozen reference from Supabase architecture (ADR-002), not used in Cloudflare stack (ADR-006)
 /**
  * FairProcess — Permission & Authorization Middleware
  * Checks user permissions against the database-backed permission registry.

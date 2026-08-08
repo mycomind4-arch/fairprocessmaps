@@ -23,7 +23,6 @@ import {
   assertAgentPermission,
   assertFindingNeutrality,
   replayValidation,
-  type D1Database,
 } from "../event-store";
 import {
   createAgentFinding,
@@ -426,7 +425,7 @@ describe("Import Simulation", () => {
       targetId: "owner-a",
       relationshipType: "issued_by",
       validFrom: "2020-01-01T00:00:00Z",
-      validTo: null, // currently active
+      validTo: undefined, // currently active
     });
 
     expect(rel1).not.toBeNull();
@@ -444,7 +443,7 @@ describe("Import Simulation", () => {
       targetId: "owner-b",
       relationshipType: "issued_by",
       validFrom: "2025-01-01T00:00:00Z",
-      validTo: null,
+      validTo: undefined,
     });
 
     expect(rel2).not.toBeNull();

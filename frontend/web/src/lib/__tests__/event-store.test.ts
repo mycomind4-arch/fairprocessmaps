@@ -30,8 +30,8 @@ function createMockDB() {
       );
       if (!exists) {
         relationships.push({
-          id, case_id: caseId, source_type: srcType, source_id: srcId,
-          target_type: tgtType, target_id: tgtId, relationship_type: relType,
+          id, caseId: caseId, sourceType: srcType, sourceId: srcId,
+          targetType: tgtType, targetId: tgtId, relationshipType: relType,
           metadata, created_at: new Date().toISOString(),
         });
         return { meta: { changes: 1 } };
@@ -40,8 +40,8 @@ function createMockDB() {
     }
     if (sql.includes("INSERT INTO events")) {
       events.push({
-        id: params[0], case_id: params[1], event_type: params[2],
-        entity_type: params[3], entity_id: params[4], actor_type: params[5],
+        id: params[0], caseId: params[1], eventType: params[2],
+        entityType: params[3], entityId: params[4], actorType: params[5],
         actor_id: params[6], actor_name: params[7], severity: params[8],
         event_date: params[9], title: params[10], description: params[11],
         payload: params[12], created_at: new Date().toISOString(),
@@ -98,24 +98,24 @@ describe("Event Store & Relationship Engine", () => {
       const { createRelationship } = await import("@/lib/event-store");
 
       const rel = {
-        case_id: "case-1",
-        source_type: "finding",
-        source_id: "finding-1",
-        target_type: "evidence",
-        target_id: "evidence-1",
-        relationship_type: "supported_by" as const,
+        caseId: "case-1",
+        sourceType: "finding" as const,
+        sourceId: "finding-1",
+        targetType: "evidence" as const,
+        targetId: "evidence-1",
+        relationshipType: "supported_by" as const,
       };
 
       // First creation — should return an ID and emit an event
       const id1 = await createRelationship(db, rel);
       expect(id1).not.toBeNull();
-      const relEvents = db._events.filter((e: any) => e.event_type === "relationship.created");
+      const relEvents = db._events.filter((e: any) => e.eventType === "relationship.created");
       expect(relEvents.length).toBe(1);
 
       // Second creation (same relationship) — should return null, no new event
       const id2 = await createRelationship(db, rel);
       expect(id2).toBeNull();
-      const relEventsAfter = db._events.filter((e: any) => e.event_type === "relationship.created");
+      const relEventsAfter = db._events.filter((e: any) => e.eventType === "relationship.created");
       expect(relEventsAfter.length).toBe(1); // Still only 1 event
     });
   });
@@ -167,11 +167,11 @@ describe("Event Store & Relationship Engine", () => {
     it("uses event_date when available", () => {
       const event = {
         id: "ev-1",
-        case_id: "case-1",
-        event_type: "ce.notice_served",
-        entity_type: "ce_case",
-        entity_id: "ce-1",
-        actor_type: "user",
+        caseId: "case-1",
+        eventType: "ce.notice_served",
+        entityType: "ce_case",
+        entityId: "ce-1",
+        actorType: "user",
         actor_id: null,
         actor_name: null,
         severity: "warning",
@@ -190,11 +190,11 @@ describe("Event Store & Relationship Engine", () => {
     it("falls back to created_at when event_date is null", () => {
       const event = {
         id: "ev-2",
-        case_id: "case-1",
-        event_type: "evidence.uploaded",
-        entity_type: "evidence",
-        entity_id: "ev-1",
-        actor_type: "user",
+        caseId: "case-1",
+        eventType: "evidence.uploaded",
+        entityType: "evidence",
+        entityId: "ev-1",
+        actorType: "user",
         actor_id: null,
         actor_name: null,
         severity: "info",
@@ -214,27 +214,27 @@ describe("Event Store & Relationship Engine", () => {
   describe("Timeline deduplication", () => {
     it("deduplicates by event_type + description, preferring event store", () => {
       const legacyItems = [
-        { id: "t1", event_date: "2026-03-01", event_type: "evidence_uploaded", description: "Evidence uploaded: notice.pdf", evidence_id: "ev1", evidence_title: "notice.pdf" },
-        { id: "t2", event_date: "2026-02-15", event_type: "notice_sent", description: "Notice served: Nuisance", evidence_id: null, evidence_title: null },
+        { id: "t1", event_date: "2026-03-01", eventType: "evidence_uploaded", description: "Evidence uploaded: notice.pdf", evidence_id: "ev1", evidence_title: "notice.pdf" },
+        { id: "t2", event_date: "2026-02-15", eventType: "notice_sent", description: "Notice served: Nuisance", evidence_id: null, evidence_title: null },
       ];
 
       const eventStoreItems = [
-        { id: "e1", event_date: "2026-03-01", event_type: "evidence_uploaded", description: "Evidence uploaded: notice.pdf", evidence_id: "ev1", evidence_title: null, _from_event_store: true },
-        { id: "e2", event_date: "2026-08-05", event_type: "finding_created", description: "Adequate Notice Period: Only 5 days", evidence_id: null, evidence_title: null, _from_event_store: true },
+        { id: "e1", event_date: "2026-03-01", eventType: "evidence_uploaded", description: "Evidence uploaded: notice.pdf", evidence_id: "ev1", evidence_title: null, _from_event_store: true },
+        { id: "e2", event_date: "2026-08-05", eventType: "finding_created", description: "Adequate Notice Period: Only 5 days", evidence_id: null, evidence_title: null, _from_event_store: true },
       ];
 
       // Simulate the dedup logic from the timeline route
       const eventStoreKeys = new Set(
-        eventStoreItems.map((e) => `${e.event_type}::${e.description}`)
+        eventStoreItems.map((e) => `${e.eventType}::${e.description}`)
       );
       const dedupedLegacy = legacyItems.filter((l) => {
-        const key = `${l.event_type}::${l.description}`;
+        const key = `${l.eventType}::${l.description}`;
         return !eventStoreKeys.has(key);
       });
 
       // The duplicate "Evidence uploaded: notice.pdf" should be removed from legacy
       expect(dedupedLegacy.length).toBe(1);
-      expect(dedupedLegacy[0].event_type).toBe("notice_sent");
+      expect(dedupedLegacy[0].eventType).toBe("notice_sent");
 
       // The merged timeline should have 3 items (1 deduped legacy + 2 event store)
       const merged = [...dedupedLegacy, ...eventStoreItems];
@@ -255,10 +255,11 @@ describe("Event Store & Relationship Engine", () => {
 
       const { emitEvent } = await import("@/lib/event-store");
       const result = await emitEvent(badDb as any, {
-        case_id: "case-1",
-        event_type: "evidence.uploaded",
-        entity_type: "evidence",
-        entity_id: "ev-1",
+        caseId: "case-1",
+        eventType: "evidence.uploaded",
+        entityType: "evidence",
+        entityId: "ev-1",
+        actorType: "system" as const,
       });
 
       expect(result).toBeNull();

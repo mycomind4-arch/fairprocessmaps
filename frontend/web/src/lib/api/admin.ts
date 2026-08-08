@@ -29,7 +29,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
     try {
-      const body = await res.json();
+      const body: { detail?: string } = await res.json();
       detail = body.detail || detail;
     } catch {}
     throw new Error(detail);
