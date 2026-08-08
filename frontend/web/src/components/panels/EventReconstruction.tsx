@@ -1,5 +1,14 @@
 "use client";
 
+import { usePanelData, PanelLoading, PanelError } from "./PanelDataWrapper";
+
+export function EventReconstructionPanel({ projectId }: { projectId: string }) {
+  const { items, findings, loading, error, fetchData } = usePanelData(projectId);
+  if (loading) return <PanelLoading label="Loading event reconstruction…" />;
+  if (error) return <PanelError error={error} onRetry={fetchData} />;
+  return <EventReconstruction items={items} findings={findings} />;
+}
+
 import { useMemo, useState } from "react";
 import {
   Bot, AlertTriangle, CheckCircle2, ChevronRight, ChevronDown,

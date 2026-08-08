@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Shield, Plus, Map, AlertTriangle, ChevronRight, LogOut, Loader2, ClipboardCheck, RefreshCw, FileText, Clock } from "lucide-react";
+import { CardSkeleton } from "@/components/ui/states";
 
 interface ProjectListItem {
   id: string;
@@ -72,8 +73,9 @@ export default function Dashboard() {
     return (
       <div className="h-screen flex items-center justify-center bg-fp-bg">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-6 h-6 text-fp-blue animate-spin" />
-          <span className="text-sm text-fp-text-dim">Loading workspace…</span>
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
         </div>
       </div>
     );

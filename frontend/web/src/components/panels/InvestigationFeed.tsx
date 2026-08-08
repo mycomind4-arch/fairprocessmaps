@@ -1,5 +1,14 @@
 "use client";
 
+import { usePanelData, PanelLoading, PanelError } from "./PanelDataWrapper";
+
+export function InvestigationFeedPanel({ projectId }: { projectId: string }) {
+  const { items, findings, loading, error, fetchData } = usePanelData(projectId);
+  if (loading) return <PanelLoading label="Loading activity feed…" />;
+  if (error) return <PanelError error={error} onRetry={fetchData} />;
+  return <InvestigationFeed items={items} findings={findings} />;
+}
+
 import { useEffect, useState, useMemo } from "react";
 import {
   Activity, Bot, FileText, MapPin, Clock,

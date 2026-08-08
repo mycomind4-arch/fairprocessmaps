@@ -1,5 +1,14 @@
 "use client";
 
+import { usePanelData, PanelLoading, PanelError } from "./PanelDataWrapper";
+
+export function ProceduralClockPanel({ projectId }: { projectId: string }) {
+  const { items, findings, loading, error, fetchData } = usePanelData(projectId);
+  if (loading) return <PanelLoading label="Loading procedural clock…" />;
+  if (error) return <PanelError error={error} onRetry={fetchData} />;
+  return <ProceduralClock items={items} findings={findings} />;
+}
+
 import { useMemo, useState } from "react";
 import {
   Clock, AlertTriangle, ShieldCheck, ShieldAlert,

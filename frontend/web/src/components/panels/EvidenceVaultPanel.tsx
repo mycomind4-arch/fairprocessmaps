@@ -12,6 +12,9 @@ import {
   Map,
   FileCheck,
   Mail,
+  Download,
+  Ban,
+  Eye,
 } from "lucide-react";
 
 interface EvidenceItem {
@@ -112,6 +115,36 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
       fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
+    }
+  };
+
+  const handleDownload = async (evidenceId: string, title: string) => {
+    try {
+      const res = await fetch(`/api/v1/evidence/download?id=${evidenceId}`);
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = title || "evidence";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Download failed");
+    }
+  };
+
+  const handleWithdraw = async (evidenceId: string, title: string) => {
+    if (!confirm(`Withdraw "${title}"? This marks the evidence as withdrawn but preserves the file for chain-of-custody.`)) return;
+    try {
+      const res = await fetch(`/api/v1/evidence/withdraw?id=${evidenceId}&projectId=${projectId}`, { method: "POST" });
+      if (!res.ok) {
+        const data: any = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Withdraw failed: ${res.status}`);
+      }
+      fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Withdraw failed");
     }
   };
 
@@ -246,6 +279,24 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
                         {item.ai_summary}
                       </p>
                     )}
+                    <div className="flex items-center gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleDownload(item.id, item.title || "evidence")}
+                        className="px-2 py-1 rounded-lg text-[10px] font-medium text-fp-text-muted hover:text-fp-blue hover:bg-fp-blue/10 border border-fp-border transition-colors flex items-center gap-1"
+                        title="Download original file"
+                      >
+                        <Download className="w-3 h-3" /> Download
+                      </button>
+                      {item.status !== "withdrawn" && (
+                        <button
+                          onClick={() => handleWithdraw(item.id, item.title || "Untitled")}
+                          className="px-2 py-1 rounded-lg text-[10px] font-medium text-fp-text-muted hover:text-fp-red hover:bg-fp-red/10 border border-fp-border transition-colors flex items-center gap-1"
+                          title="Withdraw evidence (preserves file for chain-of-custody)"
+                        >
+                          <Ban className="w-3 h-3" /> Withdraw
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

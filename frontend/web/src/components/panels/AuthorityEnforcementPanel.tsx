@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, ShieldAlert, Network, FileText, Landmark, User, Briefcase, HardHat, Search } from "lucide-react";
+import { Building2, ShieldAlert, Network, FileText, Landmark, User, Briefcase, HardHat, Search, RefreshCw, Loader2 } from "lucide-react";
 import BuildingDeptPanel from "./BuildingDeptPanel";
 import CodeEnforcementPanel from "./CodeEnforcementPanel";
 
@@ -16,9 +16,38 @@ const SUB_TABS: { id: SubTab; label: string; icon: typeof Building2 }[] = [
 
 export default function AuthorityEnforcementPanel({ projectId }: { projectId: string }) {
   const [subTab, setSubTab] = useState<SubTab>("agencies");
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await fetch(`/api/v1/enforcement/sync?projectId=${projectId}`, { method: "POST" });
+    } catch (e) {
+      // Sync may fail if endpoint unavailable — non-blocking
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div className="space-y-4 pb-8" role="region" aria-label="Authority and Enforcement">
+      {/* Header with sync */}
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight text-fp-text">Authority & Enforcement</h2>
+          <p className="text-sm text-fp-text-muted mt-0.5">Government agencies, enforcement actions, and legal authority</p>
+        </div>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-fp-surface-2 border border-fp-border text-xs text-fp-text hover:bg-fp-surface transition-colors disabled:opacity-50"
+          title="Sync enforcement data from county systems"
+        >
+          {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+          {syncing ? "Syncing…" : "Sync Data"}
+        </button>
+      </div>
+
       {/* Sub-tab navigation */}
       <div className="flex items-center gap-1 border-b border-fp-border pb-px overflow-x-auto" role="tablist">
         {SUB_TABS.map((tab) => {
