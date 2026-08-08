@@ -250,9 +250,7 @@ export async function getRelationshipLineage(
 ): Promise<RelationshipLineage | null> {
   // Load relationship
   const rel = await db.prepare(
-    `SELECT * FROM relationships WHERE id = ? AND case_id IN (
-       SELECT id FROM projects WHERE organization_id = ?
-     )`,
+    `SELECT * FROM relationships WHERE id = ? AND organization_id = ?`,
   ).bind(relationshipId, organizationId).first();
 
   if (!rel) return null;
