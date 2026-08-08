@@ -1,5 +1,6 @@
 #:schema node_modules/wrangler/config-schema.json
 name = "fairprocess-web"
+account_id = "bacc6e3e5bd085ab2370c988b35fce3c"
 main = ".open-next/worker.js"
 compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
