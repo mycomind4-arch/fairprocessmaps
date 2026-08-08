@@ -199,7 +199,7 @@ export function AgentPopup({
       <div className="fixed bottom-4 right-4 z-50 animate-[slide-up_0.2s_ease-out]">
         <button
           onClick={onMinimize}
-          className="surface-flat rounded-xl shadow-2xl shadow-black/40 p-3 flex items-center gap-3 min-w-[280px] hover:border-fp-blue/30 border border-transparent transition-colors"
+          className="surface-flat rounded-xl shadow-2xl shadow-black/40 p-3 flex items-center gap-3 sm:min-w-[280px] hover:border-fp-blue/30 border border-transparent transition-colors"
         >
           {state.running ? (
             <Loader2 className="w-4 h-4 text-fp-blue animate-spin shrink-0" />
@@ -240,7 +240,7 @@ export function AgentPopup({
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-50 w-[420px] max-w-[calc(100vw-2rem)] max-h-[70vh] animate-[slide-up_0.2s_ease-out]"
+      className="fixed bottom-3 right-3 left-3 sm:left-auto sm:bottom-4 sm:right-4 z-50 sm:w-[420px] sm:max-w-[calc(100vw-2rem)] max-h-[70vh] animate-[slide-up_0.2s_ease-out]"
       role="dialog"
       aria-label="Agent activity"
     >

@@ -49,7 +49,7 @@ export default function Home() {
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PanelTab>("detail");
   const [evidenceRefresh, setEvidenceRefresh] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingParcel, setPendingParcel] = useState<PendingParcel | null>(null);
   const [pendingPropertyId, setPendingPropertyId] = useState<string | null>(null);
 
@@ -130,7 +130,9 @@ export default function Home() {
         </div>
 
         {sidebarOpen && (
-          <aside className="w-full sm:w-[380px] border-l border-fp-border bg-fp-surface/80 backdrop-blur-xl flex flex-col overflow-hidden shrink-0 animate-[slide-right_0.3s_cubic-bezier(0.16,1,0.3,1)_forwards]">
+          <>
+          <div className="fixed inset-0 z-40 bg-fp-bg/60 backdrop-blur-sm sm:hidden" onClick={() => setSidebarOpen(false)} />
+          <aside className="fixed sm:relative inset-y-0 right-0 z-50 sm:z-auto w-full sm:w-[380px] border-l border-fp-border bg-fp-surface/95 sm:bg-fp-surface/80 backdrop-blur-xl flex flex-col overflow-hidden shrink-0 animate-[slide-right_0.3s_cubic-bezier(0.16,1,0.3,1)_forwards]">
             <nav className="flex border-b border-fp-border shrink-0">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
@@ -200,6 +202,7 @@ export default function Home() {
               )}
             </div>
           </aside>
+          </>
         )}
       </div>
 

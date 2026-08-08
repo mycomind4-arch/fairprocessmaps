@@ -253,3 +253,33 @@ select option {
   background: var(--color-fp-surface);
   color: var(--color-fp-text);
 }
+
+/* ── Mobile optimizations ── */
+@media (max-width: 640px) {
+  /* Prevent text selection on button taps (iOS) */
+  button {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  
+  /* Larger touch targets */
+  button, a {
+    min-height: 36px;
+  }
+  
+  /* Smooth scrolling for horizontal stat bars */
+  .scrollbar-thin {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  header {
+    padding-top: env(safe-area-inset-top);
+  }
+}

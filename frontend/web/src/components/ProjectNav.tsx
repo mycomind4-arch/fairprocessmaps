@@ -74,7 +74,7 @@ interface ProjectNavProps {
 
 export default function ProjectNav({ active, onSelect, criticalFindingsCount = 0, aiReviewCount = 0 }: ProjectNavProps) {
   return (
-    <nav className="w-56 shrink-0 border-r border-fp-border bg-fp-surface/60 backdrop-blur-xl flex flex-col py-3 overflow-y-auto lg:w-64" aria-label="Project navigation">
+    <nav className="w-64 shrink-0 border-r border-fp-border bg-fp-surface/95 lg:bg-fp-surface/60 backdrop-blur-xl flex flex-col py-3 overflow-y-auto h-full lg:w-64" aria-label="Project navigation">
       {NAV_GROUPS.map((group, groupIdx) => (
         <div key={group.title} className={groupIdx > 0 ? "mt-3" : ""}>
           {groupIdx > 0 && <div className="border-t border-fp-border mx-3 mb-3" />}

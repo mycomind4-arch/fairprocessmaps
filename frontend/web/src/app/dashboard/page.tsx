@@ -91,7 +91,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-fp-bg flex flex-col">
       {/* ── Header Bar ── */}
-      <header className="h-14 flex items-center justify-between px-6 glass shrink-0 z-20 border-b border-fp-border">
+      <header className="h-14 flex items-center justify-between px-4 sm:px-6 glass shrink-0 z-20 border-b border-fp-border">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-lg shadow-fp-blue/20">
             <Shield className="w-4 h-4 text-white" />
@@ -121,7 +121,7 @@ export default function Dashboard() {
       {/* ── Main Content ── */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6" role="main">
         {/* ── Page Title + Action ── */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-fp-text">Projects & Investigations</h1>
             <p className="text-sm text-fp-text-muted mt-0.5">
@@ -155,27 +155,27 @@ export default function Dashboard() {
         )}
 
         {/* ── Compact Metrics Bar ── */}
-        <div className="flex items-center gap-4 flex-wrap surface-flat rounded-lg px-4 py-2.5">
+        <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto surface-flat rounded-lg px-3 sm:px-4 py-2.5 scrollbar-thin">
           <div className="flex items-baseline gap-1.5">
             <span className="text-lg font-semibold text-fp-text tabular-nums">{totalProjects}</span>
             <span className="text-xs text-fp-text-dim uppercase tracking-wide">Projects</span>
           </div>
-          <div className="w-px h-6 bg-fp-border" />
+          <div className="w-px h-6 bg-fp-border hidden sm:block" />
           <div className="flex items-baseline gap-1.5">
             <span className="text-lg font-semibold text-fp-blue tabular-nums">{activeCases}</span>
             <span className="text-xs text-fp-text-dim uppercase tracking-wide">Active</span>
           </div>
-          <div className="w-px h-6 bg-fp-border" />
+          <div className="w-px h-6 bg-fp-border hidden sm:block" />
           <div className="flex items-baseline gap-1.5">
             <span className={`text-lg font-semibold tabular-nums ${criticalAlerts > 0 ? "text-fp-red" : "text-fp-text"}`}>{criticalAlerts}</span>
             <span className="text-xs text-fp-text-dim uppercase tracking-wide">Critical</span>
           </div>
-          <div className="w-px h-6 bg-fp-border" />
+          <div className="w-px h-6 bg-fp-border hidden sm:block" />
           <div className="flex items-baseline gap-1.5">
             <span className="text-lg font-semibold text-fp-text tabular-nums">{totalEvidence}</span>
             <span className="text-xs text-fp-text-dim uppercase tracking-wide">Evidence</span>
           </div>
-          <div className="w-px h-6 bg-fp-border" />
+          <div className="w-px h-6 bg-fp-border hidden sm:block" />
           <div className="flex items-baseline gap-1.5">
             <span className="text-lg font-semibold text-fp-text tabular-nums">{totalTimelineEvents}</span>
             <span className="text-xs text-fp-text-dim uppercase tracking-wide">Timeline</span>

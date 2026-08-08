@@ -56,7 +56,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-fp-bg flex flex-col">
-      <header className="h-16 flex items-center justify-between px-6 glass shrink-0 z-20 border-b border-fp-border">
+      <header className="h-14 sm:h-16 flex items-center justify-between px-4 sm:px-6 glass shrink-0 z-20 border-b border-fp-border">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-fp-blue to-fp-cyan flex items-center justify-center shadow-lg shadow-fp-blue/20">
             <Shield className="w-5 h-5 text-white" />
@@ -76,7 +76,7 @@ export default function LandingPage() {
 
       <main className="flex-1 flex flex-col">
         {/* Hero — background image with dark overlay for legibility */}
-        <div className="relative flex flex-col items-center justify-center px-6 py-20 sm:py-28 overflow-hidden">
+        <div className="relative flex flex-col items-center justify-center px-4 py-16 sm:py-28 overflow-hidden">
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: "url(/images/hero-fairprocess.png)" }}
@@ -86,10 +86,10 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-fp-bg via-fp-bg/40 to-transparent" aria-hidden="true" />
 
           <div className="relative max-w-2xl w-full text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mb-3 drop-shadow-sm">
+            <h1 className="text-2xl sm:text-4xl font-bold text-white tracking-tight mb-3 drop-shadow-sm">
               Evidence-First Due-Process Analysis
             </h1>
-            <p className="text-base text-white/80 mb-8 max-w-xl mx-auto">
+            <p className="text-sm sm:text-base text-white/80 mb-8 max-w-xl mx-auto">
               Property-centric GIS, public-record ingestion, AI extraction, timeline generation,
               and automated due-process discrepancy detection.
             </p>
@@ -112,7 +112,7 @@ export default function LandingPage() {
         </div>
 
         {/* Feature highlights — below the fold, on normal surface */}
-        <div className="flex-1 px-6 py-12">
+        <div className="flex-1 px-4 sm:px-6 py-8 sm:py-12">
           <div className="max-w-3xl w-full mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
             {features.map((f) => {
               const Icon = f.icon;

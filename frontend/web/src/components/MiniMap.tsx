@@ -59,7 +59,7 @@ export default function MiniMap({ centroid, geomGeoJSON, onExpand }: MiniMapProp
   }, [view]);
 
   return (
-    <div className="absolute top-4 right-4 z-20 w-64 h-44 rounded-[14px] overflow-hidden glass shadow-lg shadow-black/20 border border-fp-border">
+    <div className="absolute top-3 right-3 z-20 w-48 h-32 sm:w-64 sm:h-44 rounded-[14px] overflow-hidden glass shadow-lg shadow-black/20 border border-fp-border">
       <div ref={container} className="w-full h-full" />
 
       <div className="absolute top-2 left-2 flex gap-1">

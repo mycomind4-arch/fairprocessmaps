@@ -148,12 +148,20 @@ export default function ProjectDashboard() {
       {/* Header */}
       <header className="shrink-0 border-b border-fp-border bg-fp-surface/60 backdrop-blur-xl">
         <div className="flex items-center justify-between px-4 sm:px-6 py-3">
-          <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all shrink-0 lg:hidden"
+              title="Navigation"
+              aria-label="Open navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <button onClick={() => router.push("/dashboard")} className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all shrink-0" title="Back to projects">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="min-w-0 flex-1">
-              <h1 className="text-2xl font-semibold tracking-tight text-fp-text truncate">
+              <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-fp-text truncate">
                 {project?.property.address || project?.name || "Loading Property Matter…"}
               </h1>
               <p className="text-xs font-medium text-fp-text-dim uppercase tracking-wide flex items-center gap-2 mt-0.5">
@@ -186,7 +194,7 @@ export default function ProjectDashboard() {
         <div className="border-t border-fp-border" />
 
         {/* Compact stat readouts */}
-        <div className="flex items-center gap-6 sm:gap-8 text-xs overflow-x-auto py-0.5 px-4 sm:px-6">
+        <div className="flex items-center gap-4 sm:gap-8 text-xs overflow-x-auto py-0.5 px-4 sm:px-6 scrollbar-thin">
           <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Evidence:</span><span className="font-semibold text-fp-text text-sm">{project?.evidenceCount ?? 0}</span></div>
           <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Timeline:</span><span className="font-semibold text-fp-text text-sm">{project?.timelineCount ?? 0}</span></div>
           <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Findings:</span><span className="font-semibold text-fp-text text-sm">{project?.openFindingsCount ?? 0}</span></div>
@@ -225,7 +233,7 @@ export default function ProjectDashboard() {
           </>
         )}
 
-        <main className="flex-1 relative overflow-y-auto p-4 sm:p-6">
+        <main className="flex-1 relative overflow-y-auto p-3 sm:p-6">
           {project?.property.centroid && section === "intelligence" && (
             <MiniMap
               centroid={toLngLat(project.property.centroid)!}

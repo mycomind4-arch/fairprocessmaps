@@ -9,6 +9,11 @@ const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" }
 
 export const metadata: Metadata = {
   title: "FairProcess 2.0 — Evidence-first Due-Process Analysis",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+  },
   description:
     "Property-centric GIS, public-record ingestion, AI extraction, timeline generation, and automated due-process discrepancy detection.",
   metadataBase: new URL("https://fairprocess.pages.dev"),
