@@ -11,20 +11,14 @@ import type { ProjectSummary } from "@/lib/types";
 import PropertyIntelligence from "@/components/panels/PropertyIntelligence";
 import EvidenceVaultPanel from "@/components/panels/EvidenceVaultPanel";
 import TimelinePanel from "@/components/panels/TimelinePanel";
-import LegalAnalysisPanel from "@/components/panels/LegalAnalysisPanel";
+import AnalysisPanel from "@/components/panels/AnalysisPanel";
+import LegalToolsPanel from "@/components/panels/LegalToolsPanel";
+import CaseGraphPanel from "@/components/panels/CaseGraphPanel";
 import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
 import AuthorityEnforcementPanel from "@/components/panels/AuthorityEnforcementPanel";
-import AIReviewPanel from "@/components/panels/AIReviewPanel";
-import { BriefGeneratorPanel } from "@/components/panels/BriefGeneratorPanel";
-import DefenseBuilderPanel from "@/components/panels/DefenseBuilderPanel";
-import { EventReconstructionPanel } from "@/components/panels/EventReconstruction";
-import { ProceduralClockPanel } from "@/components/panels/ProceduralClock";
-import { InvestigationFeedPanel } from "@/components/panels/InvestigationFeed";
-import InvestigationGraph from "@/components/InvestigationGraph";
-import DetailPanel from "@/components/DetailPanel";
 import { useReconStream, TopProgressBar, AgentPopup } from "@/components/ReconProgressModal";
-import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Menu, Network } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Menu } from "lucide-react";
 
 function toLngLat(point: { coordinates: [number, number] } | null | undefined) {
   return point ? { lng: point.coordinates[0], lat: point.coordinates[1] } : null;
@@ -77,9 +71,6 @@ export default function ProjectDashboard() {
   const [reconTriggered, setReconTriggered] = useState(false);
   const [showReconModal, setShowReconModal] = useState(false);
   const [reconForce, setReconForce] = useState(false);
-  const [graphData, setGraphData] = useState<any>(null);
-  const [graphLoading, setGraphLoading] = useState(false);
-  const [selectedGraphNode, setSelectedGraphNode] = useState<string | null>(null);
 
   const fetchProject = useCallback(() => {
     setFetchError(null);
@@ -106,19 +97,6 @@ export default function ProjectDashboard() {
   }, [id, reconTriggered]);
 
   useEffect(() => { fetchProject(); }, [fetchProject]);
-
-  // Fetch case graph data when the graph section is opened
-  useEffect(() => {
-    if (section !== "graph" || graphData || graphLoading) return;
-    setGraphLoading(true);
-    fetch(`/api/v1/cases/${id}/graph`, { headers: { "Cache-Control": "no-cache" } })
-      .then((r) => r.json())
-      .then((d: any) => {
-        setGraphData(d.ok ? d.data : null);
-        setGraphLoading(false);
-      })
-      .catch(() => setGraphLoading(false));
-  }, [id, section, graphData, graphLoading]);
 
   // Listen for manual recon trigger from PropertyIntelligence panel
   useEffect(() => {
@@ -260,46 +238,9 @@ export default function ProjectDashboard() {
           {section === "authority" && <AuthorityEnforcementPanel projectId={id} />}
           {section === "timeline" && <TimelinePanel projectId={id} />}
           {section === "vault" && <EvidenceVaultPanel projectId={id} />}
-          {section === "analysis" && <LegalAnalysisPanel projectId={id} />}
-          {section === "ai-review" && <AIReviewPanel projectId={id} />}
-          {section === "brief" && <BriefGeneratorPanel projectId={id} />}
-          {section === "defense" && <DefenseBuilderPanel projectId={id} />}
-          {section === "reconstruction" && <EventReconstructionPanel projectId={id} />}
-          {section === "procedural-clock" && <ProceduralClockPanel projectId={id} />}
-          {section === "feed" && <InvestigationFeedPanel projectId={id} />}
-          {section === "graph" && (
-            <div className="flex flex-col h-full gap-4">
-              <InvestigationGraph
-                nodes={graphData?.nodes || []}
-                edges={graphData?.edges || []}
-                selectedNode={selectedGraphNode}
-                highlightedNodes={new Set()}
-                onNodeClick={(nodeId) => setSelectedGraphNode(nodeId)}
-              />
-              {graphData && selectedGraphNode && (
-                <DetailPanel
-                  graph={graphData}
-                  summary={graphData?.summary || null}
-                  caseId={id}
-                  selectedNode={selectedGraphNode}
-                  selectedEvent={null}
-                  activeTab="evidence"
-                  onTabChange={() => {}}
-                />
-              )}
-              {graphLoading && (
-                <div className="flex items-center justify-center p-8 text-fp-text-muted text-sm gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-fp-blue" /> Loading case graph…
-                </div>
-              )}
-              {graphData && !graphData.nodes?.length && !graphLoading && (
-                <div className="flex flex-col items-center justify-center p-8 text-fp-text-dim text-sm gap-2">
-                  <Network className="w-8 h-8 text-fp-text-dim" />
-                  <p>No graph data yet. Run recon to build the case graph.</p>
-                </div>
-              )}
-            </div>
-          )}
+          {section === "analysis" && <AnalysisPanel projectId={id} />}
+          {section === "legal" && <LegalToolsPanel projectId={id} />}
+          {section === "graph" && <CaseGraphPanel projectId={id} />}
           {section === "connectors" && <ConnectorsPanel projectId={id} />}
           {section === "admin" && <AdminPanel projectId={id} />}
         </main>

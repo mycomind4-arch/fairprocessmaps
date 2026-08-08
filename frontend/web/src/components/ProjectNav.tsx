@@ -10,11 +10,9 @@ import {
   ScaleIcon,
   Bot,
   FileText,
-  Shield,
   Network,
-  Clock,
-  Activity,
   Gavel,
+  Shield,
 } from "lucide-react";
 
 export type ProjectSection =
@@ -23,12 +21,7 @@ export type ProjectSection =
   | "timeline"
   | "vault"
   | "analysis"
-  | "ai-review"
-  | "brief"
-  | "defense"
-  | "reconstruction"
-  | "procedural-clock"
-  | "feed"
+  | "legal"
   | "graph"
   | "connectors"
   | "admin";
@@ -57,20 +50,10 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "LEGAL TOOLS",
+    title: "LEGAL & GRAPH",
     items: [
-      { id: "brief", label: "Brief Generator", icon: FileText },
-      { id: "defense", label: "Defense Builder", icon: Shield },
-      { id: "procedural-clock", label: "Procedural Clock", icon: Clock },
-      { id: "reconstruction", label: "Event Reconstruction", icon: Activity },
-      { id: "ai-review", label: "AI Review", icon: Bot, badgeKey: "ai-review" },
-    ],
-  },
-  {
-    title: "CASE GRAPH",
-    items: [
-      { id: "graph", label: "Investigation Graph", icon: Network },
-      { id: "feed", label: "Activity Feed", icon: Activity },
+      { id: "legal", label: "Legal Tools", icon: Gavel },
+      { id: "graph", label: "Case Graph", icon: Network, badgeKey: "ai-review" },
     ],
   },
   {
