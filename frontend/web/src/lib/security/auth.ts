@@ -19,6 +19,33 @@ const PBKDF2_ITERATIONS = 100_000;
 const PBKDF2_KEYLEN = 32; // 256 bits
 const SALT_LEN = 16;
 
+// ── Constant-time comparison ──────────────────────────────────────────────────
+
+/**
+ * Compare two Uint8Arrays in constant time to prevent timing side-channel attacks.
+ * Returns true if the arrays are equal length and all bytes match.
+ */
+function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a[i] ^ b[i];
+  }
+  return result === 0;
+}
+
+/**
+ * Compare two hex strings in constant time.
+ */
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 // ── Password hashing ──────────────────────────────────────────────────────────
 
 export async function hashPassword(password: string): Promise<string> {
@@ -58,7 +85,9 @@ export async function verifyPassword(password: string, stored: string): Promise<
     keyMaterial,
     PBKDF2_KEYLEN * 8,
   );
-  return toHex(new Uint8Array(derived)) === expected;
+
+  // Constant-time comparison to prevent timing side-channel attacks (C2)
+  return timingSafeEqualHex(toHex(new Uint8Array(derived)), expected);
 }
 
 // ── Session management ────────────────────────────────────────────────────────
@@ -166,7 +195,7 @@ export async function authenticateRequest(req: Request): Promise<AuthResult> {
   }
 }
 
-// ── Cookie helpers ────────────────────────────────────────────────────────────
+// ── Cookie helpers ───────────────────────────────────────────────────────────────────
 
 export function getSessionCookieName(): string {
   return SESSION_COOKIE;
@@ -181,7 +210,7 @@ export function clearSessionCookie(): string {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
 }
 
-// ── Login / Logout ─────────────────────────────────────────────────────────────
+// ── Login / Logout ───────────────────────────────────────────────────────────────────
 
 export async function login(
   db: D1Database,
