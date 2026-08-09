@@ -1,285 +1,155 @@
 @import "tailwindcss";
 
 @theme {
-  /* ── Dark glassmorphism palette ── */
-  --color-fp-bg: #070b14;
-  --color-fp-surface: #0d1424;
-  --color-fp-surface-2: #131c30;
-  --color-fp-glass: rgba(19, 28, 48, 0.6);
-  --color-fp-border: rgba(56, 78, 122, 0.25);
-  --color-fp-border-hover: rgba(56, 78, 122, 0.45);
+  /* FairProcessMaps — clean, document-first visual system */
+  --color-fp-bg: #f7f8fa;
+  --color-fp-surface: #ffffff;
+  --color-fp-surface-2: #f1f3f6;
+  --color-fp-glass: rgba(255, 255, 255, 0.92);
+  --color-fp-border: #e5e7eb;
+  --color-fp-border-hover: #d1d5db;
 
-  --color-fp-blue: #3b82f6;
-  --color-fp-cyan: #06b6d4;
-  --color-fp-teal: #14b8a6;
-  --color-fp-red: #ef4444;
-  --color-fp-amber: #f59e0b;
-  --color-fp-green: #10b981;
-  --color-fp-purple: #a78bfa;
+  --color-fp-blue: #2563eb;
+  --color-fp-cyan: #0891b2;
+  --color-fp-teal: #0f766e;
+  --color-fp-red: #dc2626;
+  --color-fp-amber: #b45309;
+  --color-fp-green: #047857;
+  --color-fp-purple: #7c3aed;
 
-  --color-fp-text: #e2e8f0;
-  --color-fp-text-muted: #94a3b8;
-  --color-fp-text-dim: #64748b;
+  --color-fp-text: #17191d;
+  --color-fp-text-muted: #5f6672;
+  --color-fp-text-dim: #8b929e;
 
-  --radius-glass: 12px;
+  --radius-glass: 10px;
 
-  /* ── Animations ── */
-  --animate-fade-in: fade-in 0.4s ease-out forwards;
-  --animate-slide-up: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  --animate-slide-down: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  --animate-slide-right: slide-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  --animate-scale-in: scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fade-in: fade-in 0.25s ease-out forwards;
+  --animate-slide-up: slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-down: slide-down 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-right: slide-right 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-scale-in: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-shimmer: shimmer 2.5s linear infinite;
-  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
 }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slide-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slide-down { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slide-right { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes scale-in { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
-@keyframes slide-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slide-down {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slide-right {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes scale-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
-  50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.35); }
-}
-
-/* ── Base styles ── */
 html, body {
   height: 100%;
   background: var(--color-fp-bg);
   color: var(--color-fp-text);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  text-rendering: optimizeLegibility;
 }
 
 *, *::before, *::after {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-fp-border) transparent;
+  scrollbar-color: #d6dae1 transparent;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--color-fp-border);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-fp-border-hover);
-}
+::-webkit-scrollbar-thumb { background: #d6dae1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #bfc5ce; }
 
-/* ── Glass card utility (primary containers only) ── */
+/* Use containers sparingly. The product should feel like a workspace, not a glass dashboard. */
 .glass {
-  background: var(--color-fp-glass);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  background: var(--color-fp-surface);
   border: 1px solid var(--color-fp-border);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.03);
 }
 
 .glass-hover:hover {
-  background: rgba(19, 28, 48, 0.8);
+  background: #fff;
   border-color: var(--color-fp-border-hover);
+  box-shadow: 0 4px 14px rgba(16, 24, 40, 0.06);
 }
 
-/* ── Flat surface utility (secondary content — no blur) ── */
 .surface-flat {
-  background: rgba(19, 28, 48, 0.4);
+  background: var(--color-fp-surface);
   border: 1px solid var(--color-fp-border);
 }
 
 .surface-flat:hover {
-  background: rgba(19, 28, 48, 0.6);
+  background: #fff;
   border-color: var(--color-fp-border-hover);
 }
 
-/* ── Standard Card Utilities ── */
 .card-interactive {
-  background: var(--color-fp-glass);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  background: var(--color-fp-surface);
   border: 1px solid var(--color-fp-border);
   border-radius: var(--radius-glass);
-  box-shadow: 0 8px 20px -5px rgba(0, 0, 0, 0.15);
-  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.03);
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
 .card-interactive:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px -5px rgba(0, 0, 0, 0.3);
-  border-color: rgba(59, 130, 246, 0.35);
+  transform: translateY(-1px);
+  border-color: var(--color-fp-border-hover);
+  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.07);
 }
 
-/* ── Gradient text ── */
 .gradient-text {
-  background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 50%, #14b8a6 100%);
+  background: linear-gradient(135deg, #1d4ed8 0%, #0e7490 55%, #0f766e 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-/* ── Shimmer skeleton ── */
 .shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--color-fp-surface) 25%,
-    var(--color-fp-surface-2) 50%,
-    var(--color-fp-surface) 75%
-  );
+  background: linear-gradient(90deg, #f1f3f6 25%, #fafbfc 50%, #f1f3f6 75%);
   background-size: 200% 100%;
   animation: var(--animate-shimmer);
 }
 
-/* ── Map overrides ── */
-.maplibregl-map {
-  font-family: inherit;
-  background: var(--color-fp-bg);
-}
-
+.maplibregl-map { font-family: inherit; background: #eef1f4; }
 .maplibregl-ctrl-group {
-  background: var(--color-fp-glass) !important;
-  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,.96) !important;
   border: 1px solid var(--color-fp-border) !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(16,24,40,.08);
 }
+.maplibregl-ctrl-group button { background: transparent !important; border-bottom: 1px solid var(--color-fp-border) !important; }
+.maplibregl-ctrl-group button:hover { background: #f3f5f7 !important; }
+.maplibregl-ctrl-group button+button { border-top: 0; }
+.maplibregl-ctrl button .maplibregl-ctrl-icon { filter: none; }
 
-.maplibregl-ctrl-group button {
-  background: transparent !important;
-  border-bottom: 1px solid var(--color-fp-border) !important;
-}
+.vis-timeline { border: none !important; color: var(--color-fp-text-muted); }
+.vis-item { background: #fff !important; border-color: #dfe3e8 !important; color: var(--color-fp-text) !important; border-radius: 5px !important; font-size: 11px !important; }
+.vis-item.vis-dot { border-color: var(--color-fp-blue) !important; background: var(--color-fp-blue) !important; border-radius: 50% !important; width: 10px !important; height: 10px !important; }
+.vis-item.vis-item-critical { border-color: var(--color-fp-red) !important; background: #fef2f2 !important; box-shadow: none; }
+.vis-item.vis-selected { background: #eff6ff !important; border-color: #93c5fd !important; }
+.vis-time-axis .vis-text { color: var(--color-fp-text-dim) !important; }
+.vis-time-axis .vis-grid.vis-minor { border-color: #f0f1f3 !important; }
+.vis-time-axis .vis-grid.vis-major { border-color: #e5e7eb !important; }
+.vis-panel.vis-center, .vis-panel.vis-left, .vis-panel.vis-right { border-color: var(--color-fp-border) !important; }
 
-.maplibregl-ctrl-group button:hover {
-  background: rgba(59, 130, 246, 0.15) !important;
-}
+::selection { background: #dbeafe; color: #172033; }
+*:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
 
-.maplibregl-ctrl-group button+button {
-  border-top: 0;
-}
+input, select, textarea { background: #fff; color: var(--color-fp-text); }
+select option { background: #fff; color: var(--color-fp-text); }
 
-.maplibregl-ctrl button .maplibregl-ctrl-icon {
-  filter: invert(0.8);
-}
+/* Small shared primitives for the clean application shell. */
+.fp-divider { border-color: var(--color-fp-border); }
+.fp-muted { color: var(--color-fp-text-muted); }
+.fp-eyebrow { color: var(--color-fp-text-dim); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.fp-page { max-width: 1440px; margin: 0 auto; padding: 28px 32px 48px; }
+.fp-panel { background: #fff; border: 1px solid var(--color-fp-border); border-radius: 10px; }
 
-/* ── vis-timeline dark overrides ── */
-.vis-timeline {
-  border: none !important;
-  color: var(--color-fp-text-muted);
-}
-
-.vis-item {
-  background: var(--color-fp-surface-2) !important;
-  border-color: var(--color-fp-border) !important;
-  color: var(--color-fp-text) !important;
-  border-radius: 6px !important;
-  font-size: 11px !important;
-}
-
-.vis-item.vis-dot {
-  border-color: var(--color-fp-cyan) !important;
-  background: var(--color-fp-cyan) !important;
-  border-radius: 50% !important;
-  width: 12px !important;
-  height: 12px !important;
-}
-
-.vis-item.vis-item-critical {
-  border-color: var(--color-fp-red) !important;
-  background: var(--color-fp-red) !important;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
-}
-
-.vis-item.vis-selected {
-  background: rgba(59, 130, 246, 0.25) !important;
-  border-color: var(--color-fp-blue) !important;
-}
-
-.vis-time-axis .vis-text {
-  color: var(--color-fp-text-dim) !important;
-}
-
-.vis-time-axis .vis-grid.vis-minor {
-  border-color: rgba(56, 78, 122, 0.1) !important;
-}
-
-.vis-time-axis .vis-grid.vis-major {
-  border-color: rgba(56, 78, 122, 0.2) !important;
-}
-
-.vis-panel.vis-center, .vis-panel.vis-left, .vis-panel.vis-right {
-  border-color: var(--color-fp-border) !important;
-}
-
-/* ── Selection ── */
-::selection {
-  background: rgba(59, 130, 246, 0.3);
-  color: white;
-}
-
-/* ── Focus ring ── */
-*:focus-visible {
-  outline: 2px solid var(--color-fp-blue);
-  outline-offset: 2px;
-}
-
-input, select, textarea {
-  background: var(--color-fp-surface);
-  color: var(--color-fp-text);
-}
-
-select option {
-  background: var(--color-fp-surface);
-  color: var(--color-fp-text);
-}
-
-/* ── Mobile optimizations ── */
 @media (max-width: 640px) {
-  /* Prevent text selection on button taps (iOS) */
-  button {
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-  }
-  
-  /* Larger touch targets */
-  button, a {
-    min-height: 36px;
-  }
-  
-  /* Smooth scrolling for horizontal stat bars */
-  .scrollbar-thin {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  .scrollbar-thin::-webkit-scrollbar {
-    display: none;
-  }
+  button { -webkit-tap-highlight-color: transparent; user-select: none; }
+  button, a { min-height: 36px; }
+  .scrollbar-thin { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-thin::-webkit-scrollbar { display: none; }
+  .fp-page { padding: 20px 16px 36px; }
 }
 
-/* Safe area insets for notched devices */
 @supports (padding: env(safe-area-inset-bottom)) {
-  header {
-    padding-top: env(safe-area-inset-top);
-  }
+  header { padding-top: env(safe-area-inset-top); }
 }
