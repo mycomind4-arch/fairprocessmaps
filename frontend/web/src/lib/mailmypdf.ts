@@ -117,3 +117,12 @@ export async function createMailMyPDFCommunication(
     }),
   });
 }
+
+export async function getMailMyPDFCommunication(
+  env: unknown,
+  communicationId: string,
+): Promise<MailMyPDFCommunication> {
+  return request<MailMyPDFCommunication>(env, `/api/v1/communications/${encodeURIComponent(communicationId)}`, {
+    method: "GET",
+  });
+}
