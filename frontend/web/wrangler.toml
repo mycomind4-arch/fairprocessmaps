@@ -13,6 +13,7 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "fairprocess"
 database_id = "0cdba437-b016-4dcd-91ae-08e14dd1662f"
+migrations_dir = "../../database/d1/migrations"
 
 [[r2_buckets]]
 binding = "EVIDENCE_BUCKET"
