@@ -34,7 +34,6 @@ interface ReconStatus {
   agents: { name: string; status: string; message: string }[];
 }
 
-// Wrapper component to use the new hook-based recon
 function ProjectRecon({ projectId, force, onComplete, onClose }: {
   projectId: string;
   force: boolean;
@@ -74,9 +73,11 @@ export default function ProjectDashboard() {
 
   const fetchProject = useCallback(() => {
     setFetchError(null);
-    fetch(`/api/v1/projects?id=${id}`, { headers: { "Cache-Control": "no-cache" } })
+    // Case is now the source of truth. The adapter accepts this legacy
+    // project ID during migration and resolves it through case_projects.
+    fetch(`/api/v1/cases/${id}`, { headers: { "Cache-Control": "no-cache" } })
       .then((r) => {
-        if (!r.ok) throw new Error(`Failed to load project (${r.status})`);
+        if (!r.ok) throw new Error(`Failed to load case (${r.status})`);
         return r.json();
       })
       .then((d: any) => {
@@ -92,13 +93,12 @@ export default function ProjectDashboard() {
       })
       .catch((err) => {
         setProject(null);
-        setFetchError(err instanceof Error ? err.message : "Failed to load project");
+        setFetchError(err instanceof Error ? err.message : "Failed to load case");
       });
   }, [id, reconTriggered]);
 
   useEffect(() => { fetchProject(); }, [fetchProject]);
 
-  // Listen for manual recon trigger from PropertyIntelligence panel
   useEffect(() => {
     const handler = () => {
       setReconForce(true);
@@ -108,7 +108,6 @@ export default function ProjectDashboard() {
     return () => window.removeEventListener("trigger-recon", handler);
   }, []);
 
-  // Auto-trigger recon modal when opening a project that hasn't been scanned
   useEffect(() => {
     if (!id || reconTriggered) return;
     if (project && !project.reconCompleted) {
@@ -145,24 +144,18 @@ export default function ProjectDashboard() {
 
   return (
     <div className="h-screen flex flex-col bg-fp-bg">
-      {/* Header */}
       <header className="shrink-0 border-b border-fp-border bg-fp-surface/60 backdrop-blur-xl">
         <div className="flex items-center justify-between px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => setMobileNavOpen(true)}
-              className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all shrink-0 lg:hidden"
-              title="Navigation"
-              aria-label="Open navigation"
-            >
+            <button onClick={() => setMobileNavOpen(true)} className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all shrink-0 lg:hidden" title="Navigation" aria-label="Open navigation">
               <Menu className="w-5 h-5" />
             </button>
-            <button onClick={() => router.push("/dashboard")} className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all shrink-0" title="Back to projects">
+            <button onClick={() => router.push("/dashboard")} className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all shrink-0" title="Back to cases">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="min-w-0 flex-1">
               <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-fp-text truncate">
-                {project?.property.address || project?.name || "Loading Property Matter…"}
+                {project?.property.address || project?.name || "Loading Matter…"}
               </h1>
               <p className="text-xs font-medium text-fp-text-dim uppercase tracking-wide flex items-center gap-2 mt-0.5">
                 <span>{project?.status ? `${project.status} Investigation` : "Open Investigation"}</span>
@@ -193,7 +186,6 @@ export default function ProjectDashboard() {
 
         <div className="border-t border-fp-border" />
 
-        {/* Compact stat readouts */}
         <div className="flex items-center gap-4 sm:gap-8 text-xs overflow-x-auto py-0.5 px-4 sm:px-6 scrollbar-thin">
           <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Evidence:</span><span className="font-semibold text-fp-text text-sm">{project?.evidenceCount ?? 0}</span></div>
           <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Timeline:</span><span className="font-semibold text-fp-text text-sm">{project?.timelineCount ?? 0}</span></div>
@@ -208,38 +200,23 @@ export default function ProjectDashboard() {
         </div>
       </header>
 
-      {/* Main Layout Body */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Desktop sidebar */}
         <div className="hidden lg:block">
-          <ProjectNav
-            active={section}
-            onSelect={setSection}
-            criticalFindingsCount={project?.criticalFindingsCount ?? 0}
-          />
+          <ProjectNav active={section} onSelect={setSection} criticalFindingsCount={project?.criticalFindingsCount ?? 0} />
         </div>
 
-        {/* Mobile nav overlay */}
         {mobileNavOpen && (
           <>
             <div className="fixed inset-0 z-40 bg-fp-bg/60 backdrop-blur-sm lg:hidden" onClick={() => setMobileNavOpen(false)} />
             <div className="fixed left-0 top-0 bottom-0 z-50 lg:hidden animate-[slide-right_0.2s_ease-out]">
-              <ProjectNav
-                active={section}
-                onSelect={(s) => { setSection(s); setMobileNavOpen(false); }}
-                criticalFindingsCount={project?.criticalFindingsCount ?? 0}
-              />
+              <ProjectNav active={section} onSelect={(s) => { setSection(s); setMobileNavOpen(false); }} criticalFindingsCount={project?.criticalFindingsCount ?? 0} />
             </div>
           </>
         )}
 
         <main className="flex-1 relative overflow-y-auto p-3 sm:p-6">
           {project?.property.centroid && section === "intelligence" && (
-            <MiniMap
-              centroid={toLngLat(project.property.centroid)!}
-              geomGeoJSON={(project.property.geom as any) ?? undefined}
-              onExpand={() => setMapExpanded(true)}
-            />
+            <MiniMap centroid={toLngLat(project.property.centroid)!} geomGeoJSON={(project.property.geom as any) ?? undefined} onExpand={() => setMapExpanded(true)} />
           )}
 
           {section === "intelligence" && <PropertyIntelligence projectId={id} propertyId={project?.property_id ?? ""} onNavigate={setSection} />}
@@ -258,17 +235,10 @@ export default function ProjectDashboard() {
         <div className="fixed inset-0 z-50 bg-fp-bg/95 backdrop-blur-sm flex flex-col">
           <div className="flex items-center justify-between px-6 py-4 border-b border-fp-border shrink-0">
             <h2 className="text-lg font-semibold text-fp-text">{project?.property.address || "Property Map"}</h2>
-            <button onClick={() => setMapExpanded(false)} className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all" title="Close map">
-              <X className="w-5 h-5" />
-            </button>
+            <button onClick={() => setMapExpanded(false)} className="p-2 rounded-xl text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2 transition-all" title="Close map"><X className="w-5 h-5" /></button>
           </div>
           <div className="flex-1 relative">
-            <PropertyMap
-              initialCenter={project?.property.centroid ? [project.property.centroid.coordinates[0], project.property.centroid.coordinates[1]] : undefined}
-              initialZoom={16}
-              onSelectProperty={() => {}}
-              selectedProperty={null}
-            />
+            <PropertyMap initialCenter={project?.property.centroid ? [project.property.centroid.coordinates[0], project.property.centroid.coordinates[1]] : undefined} initialZoom={16} onSelectProperty={() => {}} selectedProperty={null} />
           </div>
         </div>
       )}
