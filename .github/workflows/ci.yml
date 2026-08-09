@@ -8,7 +8,7 @@ on:
 
 jobs:
   typecheck:
-    name: TypeScript Type Check
+    name: Frontend Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,10 +28,48 @@ jobs:
         working-directory: frontend/web
         run: npx tsc --noEmit --skipLibCheck
 
-  build:
-    name: Build
+  backend-quality:
+    name: Backend Quality
     runs-on: ubuntu-latest
-    needs: typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install API dependencies
+        working-directory: backend/api
+        run: uv pip install --system -e '.[dev]'
+
+      - name: API lint
+        working-directory: backend/api
+        run: uv run ruff check src
+
+      - name: API format check
+        working-directory: backend/api
+        run: uv run ruff format --check src
+
+      - name: API type check
+        working-directory: backend/api
+        run: uv run mypy src
+
+      - name: API tests
+        working-directory: backend/api
+        run: uv run pytest tests/ -v
+
+      - name: Ingestion lint
+        working-directory: backend/ingestion
+        run: uv pip install --system -e . && uv run ruff check src
+
+  build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    needs: [typecheck, backend-quality]
     steps:
       - uses: actions/checkout@v4
 
