@@ -163,7 +163,7 @@ export async function POST(
         `INSERT INTO events (
           id, case_id, event_type, entity_type, entity_id, actor_type,
           actor_id, actor_name, severity, title, description, payload
-        ) VALUES (?, ?, 'mail_job.created', 'communication', ?, 'human', ?, ?, 'info', ?, ?, ?)`
+        ) VALUES (?, ?, 'mail_job.created', 'communication', ?, 'user', ?, ?, 'info', ?, ?, ?)`
       ).bind(
         crypto.randomUUID(),
         caseId,
