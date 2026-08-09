@@ -46,6 +46,7 @@ export type Action =
   | "event.read"
   | "communication.read"
   | "communication.create"
+  | "analysis.run"
   | "admin.debug"
   | "agent.run"
   | "agent.review"
