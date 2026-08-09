@@ -62,9 +62,17 @@ jobs:
         working-directory: backend/api
         run: uv run pytest tests/ -v
 
+      - name: Install ingestion dependencies
+        working-directory: backend/ingestion
+        run: uv pip install --system -e '.[dev]'
+
       - name: Ingestion lint
         working-directory: backend/ingestion
-        run: uv pip install --system -e . && uv run ruff check src
+        run: uv run ruff check src
+
+      - name: Ingestion tests
+        working-directory: backend/ingestion
+        run: uv run pytest tests/ -v
 
   build:
     name: Frontend Build
