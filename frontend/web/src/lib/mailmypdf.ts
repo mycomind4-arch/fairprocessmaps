@@ -33,9 +33,11 @@ function getConfig(env: unknown): MailMyPDFConfig {
 
 async function request<T>(env: unknown, path: string, init: RequestInit): Promise<T> {
   const config = getConfig(env);
-  const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${config.apiKey}`);
-  headers.set("Accept", "application/json");
+  // Use a plain header record so the request remains inspectable in tests and by
+  // adapters while retaining normal Fetch Headers semantics at the network edge.
+  const headers: Record<string, string> = Object.fromEntries(new Headers(init.headers).entries());
+  headers.Authorization = `Bearer ${config.apiKey}`;
+  headers.Accept = "application/json";
 
   const response = await fetch(`${config.baseUrl}${path}`, { ...init, headers });
   const body = await response.text();
