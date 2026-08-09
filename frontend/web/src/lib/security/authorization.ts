@@ -9,8 +9,6 @@
 
 import type { Action, AuthUser, AuthzResult, Role, Resource } from "./types";
 
-// ── Role → Action permission matrix ──────────────────────────────────────────
-
 const PERMISSIONS: Record<Role, Set<Action>> = {
   admin: new Set<Action>([
     "case.read", "case.update",
@@ -19,6 +17,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read", "finding.review",
     "relationship.read", "relationship.create", "relationship.review",
     "event.read",
+    "communication.read", "communication.create",
     "admin.debug",
     "agent.read", "agent.run", "agent.review",
   ]),
@@ -30,6 +29,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read",
     "relationship.read", "relationship.create",
     "event.read",
+    "communication.read", "communication.create",
     "agent.read", "agent.run",
   ]),
 
@@ -40,6 +40,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read", "finding.review",
     "relationship.read", "relationship.create", "relationship.review",
     "event.read",
+    "communication.read", "communication.create",
     "agent.read", "agent.run", "agent.review",
   ]),
 
@@ -50,6 +51,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read",
     "relationship.read",
     "event.read",
+    "communication.read", "communication.create",
     "agent.read",
   ]),
 
@@ -60,6 +62,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read", "finding.review",
     "relationship.read", "relationship.review",
     "event.read",
+    "communication.read",
     "agent.read", "agent.review",
   ]),
 
@@ -70,6 +73,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read",
     "relationship.read",
     "event.read",
+    "communication.read",
     "agent.read",
   ]),
 
@@ -80,6 +84,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read", "finding.review",
     "relationship.read", "relationship.create", "relationship.review",
     "event.read",
+    "communication.read", "communication.create",
     "agent.read", "agent.run", "agent.review",
   ]),
 
@@ -90,13 +95,10 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "finding.read",
     "relationship.read",
     "event.read",
+    "communication.read",
     "agent.read",
   ]),
 };
-
-// ── Agent permissions (separate from human roles) ────────────────────────────
-// Agents can READ and create analysis, but cannot modify evidence, findings,
-// events, or authority chains.
 
 export const AGENT_PERMISSIONS = new Set<Action>([
   "case.read",
@@ -108,14 +110,11 @@ export const AGENT_PERMISSIONS = new Set<Action>([
   "agent.read",
 ]);
 
-// ── authorize() ──────────────────────────────────────────────────────────────
-
 export function authorize(
   user: AuthUser,
   action: Action,
   resource?: Resource,
 ): AuthzResult {
-  // 1. Check role has the action
   const allowed = PERMISSIONS[user.role]?.has(action) ?? false;
   if (!allowed) {
     return {
@@ -124,7 +123,6 @@ export function authorize(
     };
   }
 
-  // 2. Organization isolation — if resource has an org, it must match
   if (resource?.organization_id && resource.organization_id !== user.organization_id) {
     return {
       allowed: false,
@@ -135,8 +133,6 @@ export function authorize(
   return { allowed: true };
 }
 
-// ── authorizeAgent() ─────────────────────────────────────────────────────────
-
 export function authorizeAgent(action: Action): AuthzResult {
   if (!AGENT_PERMISSIONS.has(action)) {
     return {
@@ -146,8 +142,6 @@ export function authorizeAgent(action: Action): AuthzResult {
   }
   return { allowed: true };
 }
-
-// ── Helper: check if a role can perform an action (no resource) ─────────────
 
 export function can(role: Role, action: Action): boolean {
   return PERMISSIONS[role]?.has(action) ?? false;
