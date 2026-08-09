@@ -159,6 +159,8 @@ async function queryLayerByGeometry(
     geometry: JSON.stringify(geomValue),
     geometryType: geomType,
     spatialRel: "esriSpatialRelIntersects",
+    inSR: "4326",
+    outSR: "4326",
     outFields: outFields.join(","),
     returnGeometry: "false",
     f: "json",
@@ -237,6 +239,8 @@ async function checkIntersection(
     geometry: JSON.stringify(geomValue),
     geometryType: geomType,
     spatialRel: "esriSpatialRelIntersects",
+    inSR: "4326",
+    outSR: "4326",
     outFields: "*",
     returnGeometry: "false",
     f: "json",
@@ -514,20 +518,22 @@ const jurisdictionAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => 
 
   const [cityBoundary, supervisor, schoolDist, fireDist] = await Promise.all([
     checkIntersection(CITY_BOUNDARY_URL, ctx.parcel.geometry),
-    queryLayerByGeometry(SUPERVISOR_URL, ctx.parcel.geometry, ["DIST"]),
-    queryLayerByGeometry(SCHOOL_DIST_URL, ctx.parcel.geometry, ["NAME"]),
-    queryLayerByGeometry(FIRE_DIST_URL, ctx.parcel.geometry, ["NAME"]),
+    queryLayerByGeometry(SUPERVISOR_URL, ctx.parcel.geometry, ["Dist_Sc2", "NAME"]),
+    queryLayerByGeometry(SCHOOL_DIST_URL, ctx.parcel.geometry, ["SCHOOL_DIS"]),
+    queryLayerByGeometry(FIRE_DIST_URL, ctx.parcel.geometry, ["FIRE_DISTR", "AGENCY"]),
   ]);
 
   return {
     agent: "jurisdiction",
     status: "success",
-    message: `Jurisdiction: ${cityBoundary ? "City" : "County"}, Supervisor District: ${supervisor?.DIST || ctx.parcel.properties.SUPD_DIST || "Unknown"}`,
+    message: `Jurisdiction: ${cityBoundary ? "City" : "County"}, Supervisor District: ${supervisor?.Dist_Sc2 || ctx.parcel.properties.SUPD_DIST || "Unknown"}`,
     data: {
       in_city_limits: cityBoundary,
-      supervisor_district: supervisor?.DIST || ctx.parcel.properties.SUPD_DIST || null,
-      school_district: schoolDist?.NAME || null,
-      fire_district: fireDist?.NAME || null,
+      supervisor_district: supervisor?.Dist_Sc2 || ctx.parcel.properties.SUPD_DIST || null,
+      supervisor_name: supervisor?.NAME || null,
+      school_district: schoolDist?.SCHOOL_DIS || null,
+      fire_district: fireDist?.FIRE_DISTR || null,
+      fire_agency: fireDist?.AGENCY || null,
     },
   };
 };
