@@ -18,128 +18,64 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "relationship.read", "relationship.create", "relationship.review",
     "event.read",
     "communication.read", "communication.create",
+    "analysis.run",
     "admin.debug",
     "agent.read", "agent.run", "agent.review",
   ]),
-
   investigator: new Set<Action>([
-    "case.read", "case.update",
-    "property.read",
+    "case.read", "case.update", "property.read",
     "evidence.read", "evidence.upload", "evidence.withdraw",
-    "finding.read",
-    "relationship.read", "relationship.create",
-    "event.read",
-    "communication.read", "communication.create",
-    "agent.read", "agent.run",
+    "finding.read", "relationship.read", "relationship.create",
+    "event.read", "communication.read", "communication.create",
+    "analysis.run", "agent.read", "agent.run",
   ]),
-
   attorney: new Set<Action>([
-    "case.read", "case.update",
-    "property.read",
-    "evidence.read", "evidence.upload",
-    "finding.read", "finding.review",
+    "case.read", "case.update", "property.read",
+    "evidence.read", "evidence.upload", "finding.read", "finding.review",
     "relationship.read", "relationship.create", "relationship.review",
-    "event.read",
-    "communication.read", "communication.create",
-    "agent.read", "agent.run", "agent.review",
+    "event.read", "communication.read", "communication.create",
+    "analysis.run", "agent.read", "agent.run", "agent.review",
   ]),
-
   advocate: new Set<Action>([
-    "case.read",
-    "property.read",
-    "evidence.read", "evidence.upload",
-    "finding.read",
-    "relationship.read",
-    "event.read",
-    "communication.read", "communication.create",
-    "agent.read",
+    "case.read", "property.read", "evidence.read", "evidence.upload",
+    "finding.read", "relationship.read", "event.read",
+    "communication.read", "communication.create", "analysis.run", "agent.read",
   ]),
-
   reviewer: new Set<Action>([
-    "case.read",
-    "property.read",
-    "evidence.read",
-    "finding.read", "finding.review",
-    "relationship.read", "relationship.review",
-    "event.read",
-    "communication.read",
-    "agent.read", "agent.review",
+    "case.read", "property.read", "evidence.read", "finding.read", "finding.review",
+    "relationship.read", "relationship.review", "event.read", "communication.read",
+    "analysis.run", "agent.read", "agent.review",
   ]),
-
   viewer: new Set<Action>([
-    "case.read",
-    "property.read",
-    "evidence.read",
-    "finding.read",
-    "relationship.read",
-    "event.read",
-    "communication.read",
-    "agent.read",
+    "case.read", "property.read", "evidence.read", "finding.read", "relationship.read",
+    "event.read", "communication.read", "agent.read",
   ]),
-
   manager: new Set<Action>([
-    "case.read", "case.update",
-    "property.read", "property.update",
+    "case.read", "case.update", "property.read", "property.update",
     "evidence.read", "evidence.upload", "evidence.withdraw",
-    "finding.read", "finding.review",
-    "relationship.read", "relationship.create", "relationship.review",
-    "event.read",
-    "communication.read", "communication.create",
+    "finding.read", "finding.review", "relationship.read", "relationship.create", "relationship.review",
+    "event.read", "communication.read", "communication.create", "analysis.run",
     "agent.read", "agent.run", "agent.review",
   ]),
-
   analyst: new Set<Action>([
-    "case.read",
-    "property.read",
-    "evidence.read",
-    "finding.read",
-    "relationship.read",
-    "event.read",
-    "communication.read",
-    "agent.read",
+    "case.read", "property.read", "evidence.read", "finding.read", "relationship.read",
+    "event.read", "communication.read", "analysis.run", "agent.read",
   ]),
 };
 
 export const AGENT_PERMISSIONS = new Set<Action>([
-  "case.read",
-  "property.read",
-  "evidence.read",
-  "finding.read",
-  "relationship.read",
-  "event.read",
-  "agent.read",
+  "case.read", "property.read", "evidence.read", "finding.read", "relationship.read", "event.read", "agent.read",
 ]);
 
-export function authorize(
-  user: AuthUser,
-  action: Action,
-  resource?: Resource,
-): AuthzResult {
+export function authorize(user: AuthUser, action: Action, resource?: Resource): AuthzResult {
   const allowed = PERMISSIONS[user.role]?.has(action) ?? false;
-  if (!allowed) {
-    return {
-      allowed: false,
-      reason: `Role '${user.role}' does not have permission for '${action}'`,
-    };
-  }
-
-  if (resource?.organization_id && resource.organization_id !== user.organization_id) {
-    return {
-      allowed: false,
-      reason: "Resource belongs to a different organization",
-    };
-  }
-
+  if (!allowed) return { allowed: false, reason: `Role '${user.role}' does not have permission for '${action}'` };
+  if (resource?.organization_id && resource.organization_id !== user.organization_id) return { allowed: false, reason: "Resource belongs to a different organization" };
   return { allowed: true };
 }
 
 export function authorizeAgent(action: Action): AuthzResult {
-  if (!AGENT_PERMISSIONS.has(action)) {
-    return {
-      allowed: false,
-      reason: `Agents do not have permission for '${action}'`,
-    };
-  }
+  if (!AGENT_PERMISSIONS.has(action)) return { allowed: false, reason: `Agents do not have permission for '${action}'` };
   return { allowed: true };
 }
 
