@@ -1,5 +1,9 @@
--- FairProcess D1 Schema — Cloudflare Workers + D1
--- This file documents the production schema. Apply with: wrangler d1 execute fairprocess --file=database/d1/schema.sql
+-- FairProcess D1 Schema — HISTORICAL/DOCUMENTATION SNAPSHOT
+--
+-- IMPORTANT: database/d1/migrations/ is the authoritative schema source.
+-- Do not use this file to provision production or a fresh D1 database.
+-- Apply migrations with: wrangler d1 migrations apply fairprocess --remote
+-- See database/d1/README.md.
 
 -- ── Properties ──
 CREATE TABLE IF NOT EXISTS properties (
