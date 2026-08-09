@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { requireAuth } from "@/lib/security/middleware";
 import { authorize } from "@/lib/security/authorization";
-import { synthesizeCaseReview } from "@/lib/claude";
+import { synthesizeCaseReview, type ClaudeBindingEnv } from "@/lib/claude";
 
 export const runtime = "nodejs";
 
@@ -13,10 +13,7 @@ export const runtime = "nodejs";
  * Deterministic records remain the source of truth; the response is a
  * review proposal and is not persisted as a legal conclusion.
  */
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: caseId } = await params;
     const auth = await requireAuth(req);
@@ -46,28 +43,22 @@ export async function POST(
       db.prepare(
         `SELECT e.id, e.title, e.source, e.doc_type, e.status,
                 e.extracted_text, e.ai_summary, e.created_at
-           FROM evidence e
-           JOIN case_projects cp ON cp.project_id = e.project_id
+           FROM evidence e JOIN case_projects cp ON cp.project_id = e.project_id
           WHERE cp.case_id = ? AND e.organization_id = ?
-          ORDER BY e.created_at ASC
-          LIMIT 100`,
+          ORDER BY e.created_at ASC LIMIT 100`,
       ).bind(caseId, auth.user.organization_id).all(),
       db.prepare(
         `SELECT t.id, t.event_date, t.event_type, t.description, t.evidence_id, t.created_at
-           FROM timeline_events t
-           JOIN case_projects cp ON cp.project_id = t.project_id
+           FROM timeline_events t JOIN case_projects cp ON cp.project_id = t.project_id
           WHERE cp.case_id = ? AND t.organization_id = ?
-          ORDER BY COALESCE(t.event_date, t.created_at) ASC
-          LIMIT 300`,
+          ORDER BY COALESCE(t.event_date, t.created_at) ASC LIMIT 300`,
       ).bind(caseId, auth.user.organization_id).all(),
       db.prepare(
         `SELECT f.id, f.rule, f.rule_name, f.severity, f.status, f.detail,
                 f.evidence_id, f.missing_info, f.created_at
-           FROM due_process_findings f
-           JOIN case_projects cp ON cp.project_id = f.project_id
+           FROM due_process_findings f JOIN case_projects cp ON cp.project_id = f.project_id
           WHERE cp.case_id = ? AND f.organization_id = ?
-          ORDER BY f.created_at ASC
-          LIMIT 200`,
+          ORDER BY f.created_at ASC LIMIT 200`,
       ).bind(caseId, auth.user.organization_id).all(),
     ]);
 
@@ -77,7 +68,7 @@ export async function POST(
       ai_summary: typeof row.ai_summary === "string" ? row.ai_summary.slice(0, 4000) : null,
     }));
 
-    const review = await synthesizeCaseReview(env as unknown as Record<string, unknown>, {
+    const review = await synthesizeCaseReview(env as unknown as ClaudeBindingEnv, {
       caseRecord,
       evidence,
       timeline: timelineResult.results ?? [],
