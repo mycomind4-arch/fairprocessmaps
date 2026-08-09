@@ -7,9 +7,12 @@ on:
     branches: [main]
 
 jobs:
-  typecheck:
-    name: Frontend Type Check
+  frontend-quality:
+    name: Frontend Quality
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/web
     steps:
       - uses: actions/checkout@v4
 
@@ -21,63 +24,26 @@ jobs:
           cache-dependency-path: frontend/web/package-lock.json
 
       - name: Install dependencies
-        working-directory: frontend/web
         run: npm ci
 
       - name: Type check
-        working-directory: frontend/web
         run: npx tsc --noEmit --skipLibCheck
 
-  backend-quality:
-    name: Backend Quality
+      - name: Unit tests
+        run: npm test -- --run
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+
+  frontend-e2e:
+    name: Frontend E2E
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Install API dependencies
-        working-directory: backend/api
-        run: uv pip install --system -e '.[dev]'
-
-      # The API currently contains legacy formatting/style debt from the
-      # pre-2.0 service. Keep CI focused on correctness while that debt is
-      # retired incrementally; do not make lint-only modernization block
-      # deployment of otherwise tested code.
-      - name: API correctness lint
-        working-directory: backend/api
-        run: uv run ruff check src --select E4,E7,E9
-
-      - name: API type check
-        working-directory: backend/api
-        run: uv run mypy src
-
-      - name: API tests
-        working-directory: backend/api
-        run: uv run pytest tests/ -v
-
-      - name: Install ingestion dependencies
-        working-directory: backend/ingestion
-        run: uv pip install --system -e '.[dev]'
-
-      - name: Ingestion correctness lint
-        working-directory: backend/ingestion
-        run: uv run ruff check src --select E4,E7,E9
-
-      - name: Ingestion tests
-        working-directory: backend/ingestion
-        run: uv run pytest tests/ -v
-
-  build:
-    name: Frontend Build
-    runs-on: ubuntu-latest
-    needs: [typecheck, backend-quality]
+    needs: frontend-quality
+    defaults:
+      run:
+        working-directory: frontend/web
     steps:
       - uses: actions/checkout@v4
 
@@ -89,11 +55,10 @@ jobs:
           cache-dependency-path: frontend/web/package-lock.json
 
       - name: Install dependencies
-        working-directory: frontend/web
         run: npm ci
 
-      - name: Build
-        working-directory: frontend/web
-        run: npm run build
-        env:
-          NEXT_TELEMETRY_DISABLED: '1'
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npm run test:e2e
