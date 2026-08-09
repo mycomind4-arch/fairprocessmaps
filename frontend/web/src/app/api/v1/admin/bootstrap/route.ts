@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     // Hash the token before storing — never store the raw token (C6)
     const tokenHashBuffer = await crypto.subtle.digest(
       "SHA-256",
-      new TextEncoder().encode(providedToken),
+      new TextEncoder().encode(providedToken!),
     );
     const tokenHash = Array.from(new Uint8Array(tokenHashBuffer))
       .map((b) => b.toString(16).padStart(2, "0"))
