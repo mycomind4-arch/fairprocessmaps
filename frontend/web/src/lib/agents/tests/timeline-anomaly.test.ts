@@ -60,6 +60,7 @@ async function testInsufficientNotice() {
     }],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);
@@ -124,6 +125,7 @@ async function testMissingNotice() {
     }],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);
@@ -181,6 +183,7 @@ async function testCompliantTimeline() {
     }],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);
@@ -228,6 +231,7 @@ async function testTimelineGap() {
     ce_cases: [],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);
@@ -272,6 +276,7 @@ async function testHearingBeforeService() {
     }],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);
@@ -307,6 +312,7 @@ async function testEmptyCase() {
     ce_cases: [],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);

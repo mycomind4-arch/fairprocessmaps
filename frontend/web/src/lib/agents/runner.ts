@@ -71,6 +71,30 @@ export async function buildInputSnapshot(
      FROM relationships WHERE case_id = ? AND organization_id = ? AND status != 'superseded'`,
   ).bind(projectId, organizationId).all();
 
+  // Statutes — loaded from the statutes table (H1 fix)
+  // Previously the statute matcher used embedded hardcoded data, causing drift
+  // between the DB seed data and what the agent matched against.
+  const statuteRows = await db.prepare(
+    `SELECT id, citation, title, jurisdiction, jurisdiction_level, category, summary, keywords, notice_period_days
+     FROM statutes`,
+  ).all();
+
+  const statutes = (statuteRows.results ?? []).map((r) => {
+    const row = r as Record<string, unknown>;
+    const keywordsRaw = row.keywords as string | null;
+    return {
+      id: row.id as string,
+      citation: row.citation as string,
+      title: row.title as string,
+      jurisdiction: row.jurisdiction as string,
+      jurisdiction_level: row.jurisdiction_level as string,
+      category: row.category as string,
+      summary: (row.summary as string) || null,
+      keywords: keywordsRaw ? JSON.parse(keywordsRaw) : [],
+      notice_period_days: (row.notice_period_days as number) ?? null,
+    };
+  });
+
   return {
     case_id: p.id as string,
     organization_id: organizationId,
@@ -89,6 +113,7 @@ export async function buildInputSnapshot(
     ce_cases: (ceCases.results ?? []).map(r => r as Record<string, unknown> as AgentInputSnapshot["ce_cases"][0]),
     permits: (permits.results ?? []).map(r => r as Record<string, unknown> as AgentInputSnapshot["permits"][0]),
     relationships: (relationships.results ?? []).map(r => r as Record<string, unknown> as AgentInputSnapshot["relationships"][0]),
+    statutes,
   };
 }
 

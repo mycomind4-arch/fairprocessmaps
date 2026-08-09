@@ -50,6 +50,7 @@ function baseSnapshot(overrides: Partial<AgentInputSnapshot> = {}): AgentInputSn
     ce_cases: [],
     permits: [],
     relationships: [],
+    statutes: [],
     ...overrides,
   };
 }

@@ -141,6 +141,18 @@ export interface AgentFeedback {
 //
 // What the agent receives. Read-only copy of case graph + timeline + evidence.
 
+export interface StatuteRef {
+  id: string;
+  citation: string;
+  title: string;
+  jurisdiction: string;
+  jurisdiction_level: string;
+  category: string;
+  summary: string | null;
+  keywords: string[];
+  notice_period_days: number | null;
+}
+
 export interface AgentInputSnapshot {
   case_id: string;
   organization_id: string;
@@ -205,6 +217,7 @@ export interface AgentInputSnapshot {
     status: string;
     confidence: number | null;
   }>;
+  statutes: StatuteRef[];
 }
 
 // ── Agent Result ───────────────────────────────────────────────────────────

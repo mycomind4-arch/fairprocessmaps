@@ -58,6 +58,7 @@ async function testMissingNoticeMatch() {
     ce_cases: [],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);
@@ -126,6 +127,7 @@ async function testNuisanceMatch() {
     ce_cases: [],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);
@@ -170,6 +172,7 @@ async function testAmbiguousMatch() {
     ce_cases: [],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);
@@ -216,6 +219,7 @@ async function testClosedFindingSkipped() {
     ce_cases: [],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);
@@ -263,6 +267,7 @@ async function testMultipleFindings() {
     ce_cases: [],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);
@@ -301,6 +306,7 @@ async function testEmptyCase() {
     ce_cases: [],
     permits: [],
     relationships: [],
+    statutes: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);

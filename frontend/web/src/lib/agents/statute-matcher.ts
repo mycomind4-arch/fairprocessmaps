@@ -21,22 +21,8 @@
 
 import type {
   Agent, AgentDefinition, AgentInputSnapshot, AgentResult,
-  AgentProposalDraft,
+  AgentProposalDraft, StatuteRef,
 } from "./types";
-
-// ── Statute reference (loaded from statutes table) ────────────────────────
-
-interface StatuteRef {
-  id: string;
-  citation: string;
-  title: string;
-  jurisdiction: string;
-  jurisdiction_level: string;
-  category: string;
-  summary: string | null;
-  keywords: string[];
-  notice_period_days: number | null;
-}
 
 // ── Rule-to-category mapping ────────────────────────────────────────────────
 //
@@ -132,15 +118,12 @@ export const STATUTE_MATCHER_AGENT: Agent = {
   async execute(input: AgentInputSnapshot): Promise<AgentResult> {
     const proposals: AgentProposalDraft[] = [];
 
-    // Load statutes from the database
-    // NOTE: In production, this would query the statutes table.
-    // For the agent runner, statutes are loaded as part of the input
-    // snapshot extension. But since the runner passes AgentInputSnapshot
-    // (which doesn't include statutes), we use the embedded statute set.
-    //
-    // The statute set here mirrors the seed data in migration 014.
-    // In Phase 3.3+, the runner should load statutes as part of the snapshot.
-    const statutes: StatuteRef[] = EMBEDDED_STATUTES;
+    // Load statutes from the input snapshot (populated by the runner from
+    // the statutes table). Fall back to embedded statutes for unit tests
+    // or contexts where the snapshot doesn't include DB-loaded statutes.
+    const statutes: StatuteRef[] = input.statutes?.length > 0
+      ? input.statutes
+      : EMBEDDED_STATUTES;
 
     for (const finding of input.findings) {
       // Skip findings that are closed/resolved
