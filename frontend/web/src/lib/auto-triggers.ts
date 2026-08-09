@@ -326,8 +326,8 @@ export async function runAnalysis(projectId: string): Promise<{
     .all();
 
   const timelineResult = await db
-    .prepare("SELECT id, event_date, event_type, description, evidence_id FROM timeline_events WHERE project_id = ? ORDER BY event_date ASC")
-    .bind(projectId)
+    .prepare("SELECT id, event_date, event_type, description, evidence_id FROM timeline_events WHERE project_id = ? AND organization_id = ? ORDER BY event_date ASC")
+    .bind(projectId, orgId)
     .all();
 
   const ceResult = await db

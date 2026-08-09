@@ -208,3 +208,16 @@ CREATE TABLE IF NOT EXISTS project_settings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_settings_org ON project_settings(organization_id);
+
+-- ── Rate Limit Log (migration 019) ──
+CREATE TABLE IF NOT EXISTS rate_limit_log (
+  id TEXT PRIMARY KEY,
+  key TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  ip_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limit_log_key ON rate_limit_log(key);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_log_created ON rate_limit_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_log_endpoint ON rate_limit_log(endpoint);

@@ -57,8 +57,8 @@ export async function GET(req: NextRequest) {
       .first();
 
     const timelineCount = await db
-      .prepare("SELECT COUNT(*) AS n FROM timeline_events WHERE project_id = ?")
-      .bind(id)
+      .prepare("SELECT COUNT(*) AS n FROM timeline_events WHERE project_id = ? AND organization_id = ?")
+      .bind(id, user.organization_id)
       .first();
 
     // Check whether recon has already been run for this project
