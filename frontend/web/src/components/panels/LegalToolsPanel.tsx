@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Shield } from "lucide-react";
+import { FileText, Shield, Mail } from "lucide-react";
 import { BriefGeneratorPanel } from "./BriefGeneratorPanel";
 import DefenseBuilderPanel from "./DefenseBuilderPanel";
+import CommunicationsPanel from "./CommunicationsPanel";
 
-type LegalTab = "briefs" | "defense";
+type LegalTab = "briefs" | "defense" | "communications";
 
 const TABS: { id: LegalTab; label: string; icon: typeof FileText }[] = [
   { id: "briefs", label: "Brief Generator", icon: FileText },
   { id: "defense", label: "Defense Builder", icon: Shield },
+  { id: "communications", label: "Mail & Proof", icon: Mail },
 ];
 
 export default function LegalToolsPanel({ projectId }: { projectId: string }) {
@@ -42,6 +44,7 @@ export default function LegalToolsPanel({ projectId }: { projectId: string }) {
 
       {tab === "briefs" && <BriefGeneratorPanel projectId={projectId} />}
       {tab === "defense" && <DefenseBuilderPanel projectId={projectId} />}
+      {tab === "communications" && <CommunicationsPanel caseId={projectId} />}
     </div>
   );
 }
