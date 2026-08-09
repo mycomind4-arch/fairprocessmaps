@@ -8,18 +8,18 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "FairProcess 2.0 — Evidence-first Due-Process Analysis",
+  title: "FairProcessMaps — Build Your Case",
   viewport: {
     width: "device-width",
     initialScale: 1,
     maximumScale: 5,
   },
   description:
-    "Property-centric GIS, public-record ingestion, AI extraction, timeline generation, and automated due-process discrepancy detection.",
+    "Evidence-first case analysis for building, documenting, and defending a fair process.",
   metadataBase: new URL("https://fairprocess.pages.dev"),
   openGraph: {
-    title: "FairProcess 2.0",
-    description: "Evidence-first platform for property due-process analysis",
+    title: "FairProcessMaps — Build Your Case",
+    description: "Evidence, analysis, defense, response, and proof in one case workspace.",
     type: "website",
   },
 };
