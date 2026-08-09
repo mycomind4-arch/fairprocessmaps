@@ -5,6 +5,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 export const runtime = "nodejs";
 
 const MAX_TIMESTAMP_AGE_SECONDS = 5 * 60;
+type MailMyPDFEnv = { MAILMYPDF_WEBHOOK_SECRET?: string };
 
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ ok: false, error: { code, message } }, { status });
@@ -41,7 +42,8 @@ function mapStatus(eventType: string, status: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = (process.env.MAILMYPDF_WEBHOOK_SECRET ?? "").trim();
+  const { env } = getCloudflareContext();
+  const secret = ((env as unknown as MailMyPDFEnv).MAILMYPDF_WEBHOOK_SECRET ?? "").trim();
   if (!secret) return errorResponse("NOT_CONFIGURED", "MailMyPDF webhook secret is not configured", 503);
 
   const body = await req.text();
@@ -73,12 +75,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { env } = getCloudflareContext();
     const db = env.DB;
-
-    // The integration is currently provisioned as one trusted MailMyPDF tenant
-    // for the FairProcessMaps deployment. The organization is resolved from the
-    // case communication rather than trusting provider payload metadata.
     const communication = await db.prepare(
       `SELECT id, case_id, organization_id, status
          FROM case_communications
@@ -91,11 +88,7 @@ export async function POST(req: NextRequest) {
       status: string;
     }>();
 
-    if (!communication) {
-      // A valid provider event for an unknown job is still acknowledged so
-      // MailMyPDF does not retry forever. The receipt cannot be associated safely.
-      return NextResponse.json({ ok: true, ignored: true }, { status: 202 });
-    }
+    if (!communication) return NextResponse.json({ ok: true, ignored: true }, { status: 202 });
 
     const inserted = await db.prepare(
       `INSERT OR IGNORE INTO mailmypdf_webhook_events
