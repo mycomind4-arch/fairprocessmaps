@@ -1,0 +1,10 @@
+# Copy to .dev.vars for local Cloudflare/OpenNext development.
+# Never commit real secrets.
+
+# Claude synthesis
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-sonnet-4-20250514
+
+# MailMyPDF execution API
+MAILMYPDF_API_URL=https://mycomind4-arch-mailmypdf.mailmypdf.workers.dev
+MAILMYPDF_API_KEY=
