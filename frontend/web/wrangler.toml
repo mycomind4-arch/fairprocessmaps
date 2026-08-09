@@ -20,3 +20,4 @@ bucket_name = "fairprocess-evidence"
 
 [vars]
 NEXT_PUBLIC_API_URL = ""
+MAILMYPDF_API_URL = "https://mailmypdf.workers.dev"
