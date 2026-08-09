@@ -13,8 +13,12 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { requireAuth, requireAuthz, resolveProjectOrg } from "@/lib/security/middleware";
 import { ALL_AGENTS, type ReconContext, type ReconAgentResult, fetchParcelByAPN } from "@/lib/recon-agents";
 import { runAnalysisAgents } from "@/lib/analysis-agents";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+
+// Maximum execution time for a recon stream (90 seconds)
+const RECON_STREAM_TIMEOUT_MS = 90_000;
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -25,6 +29,15 @@ export async function GET(req: NextRequest) {
     );
   }
   const user = auth.user;
+
+  // Rate limit: 10 recon runs per 60 seconds per user (C5)
+  const rateLimit = await checkRateLimit(req, "recon_stream", RATE_LIMITS.agent_run.max, RATE_LIMITS.agent_run.window);
+  if (!rateLimit.ok) {
+    return new Response(
+      `event: error\ndata: ${JSON.stringify({ error: "Rate limit exceeded. Too many recon requests. Try again in a minute." })}\n\n`,
+      { status: 429, headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store", "Retry-After": "60" } },
+    );
+  }
 
   const projectId = req.nextUrl.searchParams.get("projectId");
   const force = req.nextUrl.searchParams.get("force") === "true";
@@ -149,7 +162,16 @@ export async function GET(req: NextRequest) {
             }),
         );
 
-        await Promise.allSettled(agentPromises);
+        // Timeout: if agents don't finish within RECON_STREAM_TIMEOUT_MS, abort
+        const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve('timeout'), RECON_STREAM_TIMEOUT_MS));
+        const raceResult = await Promise.race([
+          Promise.allSettled(agentPromises).then(() => 'completed'),
+          timeoutPromise,
+        ]);
+
+        if (raceResult === 'timeout') {
+          send("warning", { message: "Recon stream timed out — some agents may not have completed. Partial results saved." });
+        }
 
         const succeeded = results.filter((r) => r.status === "success").length;
         const failed = results.filter((r) => r.status === "error").length;
