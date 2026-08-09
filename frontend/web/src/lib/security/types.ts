@@ -44,6 +44,8 @@ export type Action =
   | "relationship.create"
   | "relationship.review"
   | "event.read"
+  | "communication.read"
+  | "communication.create"
   | "admin.debug"
   | "agent.run"
   | "agent.review"
