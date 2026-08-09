@@ -26,18 +26,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         p.id AS legacy_project_id, p.property_id, p.due_process_score,
         pr.apn, pr.address, pr.city, pr.zoning, pr.acres,
         pr.centroid_lng, pr.centroid_lat, pr.geom_geojson,
-        (SELECT COUNT(*) FROM due_process_findings f
-          JOIN case_projects x ON x.project_id = f.project_id
-         WHERE x.case_id = c.id AND f.status = 'open') AS open_findings_count,
-        (SELECT COUNT(*) FROM due_process_findings f
-          JOIN case_projects x ON x.project_id = f.project_id
-         WHERE x.case_id = c.id AND f.status = 'open' AND f.severity = 'critical') AS critical_findings_count,
-        (SELECT COUNT(*) FROM evidence e
-          JOIN case_projects x ON x.project_id = e.project_id
-         WHERE x.case_id = c.id) AS evidence_count,
-        (SELECT COUNT(*) FROM timeline_events t
-          JOIN case_projects x ON x.project_id = t.project_id
-         WHERE x.case_id = c.id) AS timeline_count
+        (SELECT COUNT(*) FROM due_process_findings f JOIN case_projects x ON x.project_id = f.project_id
+          WHERE x.case_id = c.id AND f.status = 'open') AS open_findings_count,
+        (SELECT COUNT(*) FROM due_process_findings f JOIN case_projects x ON x.project_id = f.project_id
+          WHERE x.case_id = c.id AND f.status = 'open' AND f.severity = 'critical') AS critical_findings_count,
+        (SELECT COUNT(*) FROM evidence e JOIN case_projects x ON x.project_id = e.project_id
+          WHERE x.case_id = c.id) AS evidence_count,
+        (SELECT COUNT(*) FROM timeline_events t JOIN case_projects x ON x.project_id = t.project_id
+          WHERE x.case_id = c.id) AS timeline_count,
+        (SELECT MAX(e.created_at) FROM evidence e JOIN case_projects x ON x.project_id = e.project_id
+          WHERE x.case_id = c.id AND e.source = 'ai_research' AND e.doc_type = 'recon_report') AS last_recon_at
       FROM cases c
       LEFT JOIN case_projects cp ON cp.case_id = c.id AND cp.role = 'primary'
       LEFT JOIN projects p ON p.id = cp.project_id
@@ -50,9 +48,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       LIMIT 1
     `).bind(user.organization_id, id, id).first();
 
-    if (!row) {
-      return NextResponse.json({ error: "Case not found" }, { status: 404 });
-    }
+    if (!row) return NextResponse.json({ error: "Case not found" }, { status: 404 });
 
     const r: any = row;
     const centroid = r.centroid_lng != null && r.centroid_lat != null
@@ -75,7 +71,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       legacyProjectId: r.legacy_project_id ?? null,
       property_id: r.property_id ?? null,
       due_process_score: r.due_process_score ?? null,
-      reconCompleted: false,
+      reconCompleted: !!r.last_recon_at,
+      lastReconAt: r.last_recon_at ?? null,
       evidenceCount: Number(r.evidence_count ?? 0),
       timelineCount: Number(r.timeline_count ?? 0),
       openFindingsCount: Number(r.open_findings_count ?? 0),
