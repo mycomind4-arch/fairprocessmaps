@@ -27,6 +27,17 @@ jobs:
         working-directory: frontend/web
         run: npm ci
 
+      - name: Apply D1 migrations
+        working-directory: frontend/web
+        run: |
+          for f in ../../database/d1/migrations/*.sql; do
+            echo "Applying $f..."
+            npx wrangler d1 execute fairprocess --remote --file="$f" || echo "Migration $f may already be applied, continuing..."
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Build (Next.js)
         working-directory: frontend/web
         run: npm run build
