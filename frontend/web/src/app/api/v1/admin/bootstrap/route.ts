@@ -34,7 +34,11 @@ export async function POST(req: NextRequest) {
     }
 
     const providedToken = req.headers.get("X-Bootstrap-Token");
-    if (!providedToken || providedToken !== expectedToken) {
+    // Constant-time comparison to prevent timing attacks (C6)
+    const tokenValid = providedToken && providedToken.length === expectedToken.length
+      ? (() => { let r = 0; for (let i = 0; i < providedToken.length; i++) r |= providedToken.charCodeAt(i) ^ expectedToken.charCodeAt(i); return r === 0; })()
+      : false;
+    if (!tokenValid) {
       return NextResponse.json(
         { error: "Invalid bootstrap token" },
         { status: 401, headers: { "Cache-Control": "no-store" } },
@@ -94,13 +98,22 @@ export async function POST(req: NextRequest) {
     }
 
     // Layer 5: Record bootstrap usage
+    // Hash the token before storing — never store the raw token (C6)
+    const tokenHashBuffer = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(providedToken),
+    );
+    const tokenHash = Array.from(new Uint8Array(tokenHashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
     await db
       .prepare(
         `INSERT INTO bootstrap_config (id, token_hash, used_at)
          VALUES ('singleton', ?, datetime('now'))
          ON CONFLICT(id) DO UPDATE SET used_at = datetime('now')`,
       )
-      .bind(providedToken)
+      .bind(tokenHash)
       .run();
 
     return NextResponse.json(
