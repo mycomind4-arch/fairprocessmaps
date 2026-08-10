@@ -1,58 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function NoticeResponseWorkspace({ params }: { params: Promise<{ id: string }> }) {
-  const [id, setId] = useState("");
-  const search = useSearchParams();
-  const caseId = search.get("caseId") || "";
-  const [notice, setNotice] = useState<any>(null);
-  const [facts, setFacts] = useState("");
-  const [outcome, setOutcome] = useState("");
-  const [draft, setDraft] = useState<any>(null);
-  const [questions, setQuestions] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
+  const [id, setId] = useState(""); const search = useSearchParams(); const caseId = search.get("caseId") || "";
+  const [notice, setNotice] = useState<any>(null); const [facts, setFacts] = useState(""); const [outcome, setOutcome] = useState(""); const [draft, setDraft] = useState<any>(null); const [questions, setQuestions] = useState<string[]>([]); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   useEffect(() => { params.then((p) => setId(p.id)); }, [params]);
-  useEffect(() => {
-    if (!id) return;
-    fetch(`/api/v1/notice-responses?id=${id}`).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error); setNotice(d.item); }).catch((e) => setError(e.message));
-  }, [id]);
-
-  async function generateDraft() {
-    setBusy(true); setError("");
-    try {
-      const response = await fetch(`/api/v1/notice-responses/${id}/draft`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ user_facts: facts, desired_outcome: outcome }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Could not generate draft");
-      setDraft(data.draft); setQuestions(data.open_questions || []);
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not generate draft"); }
-    finally { setBusy(false); }
-  }
-
+  useEffect(() => { if (!id) return; fetch(`/api/v1/notice-responses?id=${id}`).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error); setNotice(d.item); }).catch((e) => setError(e.message)); }, [id]);
+  async function generateDraft() { setBusy(true); setError(""); try { const response = await fetch(`/api/v1/notice-responses/${id}/draft`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ user_facts: facts, desired_outcome: outcome }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Could not generate draft"); setDraft(data.draft); setQuestions(data.open_questions || []); } catch (e) { setError(e instanceof Error ? e.message : "Could not generate draft"); } finally { setBusy(false); } }
   if (!notice) return <main className="min-h-screen bg-[#f6f7f9] p-10"><div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-8">{error ? <div className="text-red-700">{error}</div> : "Loading your notice…"}</div></main>;
   const analysis = notice.analysis_json ? JSON.parse(notice.analysis_json) : null;
-
-  return <main className="min-h-screen bg-[#f6f7f9] text-slate-900"><div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
-    <header className="flex items-center justify-between"><div><div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-700">Notice Response</div><h1 className="mt-1 text-2xl font-semibold">Build your response</h1></div><div className="text-right text-xs text-slate-500"><div>Case {caseId || notice.case_id}</div><div className="mt-1">Human review required</div></div></header>
-    <div className="mt-8 grid gap-6 lg:grid-cols-[.72fr_1.28fr]">
-      <aside className="space-y-5">
-        <Card title="Notice"><div className="text-lg font-semibold">{notice.notice_title || analysis?.notice_title || "Notice"}</div><div className="mt-1 text-sm text-slate-500">{notice.agency_name || analysis?.agency_name || "Agency not identified"}</div>{notice.reference_number && <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs">Ref. {notice.reference_number}</div>}</Card>
-        <Card title="Deadline"><div className="text-3xl font-semibold">{notice.response_deadline || analysis?.response_deadline || "Not established"}</div><div className="mt-2 text-xs leading-5 text-slate-500">{analysis?.deadline_basis || "Verify against the original notice."}</div></Card>
-        <Card title="Response plan"><ul className="space-y-2 text-sm text-slate-700">{(analysis?.response_strategy || []).map((x: string) => <li key={x} className="rounded-lg bg-slate-50 px-3 py-2">{x}</li>)}</ul></Card>
-      </aside>
-      <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-        <div className="flex items-start justify-between"><div><div className="text-xs font-semibold uppercase tracking-widest text-slate-400">Step 1</div><h2 className="mt-1 text-xl font-semibold">Add your facts</h2><p className="mt-1 text-sm text-slate-500">Give the drafting assistant only facts you want included. You remain responsible for accuracy.</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">Draft only</span></div>
-        <textarea value={facts} onChange={(e) => setFacts(e.target.value)} rows={8} placeholder="What happened? What is inaccurate or missing? What documents do you have? What should the agency do?" className="mt-6 w-full rounded-2xl border border-slate-200 p-4 text-sm leading-6 outline-none focus:ring-4 focus:ring-blue-100" />
-        <label className="mt-5 block text-sm font-medium">Desired outcome</label><input value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="e.g. Request correction and confirmation that no further action is required" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />
-        {error && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-        <button onClick={generateDraft} disabled={busy} className="mt-5 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{busy ? "Building response…" : "Build response draft"}</button>
-        {draft && <div className="mt-8 border-t border-slate-200 pt-7"><div className="text-xs font-semibold uppercase tracking-widest text-slate-400">Step 2 · Human review</div><input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold" /><textarea value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={18} className="mt-3 w-full rounded-2xl border border-slate-200 p-4 text-sm leading-7" />{questions.length > 0 && <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5"><div className="font-semibold text-amber-900">Questions to resolve</div><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">{questions.map((q) => <li key={q}>{q}</li>)}</ul></div>}<div className="mt-5 rounded-2xl bg-slate-900 p-5 text-sm text-white"><div className="font-semibold">Next: assemble and send</div><p className="mt-1 text-slate-300">After you verify the draft and supporting documents, finalize the response packet and send it through MailMyPDF for physical-mail tracking and proof.</p></div></div>}
-      </section>
-    </div>
-  </div></main>;
+  return <main className="min-h-screen bg-[#f6f7f9] text-slate-900"><div className="mx-auto max-w-7xl px-6 py-8 lg:px-10"><header className="flex items-center justify-between"><div><div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-700">Notice Response</div><h1 className="mt-1 text-2xl font-semibold">Build your response</h1></div><div className="text-right text-xs text-slate-500"><div>Case {caseId || notice.case_id}</div><div className="mt-1">Human review required</div></div></header><div className="mt-8 grid gap-6 lg:grid-cols-[.72fr_1.28fr]"><aside className="space-y-5"><Card title="Notice"><div className="text-lg font-semibold">{notice.notice_title || analysis?.notice_title || "Notice"}</div><div className="mt-1 text-sm text-slate-500">{notice.agency_name || analysis?.agency_name || "Agency not identified"}</div>{notice.reference_number && <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs">Ref. {notice.reference_number}</div>}</Card><Card title="Deadline"><div className="text-3xl font-semibold">{notice.response_deadline || analysis?.response_deadline || "Not established"}</div><div className="mt-2 text-xs leading-5 text-slate-500">{analysis?.deadline_basis || "Verify against the original notice."}</div></Card><Card title="Response plan"><ul className="space-y-2 text-sm text-slate-700">{(analysis?.response_strategy || []).map((x: string) => <li key={x} className="rounded-lg bg-slate-50 px-3 py-2">{x}</li>)}</ul></Card></aside><section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><div className="flex items-start justify-between"><div><div className="text-xs font-semibold uppercase tracking-widest text-slate-400">Step 1</div><h2 className="mt-1 text-xl font-semibold">Add your facts</h2><p className="mt-1 text-sm text-slate-500">Give the drafting assistant only facts you want included. You remain responsible for accuracy.</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">Draft only</span></div><textarea value={facts} onChange={(e) => setFacts(e.target.value)} rows={8} placeholder="What happened? What is inaccurate or missing? What documents do you have? What should the agency do?" className="mt-6 w-full rounded-2xl border border-slate-200 p-4 text-sm leading-6 outline-none focus:ring-4 focus:ring-blue-100" /><label className="mt-5 block text-sm font-medium">Desired outcome</label><input value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="e.g. Request correction and confirmation that no further action is required" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm" />{error && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}<button onClick={generateDraft} disabled={busy} className="mt-5 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{busy ? "Building response…" : "Build response draft"}</button>{draft && <div className="mt-8 border-t border-slate-200 pt-7"><div className="text-xs font-semibold uppercase tracking-widest text-slate-400">Step 2 · Human review</div><input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold" /><textarea value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={18} className="mt-3 w-full rounded-2xl border border-slate-200 p-4 text-sm leading-7" />{questions.length > 0 && <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5"><div className="font-semibold text-amber-900">Questions to resolve</div><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">{questions.map((q) => <li key={q}>{q}</li>)}</ul></div>}<div className="mt-5 rounded-2xl bg-slate-900 p-5 text-sm text-white"><div className="font-semibold">Next: assemble and send</div><p className="mt-1 text-slate-300">After you verify the draft and supporting documents, finalize the response packet and send it through MailMyPDF for physical-mail tracking and proof.</p></div></div>}</section></div></div></main>;
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) { return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="text-xs font-semibold uppercase tracking-widest text-slate-400">{title}</div><div className="mt-3">{children}</div></div>; }
+function Card({ title, children }: { title: string; children: ReactNode }) { return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="text-xs font-semibold uppercase tracking-widest text-slate-400">{title}</div><div className="mt-3">{children}</div></div>; }
