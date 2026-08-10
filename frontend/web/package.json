@@ -38,7 +38,7 @@
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "postcss": "^8.5.0",
+    "postcss": "^8.5.26",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0",
     "wrangler": "^4.118.0"
