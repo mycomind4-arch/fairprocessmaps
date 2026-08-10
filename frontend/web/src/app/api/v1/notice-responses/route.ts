@@ -3,18 +3,13 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { requireAuth } from "@/lib/security/middleware";
 
 export const runtime = "nodejs";
-const MAX_TEXT = 100_000; const MAX_FILE_BYTES = 25 * 1024 * 1024;
-const ALLOWED = new Set(["application/pdf", "text/plain", "text/html", "image/png", "image/jpeg"]);
+const MAX_TEXT = 100_000; const MAX_FILE_BYTES = 25 * 1024 * 1024; const ALLOWED = new Set(["application/pdf", "text/plain", "text/html", "image/png", "image/jpeg"]);
 function clean(value: FormDataEntryValue | null, max = 500): string | null { if (typeof value !== "string") return null; const trimmed = value.trim(); return trimmed ? trimmed.slice(0, max) : null; }
 async function sha256(file: File): Promise<string> { const bytes = await file.arrayBuffer(); const hash = await crypto.subtle.digest("SHA-256", bytes); return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join(""); }
-
 export async function POST(req: NextRequest) {
-  try {
-    const auth = await requireAuth(req); if (!auth.ok) return auth.response; const user = auth.user; const { env } = getCloudflareContext(); const db = env.DB; const form = await req.formData();
+  try { const auth = await requireAuth(req); if (!auth.ok) return auth.response; const user = auth.user; const { env } = getCloudflareContext(); const db = env.DB; const form = await req.formData();
     const noticeType = clean(form.get("notice_type")) ?? "other"; const agencyName = clean(form.get("agency_name")); const noticeTitle = clean(form.get("notice_title")); const referenceNumber = clean(form.get("reference_number")); const receivedDate = clean(form.get("received_date"), 40); const responseDeadline = clean(form.get("response_deadline"), 40); const recipientName = clean(form.get("recipient_name")); const recipientAddress1 = clean(form.get("recipient_address1")); const recipientAddress2 = clean(form.get("recipient_address2")); const recipientCity = clean(form.get("recipient_city")); const recipientState = clean(form.get("recipient_state"), 80); const recipientPostalCode = clean(form.get("recipient_postal_code"), 30); const noticeText = clean(form.get("notice_text"), MAX_TEXT); const file = form.get("notice_file");
-    if (!noticeText && !(file instanceof File)) return NextResponse.json({ error: "Provide the notice text or upload the notice." }, { status: 400 });
-    if (file instanceof File && file.size > MAX_FILE_BYTES) return NextResponse.json({ error: "Notice files must be 25 MB or smaller." }, { status: 413 });
-    if (file instanceof File && file.type && !ALLOWED.has(file.type)) return NextResponse.json({ error: "Unsupported notice file type." }, { status: 415 });
+    if (!noticeText && !(file instanceof File)) return NextResponse.json({ error: "Provide the notice text or upload the notice." }, { status: 400 }); if (file instanceof File && file.size > MAX_FILE_BYTES) return NextResponse.json({ error: "Notice files must be 25 MB or smaller." }, { status: 413 }); if (file instanceof File && file.type && !ALLOWED.has(file.type)) return NextResponse.json({ error: "Unsupported notice file type." }, { status: 415 });
     const now = new Date().toISOString(); const caseId = crypto.randomUUID(); const noticeId = crypto.randomUUID(); const caseName = noticeTitle || agencyName || "Notice response";
     await db.prepare(`INSERT INTO cases (id, organization_id, name, case_type, status, priority, description, due_date, opened_at, updated_at) VALUES (?, ?, ?, 'notice_response', 'open', ?, ?, ?, ?, ?)`).bind(caseId, user.organization_id, caseName, responseDeadline ? "high" : "normal", "Notice Response case", responseDeadline, now, now).run();
     let r2Key: string | null = null; let originalFilename: string | null = null; let contentType: string | null = null; let fileHash: string | null = null; let storedNoticeText = noticeText;
@@ -23,8 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: noticeId, case_id: caseId, analysis_status: "pending" }, { status: 201 });
   } catch (err) { return NextResponse.json({ error: String(err) }, { status: 500, headers: { "Cache-Control": "no-store" } }); }
 }
-
 export async function GET(req: NextRequest) {
-  try { const auth = await requireAuth(req); if (!auth.ok) return auth.response; const { env } = getCloudflareContext(); const noticeId = req.nextUrl.searchParams.get("id"); const result = noticeId ? await env.DB.prepare(`SELECT * FROM notice_responses WHERE id = ? AND organization_id = ? LIMIT 1`).bind(noticeId, auth.user.organization_id).first() : await env.DB.prepare(`SELECT id, case_id, notice_type, agency_name, notice_title, reference_number, received_date, response_deadline, analysis_status, response_status, created_at, updated_at FROM notice_responses WHERE organization_id = ? ORDER BY COALESCE(response_deadline, '9999-12-31'), updated_at DESC`).bind(auth.user.organization_id).all(); if (noticeId && !result) return NextResponse.json({ error: "Notice response not found" }, { status: 404 }); return NextResponse.json(noticeId ? { item: result } : { items: result.results ?? [] }, { headers: { "Cache-Control": "no-store" } }); }
+  try { const auth = await requireAuth(req); if (!auth.ok) return auth.response; const { env } = getCloudflareContext(); const noticeId = req.nextUrl.searchParams.get("id"); if (noticeId) { const item = await env.DB.prepare(`SELECT * FROM notice_responses WHERE id = ? AND organization_id = ? LIMIT 1`).bind(noticeId, auth.user.organization_id).first(); if (!item) return NextResponse.json({ error: "Notice response not found" }, { status: 404 }); return NextResponse.json({ item }, { headers: { "Cache-Control": "no-store" } }); } const result = await env.DB.prepare(`SELECT id, case_id, notice_type, agency_name, notice_title, reference_number, received_date, response_deadline, analysis_status, response_status, created_at, updated_at FROM notice_responses WHERE organization_id = ? ORDER BY COALESCE(response_deadline, '9999-12-31'), updated_at DESC`).bind(auth.user.organization_id).all(); return NextResponse.json({ items: result.results ?? [] }, { headers: { "Cache-Control": "no-store" } }); }
   catch (err) { return NextResponse.json({ error: String(err) }, { status: 500 }); }
 }
