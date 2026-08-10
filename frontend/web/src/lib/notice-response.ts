@@ -1,0 +1,81 @@
+export interface NoticeAnalysis {
+  notice_type: string;
+  agency_name: string | null;
+  notice_title: string | null;
+  reference_number: string | null;
+  received_date: string | null;
+  response_deadline: string | null;
+  deadline_basis: string | null;
+  days_remaining: number | null;
+  required_actions: string[];
+  requested_documents: string[];
+  stated_consequences: string[];
+  response_channels: string[];
+  key_facts: string[];
+  uncertainties: string[];
+  response_strategy: string[];
+  confidence: "low" | "medium" | "high";
+}
+
+const SYSTEM = `You are the notice-intake and response-planning layer for Notice Response by FairProcessMaps.
+
+Analyze only the supplied notice text and structured metadata. Do not invent facts, deadlines, agencies, statutes, rights, forms, addresses, or consequences. Treat legal conclusions as hypotheses requiring human review. If a deadline is ambiguous, return null and explain the ambiguity. If a field is not present, return null or an empty array.
+
+Return ONLY valid JSON with exactly these keys:
+notice_type, agency_name, notice_title, reference_number, received_date, response_deadline, deadline_basis, days_remaining, required_actions, requested_documents, stated_consequences, response_channels, key_facts, uncertainties, response_strategy, confidence.
+
+Use ISO dates (YYYY-MM-DD) only when the notice supports an exact date. `;
+
+function binding(env: Record<string, unknown>, key: string): string | null {
+  const value = env[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+export async function analyzeNotice(
+  env: Record<string, unknown>,
+  input: { metadata: Record<string, unknown>; noticeText: string },
+): Promise<NoticeAnalysis> {
+  const apiKey = binding(env, "ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
+  const model = binding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
+  const apiUrl = binding(env, "ANTHROPIC_API_URL") ?? "https://api.anthropic.com/v1/messages";
+
+  const prompt = `${SYSTEM}\n\nSTRUCTURED METADATA:\n${JSON.stringify(input.metadata)}\n\nNOTICE TEXT:\n${input.noticeText.slice(0, 100000)}`;
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model, max_tokens: 4000, temperature: 0, system: SYSTEM, messages: [{ role: "user", content: prompt }] }),
+  });
+  if (!response.ok) throw new Error(`Claude notice analysis failed (${response.status})`);
+  const payload = await response.json() as { content?: { type?: string; text?: string }[] };
+  const text = payload.content?.find((p) => p.type === "text")?.text?.trim();
+  if (!text) throw new Error("Claude returned no notice analysis");
+  let parsed: unknown;
+  try { parsed = JSON.parse(text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim()); }
+  catch { throw new Error("Claude returned invalid notice JSON"); }
+  if (!parsed || typeof parsed !== "object") throw new Error("Invalid notice analysis object");
+  const result = parsed as Record<string, unknown>;
+  const arrays = ["required_actions", "requested_documents", "stated_consequences", "response_channels", "key_facts", "uncertainties", "response_strategy"];
+  for (const key of arrays) {
+    if (!Array.isArray(result[key]) || !result[key].every((v) => typeof v === "string")) throw new Error(`Invalid ${key}`);
+  }
+  if (!["low", "medium", "high"].includes(String(result.confidence))) throw new Error("Invalid confidence");
+  return {
+    notice_type: String(result.notice_type || "other"),
+    agency_name: typeof result.agency_name === "string" ? result.agency_name : null,
+    notice_title: typeof result.notice_title === "string" ? result.notice_title : null,
+    reference_number: typeof result.reference_number === "string" ? result.reference_number : null,
+    received_date: typeof result.received_date === "string" ? result.received_date : null,
+    response_deadline: typeof result.response_deadline === "string" ? result.response_deadline : null,
+    deadline_basis: typeof result.deadline_basis === "string" ? result.deadline_basis : null,
+    days_remaining: typeof result.days_remaining === "number" && Number.isFinite(result.days_remaining) ? result.days_remaining : null,
+    required_actions: result.required_actions as string[],
+    requested_documents: result.requested_documents as string[],
+    stated_consequences: result.stated_consequences as string[],
+    response_channels: result.response_channels as string[],
+    key_facts: result.key_facts as string[],
+    uncertainties: result.uncertainties as string[],
+    response_strategy: result.response_strategy as string[],
+    confidence: result.confidence as "low" | "medium" | "high",
+  };
+}
