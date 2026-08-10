@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS notice_responses (
   notice_text TEXT,
   r2_key TEXT,
   original_filename TEXT,
+  content_type TEXT,
   sha256_hash TEXT,
   analysis_json TEXT,
   analysis_status TEXT NOT NULL DEFAULT 'pending',
@@ -29,11 +30,7 @@ CREATE TABLE IF NOT EXISTS notice_responses (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_notice_response_case
-  ON notice_responses(case_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_notice_response_org
-  ON notice_responses(organization_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_notice_response_deadline
-  ON notice_responses(organization_id, response_deadline);
-CREATE INDEX IF NOT EXISTS idx_notice_response_status
-  ON notice_responses(organization_id, response_status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notice_response_case ON notice_responses(case_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notice_response_org ON notice_responses(organization_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notice_response_deadline ON notice_responses(organization_id, response_deadline);
+CREATE INDEX IF NOT EXISTS idx_notice_response_status ON notice_responses(organization_id, response_status, updated_at DESC);
