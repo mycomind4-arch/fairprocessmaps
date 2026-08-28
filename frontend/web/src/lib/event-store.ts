@@ -445,7 +445,16 @@ export async function getCaseTimeline(
        ORDER BY COALESCE(e.event_date, e.created_at) DESC
        LIMIT ?`
     ).bind(caseId, limit).all();
-    return result.results ?? [];
+    const rows = result.results ?? [];
+    // Safety net: sort by event_date (falling back to created_at) in DESC order.
+    // The SQL ORDER BY should handle this, but we enforce it in JS too
+    // so timeline ordering is correct regardless of DB implementation quirks.
+    rows.sort((a: any, b: any) => {
+      const dateA = a.event_date ?? a.eventDate ?? a.created_at ?? '';
+      const dateB = b.event_date ?? b.eventDate ?? b.created_at ?? '';
+      return dateB.localeCompare(dateA);
+    });
+    return rows;
   } catch (err) {
     // Table doesn't exist yet — return empty
     return [];
@@ -670,7 +679,8 @@ export function eventToTimelineDisplay(event: any): {
     "relationship.created": { event_type: "relationship_created", description: `Relationship created: ${payload.relationship_type ?? "Unknown"}` },
   };
 
-  const mapped = typeMap[event.event_type] ?? { event_type: event.event_type, description: event.event_type };
+  const eventTypeKey = event.event_type ?? event.eventType ?? 'unknown';
+    const mapped = typeMap[eventTypeKey] ?? { event_type: eventTypeKey, description: eventTypeKey };
   return {
     ...mapped,
     event_date: event.event_date ?? event.created_at ?? new Date().toISOString(),
@@ -718,12 +728,14 @@ export async function replayValidation(
   const relationships = await rebuildRelationshipsFromEvents(db, caseId);
 
   // Count relationship.created events
+  // Fetch all events for this case and filter in JS — more robust than relying on SQL COUNT(*)
+  // which may not be supported by all D1-compatible environments.
   let relationshipEvents = 0;
   try {
-    const result = await db.prepare(
-      "SELECT COUNT(*) as count FROM events WHERE case_id = ? AND event_type = 'relationship.created'"
-    ).bind(caseId).first();
-    relationshipEvents = (result as any)?.count ?? 0;
+    const allEvents = await getCaseAuditLog(db, caseId, 5000);
+    relationshipEvents = allEvents.filter((e: any) =>
+      (e.event_type ?? e.eventType) === 'relationship.created'
+    ).length;
   } catch { /* ignore */ }
 
   return {

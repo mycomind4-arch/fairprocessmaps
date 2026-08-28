@@ -30,8 +30,8 @@ function createMockDB() {
       );
       if (!exists) {
         relationships.push({
-          id, caseId: caseId, sourceType: srcType, sourceId: srcId,
-          targetType: tgtType, targetId: tgtId, relationshipType: relType,
+          id, case_id: caseId, source_type: srcType, source_id: srcId,
+          target_type: tgtType, target_id: tgtId, relationship_type: relType,
           metadata, created_at: new Date().toISOString(),
         });
         return { meta: { changes: 1 } };
@@ -61,6 +61,9 @@ function createMockDB() {
     }
     if (sql.includes("FROM relationships")) {
       let filtered = [...relationships];
+      if (sql.includes("case_id = ?")) {
+        filtered = filtered.filter((r) => r.case_id === params[0]);
+      }
       if (sql.includes("source_type = ?") && sql.includes("source_id = ?")) {
         filtered = filtered.filter((r) => r.source_type === params[0] && r.source_id === params[1]);
       }

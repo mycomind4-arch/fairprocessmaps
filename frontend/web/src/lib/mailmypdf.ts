@@ -35,7 +35,9 @@ async function request<T>(env: unknown, path: string, init: RequestInit): Promis
   const config = getConfig(env);
   // Use a plain header record so the request remains inspectable in tests and by
   // adapters while retaining normal Fetch Headers semantics at the network edge.
-  const headers: Record<string, string> = Object.fromEntries(new Headers(init.headers).entries());
+  // Merge headers preserving original case — Headers() normalizes to lowercase,
+  // which breaks Idempotency-Key and other mixed-case headers expected by the API.
+  const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
   headers.Authorization = `Bearer ${config.apiKey}`;
   headers.Accept = "application/json";
 
