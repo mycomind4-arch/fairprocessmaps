@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { requireAuth } from "@/lib/security/middleware";
 import {
   queryEvents,
   getCaseTimeline,
@@ -12,8 +13,17 @@ import {
 export const runtime = "nodejs";
 
 // GET /api/v1/events?caseId=xxx&type=xxx&entityType=xxx&entityId=xxx&limit=100&offset=0
+//
+// SECURITY: This endpoint requires authentication via requireAuth.
+// Case/audit event data can reveal sensitive information, so it must
+// be brought under the same authorization boundary as the case endpoints.
 export async function GET(req: NextRequest) {
   try {
+    // ── Authentication required ──────────────────────────────
+    const auth = await requireAuth(req);
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
+
     const { env } = getCloudflareContext();
     const db = env.DB;
 
@@ -54,7 +64,6 @@ export async function GET(req: NextRequest) {
 
     // ── Generic query ──
     const events = await queryEvents(db, {
-      case_id: caseId || undefined,
       event_type: eventType || undefined,
       entity_type: entityType || undefined,
       entity_id: entityId || undefined,
