@@ -28,6 +28,7 @@ import {
 } from "./claude";
 import { emitTimelineEvent, emitAuditEvent } from "./security/events";
 import type { Actor } from "./security/types";
+import { recorderLogin, searchRecorderAuthenticated } from "./recorder-portal";
 import { generateBrief, type BriefType } from "./brief-generator";
 import { runAnalysis } from "./auto-triggers";
 
@@ -64,6 +65,11 @@ Ground rules, non-negotiable:
 - draft_document actually creates and saves a document immediately (it's a
   new artifact, nothing existing is touched) — say what you generated and
   where to find it.
+- search_county_recorder returns whatever the county's own index returns,
+  verbatim. A document existing or not existing there answers a records
+  question, not a legal one (e.g. it says nothing about estate/probate
+  standing, who can be served, or whether anyone acted properly) — don't
+  stretch a recorder result into a legal conclusion.
 - Keep answers short and concrete. This is a conversation, not a report.`;
 
 // ── Tool schema ──────────────────────────────────────────────────────────────
@@ -99,6 +105,20 @@ const TOOLS: ClaudeToolDef[] = [
     name: "get_documents",
     description: "List saved documents on this case: generated briefs/letters and response drafts.",
     input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "search_county_recorder",
+    description: "Search the county recorder's official-records index by name (deeds, liens, official records — format 'Last First'). Requires a recorder portal account to be configured; says so plainly if not.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "'Last First', e.g. 'Ferrington Bonnie'" },
+        dateStart: { type: "string", description: "Optional MM/DD/YYYY" },
+        dateEnd: { type: "string", description: "Optional MM/DD/YYYY" },
+      },
+      required: ["name"],
+      additionalProperties: false,
+    },
   },
   {
     name: "add_timeline_event",
@@ -198,6 +218,7 @@ async function appendMessage(
 // ── Read-tool executors ──────────────────────────────────────────────────────
 
 async function execReadTool(
+  env: ClaudeBindingEnv & { RECORDER_USER_ID?: string; RECORDER_PASSWORD?: string },
   db: D1Database,
   projectId: string,
   orgId: string,
@@ -205,6 +226,34 @@ async function execReadTool(
   input: Record<string, unknown>,
 ): Promise<unknown> {
   switch (name) {
+    case "search_county_recorder": {
+      const userId = env.RECORDER_USER_ID;
+      const password = env.RECORDER_PASSWORD;
+      if (!userId || !password) {
+        return {
+          error: "No recorder portal account is configured (RECORDER_USER_ID / RECORDER_PASSWORD). " +
+            "Create a free account at humboldtcountyca-web.tylerhost.net yourself, then have the operator set those as secrets — this tool can't create the account for you.",
+        };
+      }
+      const login = await recorderLogin({ userId, password });
+      if (!login.ok || !login.session) {
+        return { error: `Recorder portal login failed: ${login.message}` };
+      }
+      const nameQuery = String(input.name ?? "").trim();
+      if (!nameQuery) return { error: "name is required (format: 'Last First')" };
+      const { documents } = await searchRecorderAuthenticated(login.session, nameQuery, {
+        dateStart: input.dateStart as string | undefined,
+        dateEnd: input.dateEnd as string | undefined,
+      });
+      return {
+        query: nameQuery,
+        resultCount: documents.length,
+        documents,
+        note: documents.length === 0
+          ? "No documents returned — could mean genuinely none on file, or the result page's HTML didn't match what this parser expects. Don't treat this as certain absence without a person checking the portal directly."
+          : "Recorder documents are indexed 1979–present; this is what the portal's own search returned, verbatim. Not legal advice — a document's existence or absence here doesn't resolve legal questions like estate/probate standing.",
+      };
+    }
     case "get_timeline": {
       const rows = await db
         .prepare(
@@ -420,7 +469,7 @@ async function loopUntilTextOrPending(
       const toolResultBlocks: Array<Record<string, unknown>> = [];
 
       for (const t of readCalls) {
-        const result = await execReadTool(db, projectId, orgId, t.name, t.input);
+        const result = await execReadTool(env, db, projectId, orgId, t.name, t.input);
         toolResultBlocks.push({ type: "tool_result", tool_use_id: t.id, content: JSON.stringify(result).slice(0, 8000) });
       }
       for (const d of draftResults) {
@@ -448,7 +497,7 @@ async function loopUntilTextOrPending(
     // the model can use the results before it's done.
     const toolResultBlocks: Array<Record<string, unknown>> = [];
     for (const t of readCalls) {
-      const result = await execReadTool(db, projectId, orgId, t.name, t.input);
+      const result = await execReadTool(env, db, projectId, orgId, t.name, t.input);
       toolResultBlocks.push({ type: "tool_result", tool_use_id: t.id, content: JSON.stringify(result).slice(0, 8000) });
     }
     for (const d of draftResults) {

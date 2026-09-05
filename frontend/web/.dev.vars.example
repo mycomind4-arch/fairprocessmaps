@@ -3,8 +3,16 @@
 
 # Claude synthesis
 ANTHROPIC_API_KEY=
-ANTHROPIC_MODEL=claude-sonnet-4-20250514
+ANTHROPIC_MODEL=claude-sonnet-5
 
 # MailMyPDF execution API
 MAILMYPDF_API_URL=https://mycomind4-arch-mailmypdf.mailmypdf.workers.dev
 MAILMYPDF_API_KEY=
+
+# Humboldt County Clerk-Recorder self-service portal (humboldtcountyca-web.tylerhost.net).
+# Create your own free account at that site first — this app never creates
+# one for you. Optional: county_recorder recon and the case assistant's
+# search_county_recorder tool both degrade gracefully (report "not
+# configured") when these are blank.
+RECORDER_USER_ID=
+RECORDER_PASSWORD=
