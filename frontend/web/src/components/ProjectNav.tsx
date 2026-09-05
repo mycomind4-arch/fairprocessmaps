@@ -13,6 +13,7 @@ import {
   Gavel,
   FileSignature,
   Mail,
+  Sparkles,
 } from "lucide-react";
 
 export type ProjectSection =
@@ -26,7 +27,8 @@ export type ProjectSection =
   | "connectors"
   | "respond"
   | "policy"
-  | "admin";
+  | "admin"
+  | "assistant";
 
 interface NavItem {
   id: ProjectSection;
@@ -54,6 +56,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "BUILD THE DEFENSE",
     items: [
+      { id: "assistant", label: "Case Assistant", icon: Sparkles },
       { id: "respond", label: "Respond to Notice", icon: Send },
       { id: "legal", label: "Defense & Response", icon: Gavel },
       { id: "graph", label: "Case Graph", icon: Network },
