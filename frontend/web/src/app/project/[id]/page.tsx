@@ -17,6 +17,8 @@ import CaseGraphPanel from "@/components/panels/CaseGraphPanel";
 import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
 import PolicyReviewPanel from "@/components/panels/PolicyReviewPanel";
+import NoticeResponsePanel from "@/components/panels/NoticeResponsePanel";
+import DeadlineBar from "@/components/DeadlineBar";
 import AuthorityEnforcementPanel from "@/components/panels/AuthorityEnforcementPanel";
 import { useReconStream, TopProgressBar, AgentPopup } from "@/components/ReconProgressModal";
 import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Menu } from "lucide-react";
@@ -187,11 +189,19 @@ export default function ProjectDashboard() {
 
         <div className="border-t border-fp-border" />
 
-        <div className="flex items-center gap-4 sm:gap-8 text-xs overflow-x-auto py-0.5 px-4 sm:px-6 scrollbar-thin">
-          <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Evidence:</span><span className="font-semibold text-fp-text text-sm">{project?.evidenceCount ?? 0}</span></div>
-          <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Timeline:</span><span className="font-semibold text-fp-text text-sm">{project?.timelineCount ?? 0}</span></div>
-          <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Findings:</span><span className="font-semibold text-fp-text text-sm">{project?.openFindingsCount ?? 0}</span></div>
-          <div className="flex items-center gap-2 shrink-0"><span className="text-fp-text-dim uppercase tracking-wide font-medium">Pending Reviews:</span><span className="font-semibold text-fp-red text-sm">{project?.criticalFindingsCount ?? 0}</span></div>
+        {/*
+          Counts are context, not the headline. They sit in one muted row and
+          give up their emphasis to the deadline bar below, which is the number
+          that actually decides the matter. Findings that need a person keep
+          their color; inventory counts do not.
+        */}
+        <div className="flex items-center gap-4 sm:gap-6 text-xs overflow-x-auto py-0.5 px-4 sm:px-6 scrollbar-thin">
+          <div className="flex items-center gap-1.5 shrink-0 text-fp-text-dim"><span>Evidence</span><span className="font-medium text-fp-text-muted tabular-nums">{project?.evidenceCount ?? 0}</span></div>
+          <div className="flex items-center gap-1.5 shrink-0 text-fp-text-dim"><span>Timeline</span><span className="font-medium text-fp-text-muted tabular-nums">{project?.timelineCount ?? 0}</span></div>
+          <div className="flex items-center gap-1.5 shrink-0 text-fp-text-dim"><span>Findings</span><span className="font-medium text-fp-text-muted tabular-nums">{project?.openFindingsCount ?? 0}</span></div>
+          {(project?.criticalFindingsCount ?? 0) > 0 && (
+            <div className="flex items-center gap-1.5 shrink-0"><span className="text-fp-text-dim">Needs review</span><span className="font-semibold text-fp-red tabular-nums">{project?.criticalFindingsCount}</span></div>
+          )}
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-fp-text-dim uppercase tracking-wide font-medium">Risk:</span>
             <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${project?.due_process_score == null ? "bg-fp-surface-2 text-fp-text-dim" : project.due_process_score < 60 ? "bg-fp-red/20 text-fp-red border border-fp-red/30" : project.due_process_score < 80 ? "bg-fp-amber/20 text-fp-amber border border-fp-amber/30" : "bg-fp-green/20 text-fp-green border border-fp-green/30"}`}>
@@ -216,6 +226,10 @@ export default function ProjectDashboard() {
         )}
 
         <main className="flex-1 relative overflow-y-auto p-3 sm:p-6">
+          <div className="mb-5">
+            <DeadlineBar caseId={id} onOpenWorkflow={() => setSection("respond")} />
+          </div>
+
           {project?.property.centroid && section === "intelligence" && (
             <MiniMap centroid={toLngLat(project.property.centroid)!} geomGeoJSON={(project.property.geom as any) ?? undefined} onExpand={() => setMapExpanded(true)} />
           )}
@@ -228,6 +242,7 @@ export default function ProjectDashboard() {
           {section === "legal" && <LegalToolsPanel projectId={id} />}
           {section === "graph" && <CaseGraphPanel projectId={id} />}
           {section === "connectors" && <ConnectorsPanel projectId={id} />}
+          {section === "respond" && <NoticeResponsePanel projectId={id} />}
           {section === "policy" && <PolicyReviewPanel />}
           {section === "admin" && <AdminPanel projectId={id} />}
         </main>

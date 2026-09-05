@@ -91,6 +91,83 @@ export async function callClaude(
   return text;
 }
 
+export interface ClaudeImage {
+  /** Raw image bytes. */
+  data: Uint8Array;
+  /** image/jpeg | image/png | image/gif | image/webp */
+  mediaType: string;
+}
+
+function toBase64(bytes: Uint8Array): string {
+  // Chunked to avoid blowing the argument limit on large scans.
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/**
+ * Multimodal Claude call — images plus a text instruction.
+ *
+ * Exists because the people this product serves photograph their notices. They
+ * do not arrive as tidy machine-readable text; they arrive as phone pictures of
+ * paper, sometimes skewed, sometimes shadowed. A pipeline that only reads
+ * text/* files is a pipeline that cannot read the actual evidence.
+ *
+ * Images are sent in order and referred to by position, so a caller can pass
+ * the pages of one document and have them read as a single record.
+ */
+export async function callClaudeVision(
+  env: ClaudeBindingEnv,
+  opts: { system: string; user: string; images: ClaudeImage[]; maxTokens?: number },
+): Promise<string> {
+  const apiKey = getBinding(env, "ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
+  if (opts.images.length === 0) throw new Error("callClaudeVision requires at least one image");
+
+  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
+  const apiUrl = getBinding(env, "ANTHROPIC_API_URL") ?? "https://api.anthropic.com/v1/messages";
+
+  const content: Record<string, unknown>[] = [];
+  opts.images.forEach((img, i) => {
+    // Label each page so the model can cite which page a fact came from.
+    content.push({ type: "text", text: `--- PAGE ${i + 1} ---` });
+    content.push({
+      type: "image",
+      source: { type: "base64", media_type: img.mediaType, data: toBase64(img.data) },
+    });
+  });
+  content.push({ type: "text", text: opts.user });
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: opts.maxTokens ?? 4096,
+      temperature: 0,
+      system: opts.system,
+      messages: [{ role: "user", content }],
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Claude vision request failed (${response.status}): ${body.slice(0, 500)}`);
+  }
+
+  const payload = (await response.json()) as { content?: { type?: string; text?: string }[] };
+  const text = payload.content?.find((p) => p.type === "text")?.text?.trim();
+  if (!text) throw new Error("Claude returned no text content");
+  return text;
+}
+
 export async function synthesizeCaseReview(
   env: ClaudeBindingEnv,
   context: {
