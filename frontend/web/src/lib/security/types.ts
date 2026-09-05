@@ -48,6 +48,9 @@ export type Action =
   | "communication.create"
   | "analysis.run"
   | "admin.debug"
+  // Drafting procedural rules for a jurisdiction. Admin-only: a bad rule
+  // reaches a court filing, so this is not an ordinary user action.
+  | "policy.compile"
   | "agent.run"
   | "agent.review"
   | "agent.read";

@@ -91,6 +91,69 @@ Before activation, a lawyer needs to confirm, per rule:
    findings rather than findings from the wrong county's rules.
 5. Run `make test-policy`.
 
+
+## Drafting a pack with the compiler
+
+`POST /api/v1/policy/compile` drafts a pack from municipal code text. This is
+what turns "county #2 is an engineering project" into "county #2 is an
+afternoon of drafting plus a lawyer's review".
+
+```json
+{
+  "jurisdiction": "Mendocino County, California",
+  "caseTypes": ["code_enforcement"],
+  "sourceUrl": "https://example.gov/code/500",
+  "authority": "Mendocino County Board of Supervisors",
+  "sourceText": "<the full text of the relevant code sections>"
+}
+```
+
+It returns a draft pack, the rules the validator threw out and why, and a
+review checklist. Nothing is written to the registry — you commit the pack file
+yourself after review.
+
+### Why you can trust the output more than you trust the model
+
+You shouldn't trust the model at all. The safety is entirely in the validator,
+which runs after the response and drops anything unsupported:
+
+- **Every rule must quote the sentence that establishes it**, and that quote
+  must actually appear in the source text you supplied. A model that reaches
+  for background knowledge — "most counties require 30 days" — produces a quote
+  that isn't in the text, and the rule is discarded. This is the single most
+  important check.
+- **A day-count rule whose quote contains no number is rejected.**
+- **`sourceUrl` and `authority` come from your request, never the model.** A
+  model-supplied URL could point anywhere.
+- **Output is always `legal_review_required`.** There is no code path in the
+  compiler that produces an activated pack.
+- Rules are stamped `MACHINE-EXTRACTED, UNVERIFIED` with their establishing
+  quote embedded in the notes, so a reviewer sees what it was based on.
+
+Run `make test-policy` to see the adversarial cases — each test is a way a
+plausible-looking hallucination could otherwise reach a pack.
+
+## The Procedural Integrity Report
+
+`GET /api/v1/cases/{id}/integrity-report` (add `?format=markdown` to download).
+
+This is the deliverable, and it is deliberately not the brief generator. A brief
+argues; this reports. Three properties make it worth paying for:
+
+- **Complete.** Every checkpoint appears, including satisfied ones and ones that
+  could not be evaluated. A report showing only adverse findings is advocacy
+  wearing an audit's clothes, and opposing counsel will say so. Showing what
+  passed is what makes what failed credible.
+- **Cited.** Every statement traces to an authority with a URL.
+- **Reproducible.** A receipt hashes the case identity, timeline, evidence
+  hashes and policy version. Same inputs and same pack version regenerate the
+  report exactly; any divergence is detectable. The hash deliberately excludes
+  who ran it and when.
+
+No LLM runs in report generation — it is deterministic. While the governing pack
+is unreviewed the report carries a **DRAFT — NOT FOR FILING** banner and
+`exportable: false`.
+
 ## What still needs building
 
 - `record_presence` needs a recorder-index connector before it does anything.

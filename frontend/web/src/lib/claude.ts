@@ -43,6 +43,54 @@ function getBinding(env: ClaudeBindingEnv, key: keyof ClaudeBindingEnv): string 
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+/**
+ * Generic single-turn Claude call.
+ *
+ * Extracted from synthesizeCaseReview so callers that need a different schema
+ * (the policy compiler, for one) share one transport, one set of bindings, and
+ * one place where temperature is pinned to 0. Returns raw text; parsing and
+ * validation are the caller's job, because each caller's schema differs and
+ * validation is where the safety lives.
+ */
+export async function callClaude(
+  env: ClaudeBindingEnv,
+  opts: { system: string; user: string; maxTokens?: number },
+): Promise<string> {
+  const apiKey = getBinding(env, "ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
+
+  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
+  const apiUrl = getBinding(env, "ANTHROPIC_API_URL") ?? "https://api.anthropic.com/v1/messages";
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: opts.maxTokens ?? 3500,
+      temperature: 0,
+      system: opts.system,
+      messages: [{ role: "user", content: opts.user }],
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Claude request failed (${response.status}): ${body.slice(0, 500)}`);
+  }
+
+  const payload = (await response.json()) as {
+    content?: { type?: string; text?: string }[];
+  };
+  const text = payload.content?.find((part) => part.type === "text")?.text?.trim();
+  if (!text) throw new Error("Claude returned no text content");
+  return text;
+}
+
 export async function synthesizeCaseReview(
   env: ClaudeBindingEnv,
   context: {
