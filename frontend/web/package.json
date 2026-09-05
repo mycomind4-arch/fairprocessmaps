@@ -38,7 +38,7 @@
     "@types/geojson": "^7946.0.16",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
+    "@types/react-dom": "^19.2.5",
     "postcss": "^8.5.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0",
