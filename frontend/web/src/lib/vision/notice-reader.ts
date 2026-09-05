@@ -25,7 +25,7 @@
  *     is a proposal a person confirms, consistent with the rest of the system.
  */
 
-import { callClaudeVision, type ClaudeBindingEnv, type ClaudeImage } from "@/lib/claude";
+import { callClaude, callClaudeDocuments, type ClaudeBindingEnv, type ClaudeDocument } from "@/lib/claude";
 
 export type Legibility = "clear" | "partial" | "illegible";
 
@@ -163,21 +163,48 @@ export interface ReadNoticeResult {
 }
 
 /**
- * Read one notice, which may span several page images.
+ * Read one notice, which may span several pages or files.
+ *
+ * Binary sources (PDF, images) go up as document blocks. A source whose text
+ * was extracted locally — a .docx, a .txt — is passed as `plainText` and read
+ * through the text path instead. Both produce the same structured reading, so
+ * the rest of the pipeline never learns what format the evidence arrived in.
+ *
+ * Legibility means something different for the two: characters in a .docx are
+ * exact, so a field read from `plainText` is only ever "clear" or absent, and
+ * the model is told so explicitly rather than inventing uncertainty.
  */
 export async function readNotice(
   env: ClaudeBindingEnv,
-  images: ClaudeImage[],
+  documents: ClaudeDocument[],
+  plainText?: string,
 ): Promise<ReadNoticeResult> {
-  const raw = await callClaudeVision(env, {
-    system: SYSTEM,
-    images,
-    user:
-      `Extract the facts from this ${images.length}-page document. ` +
-      `Transcribe before interpreting, rate each field's legibility separately, ` +
-      `and use null for anything you cannot read with confidence.`,
-    maxTokens: 4096,
-  });
+  const instruction =
+    `Transcribe before interpreting, rate each field's legibility separately, ` +
+    `and use null for anything you cannot read with confidence.`;
+
+  const raw =
+    documents.length > 0
+      ? await callClaudeDocuments(env, {
+          system: SYSTEM,
+          documents,
+          user: `Extract the facts from this ${documents.length}-part document. ${instruction}`,
+          maxTokens: 4096,
+        })
+      : await callClaude(env, {
+          system: SYSTEM,
+          user:
+            `Extract the facts from the document text below. The text was extracted ` +
+            `exactly from the source file, so characters are not in doubt — rate a ` +
+            `field "clear" when present and use null when absent. Do not report ` +
+            `illegibility for text you can plainly read. ${instruction}\n\n` +
+            `--- BEGIN DOCUMENT TEXT ---\n${(plainText ?? "").slice(0, 60000)}\n--- END DOCUMENT TEXT ---`,
+          maxTokens: 4096,
+        });
+
+  if (documents.length === 0 && !plainText?.trim()) {
+    throw new Error("readNotice needs either a document or extracted text");
+  }
 
   const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
   const parsed = JSON.parse(cleaned) as Record<string, unknown>;

@@ -98,6 +98,21 @@ export interface ClaudeImage {
   mediaType: string;
 }
 
+/**
+ * A source document handed to Claude for reading.
+ *
+ * PDFs go up as native `document` blocks rather than being parsed locally.
+ * That matters a lot here: Cloudflare Workers cannot realistically run pdf.js
+ * or pdfkit, so local PDF parsing was never an option — and the native block
+ * handles scanned PDFs too, since the model reads them visually. It removes an
+ * entire class of dependency from the intake path.
+ */
+export interface ClaudeDocument {
+  data: Uint8Array;
+  /** application/pdf, or any supported image media type. */
+  mediaType: string;
+}
+
 function toBase64(bytes: Uint8Array): string {
   // Chunked to avoid blowing the argument limit on large scans.
   let binary = "";
@@ -119,6 +134,67 @@ function toBase64(bytes: Uint8Array): string {
  * Images are sent in order and referred to by position, so a caller can pass
  * the pages of one document and have them read as a single record.
  */
+/**
+ * Read source documents — PDFs and images together — with one instruction.
+ *
+ * Prefer this over callClaudeVision for anything that might be a PDF. Pages are
+ * labelled by position so extracted facts can cite which page they came from.
+ */
+export async function callClaudeDocuments(
+  env: ClaudeBindingEnv,
+  opts: { system: string; user: string; documents: ClaudeDocument[]; maxTokens?: number },
+): Promise<string> {
+  const apiKey = getBinding(env, "ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
+  if (opts.documents.length === 0) {
+    throw new Error("callClaudeDocuments requires at least one document");
+  }
+
+  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
+  const apiUrl = getBinding(env, "ANTHROPIC_API_URL") ?? "https://api.anthropic.com/v1/messages";
+
+  const content: Record<string, unknown>[] = [];
+  opts.documents.forEach((doc, i) => {
+    content.push({ type: "text", text: `--- DOCUMENT ${i + 1} ---` });
+    content.push({
+      // PDFs use the document block; everything else is an image block.
+      type: doc.mediaType === "application/pdf" ? "document" : "image",
+      source: {
+        type: "base64",
+        media_type: doc.mediaType,
+        data: toBase64(doc.data),
+      },
+    });
+  });
+  content.push({ type: "text", text: opts.user });
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: opts.maxTokens ?? 4096,
+      temperature: 0,
+      system: opts.system,
+      messages: [{ role: "user", content }],
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Claude document request failed (${response.status}): ${body.slice(0, 500)}`);
+  }
+
+  const payload = (await response.json()) as { content?: { type?: string; text?: string }[] };
+  const text = payload.content?.find((p) => p.type === "text")?.text?.trim();
+  if (!text) throw new Error("Claude returned no text content");
+  return text;
+}
+
 export async function callClaudeVision(
   env: ClaudeBindingEnv,
   opts: { system: string; user: string; images: ClaudeImage[]; maxTokens?: number },

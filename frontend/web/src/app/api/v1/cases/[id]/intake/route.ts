@@ -5,12 +5,24 @@ import { authorize } from "@/lib/security/authorization";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { humanActor, emitAuditEvent } from "@/lib/security/events";
 import { readNotice } from "@/lib/vision/notice-reader";
+import { routeDocument, isTextual } from "@/lib/vision/document-router";
 import { buildCase, type ReadDocument } from "@/lib/vision/case-builder";
 import { runAnalysis } from "@/lib/auto-triggers";
 
 export const runtime = "nodejs";
 
-const IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+// Everything a person might plausibly have. PDFs and images go to the model
+// directly; docx and text are extracted locally first. See document-router.
+const READABLE_TYPES = [
+  "application/pdf",
+  "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain", "text/markdown", "text/csv", "text/html",
+  "application/json", "application/xml", "text/xml",
+  // Phones and browsers frequently mislabel uploads; the router re-resolves
+  // these by file extension rather than refusing readable evidence.
+  "application/octet-stream",
+];
 
 /**
  * POST /api/v1/cases/[id]/intake
@@ -84,11 +96,11 @@ export async function POST(
         .prepare(
           `SELECT id FROM evidence
             WHERE project_id = ? AND organization_id = ?
-              AND content_type IN (${IMAGE_TYPES.map(() => "?").join(",")})
+              AND content_type IN (${READABLE_TYPES.map(() => "?").join(",")})
               AND (extracted_text IS NULL OR extracted_text = '')
             ORDER BY uploaded_at ASC`,
         )
-        .bind(id, orgId, ...IMAGE_TYPES)
+        .bind(id, orgId, ...READABLE_TYPES)
         .all();
       groups = ((rows.results ?? []) as Record<string, unknown>[]).map((r) => [r.id as string]);
     }
@@ -97,7 +109,7 @@ export async function POST(
       return NextResponse.json(
         {
           read: 0,
-          note: "No unread images were found on this case. Upload photographs of the notices first, or pass evidenceIds to re-read specific documents.",
+          note: "No unread documents were found on this case. Upload the notices first — PDF, JPG, PNG, DOCX and text files are all read automatically.",
         },
         { headers: { "Cache-Control": "no-store" } },
       );
@@ -120,17 +132,32 @@ export async function POST(
       if (pages.length === 0) continue;
 
       try {
-        const images = [];
+        const claudeDocs = [];
+        const localText: string[] = [];
+
         for (const p of pages) {
           const obj = await bucket.get(p.r2_key as string);
           if (!obj) throw new Error(`File missing from storage for ${p.title ?? p.id}`);
-          images.push({
-            data: new Uint8Array(await obj.arrayBuffer()),
-            mediaType: (p.content_type as string) ?? "image/jpeg",
-          });
+          const bytes = new Uint8Array(await obj.arrayBuffer());
+
+          const routed = await routeDocument(
+            bytes,
+            (p.content_type as string) ?? "",
+            (p.title as string) ?? "",
+          );
+
+          if (routed.kind === "unsupported") throw new Error(routed.reason ?? "Unsupported file");
+          if (isTextual(routed)) localText.push(routed.text);
+          else if (routed.claudeDocument) claudeDocs.push(routed.claudeDocument);
         }
 
-        const result = await readNotice(env as never, images);
+        // Text extracted locally is handed to the model as a text part so a
+        // .docx and a scanned PDF produce the same structured reading.
+        const result = await readNotice(
+          env as never,
+          claudeDocs,
+          localText.length > 0 ? localText.join("\n\n") : undefined,
+        );
 
         // Store the transcript so every existing text-based analyzer, the
         // search index, and the disclosure checkpoints work on photographed
@@ -142,7 +169,7 @@ export async function POST(
           )
           .bind(
             result.transcript,
-            `${result.reading.documentType.value ?? "document"} read from image${
+            `${result.reading.documentType.value ?? "document"} read from file${
               result.needsConfirmation.length ? ` — ${result.needsConfirmation.length} field(s) need confirmation` : ""
             }`,
             pages[0].id as string,
