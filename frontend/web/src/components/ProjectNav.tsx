@@ -23,6 +23,7 @@ export type ProjectSection =
   | "legal"
   | "graph"
   | "connectors"
+  | "policy"
   | "admin";
 
 interface NavItem {
@@ -59,6 +60,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "CASE SYSTEM",
     items: [
       { id: "connectors", label: "Sources & Connectors", icon: Plug },
+      { id: "policy", label: "Procedural Rules", icon: ScaleIcon },
       { id: "admin", label: "Case Settings", icon: Settings },
     ],
   },

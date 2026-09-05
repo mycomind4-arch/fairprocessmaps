@@ -16,6 +16,7 @@ import LegalToolsPanel from "@/components/panels/LegalToolsPanel";
 import CaseGraphPanel from "@/components/panels/CaseGraphPanel";
 import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
+import PolicyReviewPanel from "@/components/panels/PolicyReviewPanel";
 import AuthorityEnforcementPanel from "@/components/panels/AuthorityEnforcementPanel";
 import { useReconStream, TopProgressBar, AgentPopup } from "@/components/ReconProgressModal";
 import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Menu } from "lucide-react";
@@ -227,6 +228,7 @@ export default function ProjectDashboard() {
           {section === "legal" && <LegalToolsPanel projectId={id} />}
           {section === "graph" && <CaseGraphPanel projectId={id} />}
           {section === "connectors" && <ConnectorsPanel projectId={id} />}
+          {section === "policy" && <PolicyReviewPanel />}
           {section === "admin" && <AdminPanel projectId={id} />}
         </main>
       </div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Scale, AlertTriangle, ShieldCheck, Loader2,
   AlertCircle, RefreshCw, Play, CheckCircle, XCircle,
-  BookOpen, FileSearch, Gavel, ChevronDown,
+  BookOpen, FileSearch, Gavel, ChevronDown, FileText,
 } from "lucide-react";
 
 interface Finding {
@@ -212,6 +212,7 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
   const [findings, setFindings] = useState<Finding[]>([]);
   const [score, setScore] = useState<number | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [reportBusy, setReportBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -236,6 +237,31 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
   };
 
   useEffect(() => { fetchData(); /* eslint-disable-next-line */ }, [projectId]);
+
+  // Downloads the deterministic Procedural Integrity Report. Distinct from the
+  // brief generator: this describes the record rather than arguing from it, and
+  // carries a reproducibility receipt.
+  async function downloadIntegrityReport() {
+    setReportBusy(true);
+    try {
+      const res = await fetch(
+        `/api/v1/cases/${projectId}/integrity-report?format=markdown`,
+        { credentials: "include" },
+      );
+      if (!res.ok) throw new Error(`Report failed (${res.status})`);
+      const text = await res.text();
+      const url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `integrity-report-${projectId}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setReportBusy(false);
+    }
+  }
 
   const runAnalysis = async () => {
     setAnalyzing(true);
@@ -324,6 +350,18 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
                 <><Loader2 className="w-4 h-4 animate-spin" /> Running Agents…</>
               ) : (
                 <><Play className="w-4 h-4" /> Run All Agents</>
+              )}
+            </button>
+            <button
+              onClick={downloadIntegrityReport}
+              disabled={reportBusy}
+              title="Deterministic procedural audit covering every checkpoint, with citations and a reproducibility receipt"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-fp-border bg-fp-surface-2 text-fp-text text-sm font-medium hover:bg-fp-surface-2/70 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {reportBusy ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Preparing…</>
+              ) : (
+                <><FileText className="w-4 h-4" /> Integrity Report</>
               )}
             </button>
           </div>
