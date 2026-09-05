@@ -54,6 +54,26 @@ describe("policy pack integrity", () => {
     }
   });
 
+  it("does not let two elapsed_days rules claim the same action type", () => {
+    // Two rules measuring the same interval against different periods produce
+    // contradictory-looking findings on one fact — e.g. a general state notice
+    // rule and a specific county abatement rule both firing on an abatement.
+    // The specific rule wins; the general one must exclude that action type.
+    for (const p of allPacks()) {
+      const claimed = new Map<string, string>();
+      for (const rule of p.rules.filter((r) => r.kind === "elapsed_days")) {
+        for (const action of rule.actionEventTypes ?? []) {
+          const prior = claimed.get(action);
+          expect(
+            prior,
+            `${p.id}: rules "${prior}" and "${rule.id}" both measure "${action}"`,
+          ).toBeUndefined();
+          claimed.set(action, rule.id);
+        }
+      }
+    }
+  });
+
   it("keeps unreviewed packs out of activation", () => {
     // The pilot pack carries unverified day counts. If someone flips this to
     // "active" without a lawyer, this test is the tripwire.

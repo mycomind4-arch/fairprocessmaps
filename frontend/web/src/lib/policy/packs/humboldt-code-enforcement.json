@@ -1,7 +1,11 @@
 {
   "id": "humboldt-code-enforcement",
   "jurisdiction": "Humboldt County, California",
-  "caseTypes": ["code_enforcement", "abatement", "nuisance"],
+  "caseTypes": [
+    "code_enforcement",
+    "abatement",
+    "nuisance"
+  ],
   "policyVersion": "2026-09-05-engineering-draft",
   "activationStatus": "legal_review_required",
   "rules": [
@@ -15,18 +19,18 @@
       "sourceUrl": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=GOV&sectionNum=25845",
       "authority": "California Legislature / County Board of Supervisors",
       "minCalendarDays": 30,
-      "triggerEventTypes": ["notice"],
+      "triggerEventTypes": [
+        "notice"
+      ],
       "actionEventTypes": [
         "hearing",
         "decision",
         "enforcement",
         "fine",
         "penalty",
-        "lien",
-        "demolition",
-        "abatement"
+        "demolition"
       ],
-      "notes": "UNVERIFIED DAY COUNT. § 25845 requires a reasonable opportunity to correct but the operative period depends on the abatement track and on Humboldt County Code chapter 352, which may specify a shorter local period. The 30-day figure is carried over from the project's own statute library and must be confirmed against the controlling section before this rule is activated."
+      "notes": "UNVERIFIED DAY COUNT. § 25845 requires a reasonable opportunity to correct but the operative period depends on the abatement track and on Humboldt County Code chapter 352, which may specify a shorter local period. The 30-day figure is carried over from the project's own statute library and must be confirmed against the controlling section before this rule is activated. Abatement and lien events are deliberately excluded here because HCC 352-4(c) and 352-23 govern those intervals specifically; a general and a specific rule reporting different periods on the same fact misleads the reader."
     },
     {
       "id": "hearing_right",
@@ -37,8 +41,19 @@
       "citation": "Mathews v. Eldridge (1976) 424 U.S. 319; Goldberg v. Kelly (1970) 397 U.S. 254",
       "sourceUrl": "https://supreme.justia.com/cases/federal/us/424/319/",
       "authority": "U.S. Supreme Court",
-      "actionEventTypes": ["fine", "penalty", "lien", "demolition", "eviction", "abatement"],
-      "satisfyingEventTypes": ["hearing", "appeal", "contest"],
+      "actionEventTypes": [
+        "fine",
+        "penalty",
+        "lien",
+        "demolition",
+        "eviction",
+        "abatement"
+      ],
+      "satisfyingEventTypes": [
+        "hearing",
+        "appeal",
+        "contest"
+      ],
       "notes": "Constitutional baseline, not a statutory deadline. Mathews supplies the balancing test for what process is due; it does not itself fix a required form of hearing for county code enforcement. Whether a pre-deprivation hearing was constitutionally required in a given matter is a legal question for counsel, not for this checkpoint."
     },
     {
@@ -50,8 +65,18 @@
       "citation": "Mullane v. Central Hanover Bank & Trust Co. (1950) 339 U.S. 306",
       "sourceUrl": "https://supreme.justia.com/cases/federal/us/339/306/",
       "authority": "U.S. Supreme Court",
-      "documentEventTypes": ["decision", "order", "notice"],
-      "disclosureTerms": ["appeal", "review", "contest", "hearing request", "protest"],
+      "documentEventTypes": [
+        "decision",
+        "order",
+        "notice"
+      ],
+      "disclosureTerms": [
+        "appeal",
+        "review",
+        "contest",
+        "hearing request",
+        "protest"
+      ],
       "notes": "Mullane governs the adequacy of notice generally. It does not hold that every administrative decision must recite appeal rights; many California agencies carry that duty by statute or ordinance instead. Confirm the local source before treating an absent disclosure as significant."
     },
     {
@@ -64,8 +89,12 @@
       "sourceUrl": "https://humboldt.county.codes/Code/352-4",
       "authority": "Humboldt County Board of Supervisors",
       "minCalendarDays": 10,
-      "triggerEventTypes": ["notice"],
-      "actionEventTypes": ["abatement"],
+      "triggerEventTypes": [
+        "notice"
+      ],
+      "actionEventTypes": [
+        "abatement"
+      ],
       "notes": "Carried over from the FairProcess policy pack, where the reviewed text of HCC § 352-4(c) established an earliest date of 10 days after service but no explicit latest date. Summary abatement of an imminent hazard proceeds on a different track and this checkpoint does not distinguish it."
     },
     {
@@ -78,8 +107,13 @@
       "sourceUrl": "https://humboldt.county.codes/Code/352-23",
       "authority": "Humboldt County Board of Supervisors",
       "minCalendarDays": 45,
-      "triggerEventTypes": ["notice", "penalty"],
-      "actionEventTypes": ["lien"],
+      "triggerEventTypes": [
+        "notice",
+        "penalty"
+      ],
+      "actionEventTypes": [
+        "lien"
+      ],
       "notes": "The reviewed text indicates the lien has force and effect only upon recordation. Confirm the currently codified text before activation — this section has been amended."
     },
     {
@@ -91,8 +125,15 @@
       "citation": "Cal. Gov. Code § 65010; Humboldt County Code § 312-1",
       "sourceUrl": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=GOV&sectionNum=65010",
       "authority": "California Legislature / Humboldt County Planning Division",
-      "actionEventTypes": ["permit_denied", "permit_expired"],
-      "satisfyingEventTypes": ["appeal", "hearing", "review"],
+      "actionEventTypes": [
+        "permit_denied",
+        "permit_expired"
+      ],
+      "satisfyingEventTypes": [
+        "appeal",
+        "hearing",
+        "review"
+      ],
       "notes": "UNVERIFIED. The controlling appeal pathway for a Humboldt permit denial depends on which body issued the denial and is not established by § 65010 alone. This checkpoint reports only what the case file contains and should not be read as asserting an appeal was owed."
     },
     {
@@ -104,8 +145,15 @@
       "citation": "Cal. Gov. Code § 25845",
       "sourceUrl": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=GOV&sectionNum=25845",
       "authority": "California Legislature / County Board of Supervisors",
-      "actionEventTypes": ["case_closed", "case_abated"],
-      "satisfyingEventTypes": ["hearing", "appeal", "contest"],
+      "actionEventTypes": [
+        "case_closed",
+        "case_abated"
+      ],
+      "satisfyingEventTypes": [
+        "hearing",
+        "appeal",
+        "contest"
+      ],
       "notes": "Informational only. Many cases close by voluntary compliance, where no hearing is expected or required. A result here is a prompt to look, not a signal of irregularity."
     }
   ]
