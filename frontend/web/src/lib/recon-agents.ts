@@ -50,8 +50,14 @@ function toDashedAPN(apn: string): string {
   return apn;
 }
 
+// OWNER, OWNER1, MAIL_ADD, and TAX_VALUE do not exist on this layer — the
+// public parcels service withholds assessor ownership/mailing/tax fields.
+// Requesting them makes ArcGIS return an HTTP 200 with a JSON {error: ...}
+// body instead of features, which silently looked like "no data" downstream
+// for every agent (parcelAgent runs first; everything else needs its
+// geometry). Confirmed field-by-field against the live service — every name
+// below actually exists on this layer.
 const PARCEL_FIELDS = [
-  "OWNER", "OWNER1", "MAIL_ADD", "TAX_VALUE",
   "APN_12", "APN", "FULLADDR", "SITCITY", "ACRES", "LOTSIZE",
   "ZONING", "GEN_PLAN", "YEAR_BUILT", "LEGAL", "SUPD_DIST",
   "CZ", "FZ", "FR", "SRA", "TRANDATE", "BKPG", "OLDAPN",
@@ -108,6 +114,15 @@ export async function fetchParcelByAPN(apn: string): Promise<ParcelData | null> 
     const resp = await fetchWithRetry(`${PARCELS_URL}/query?${params}`);
     if (!resp || !resp.ok) return null;
     const data: any = await resp.json();
+    // ArcGIS answers a bad request (an invalid field name, a malformed
+    // WHERE clause) with HTTP 200 and a JSON {error: ...} body rather than
+    // an HTTP error status. Left unchecked, that reads as "no parcel found"
+    // — indistinguishable from a genuinely nonexistent APN — and every
+    // agent downstream of parcel geometry silently gets nothing. Surface it.
+    if (data.error) {
+      console.error(`[recon] ArcGIS parcel query rejected: ${JSON.stringify(data.error)}`);
+      return null;
+    }
     const feature = data.features?.[0];
     if (!feature) return null;
     return {
@@ -171,6 +186,12 @@ async function queryLayerByGeometry(
     const resp = await fetchWithRetry(`${layerUrl}/query?${params}`);
     if (!resp || !resp.ok) return null;
     const data: any = await resp.json();
+    // Same failure mode as fetchParcelByAPN: a bad outFields entry answers
+    // with HTTP 200 and a JSON error body, not an HTTP error.
+    if (data.error) {
+      console.error(`[recon] ArcGIS layer query rejected (${layerUrl}): ${JSON.stringify(data.error)}`);
+      return null;
+    }
     return data.features?.[0]?.attributes ?? null;
   } catch {
     return null;
@@ -202,6 +223,10 @@ async function queryLayerByAPN(
     const resp = await fetchWithRetry(`${layerUrl}/query?${params}`);
     if (!resp || !resp.ok) return null;
     const data: any = await resp.json();
+    if (data.error) {
+      console.error(`[recon] ArcGIS layer query rejected (${layerUrl}): ${JSON.stringify(data.error)}`);
+      return null;
+    }
     return data.features?.[0]?.attributes ?? null;
   } catch {
     return null;
@@ -251,6 +276,10 @@ async function checkIntersection(
     const resp = await fetchWithRetry(`${layerUrl}/query?${params}`);
     if (!resp || !resp.ok) return false;
     const data: any = await resp.json();
+    if (data.error) {
+      console.error(`[recon] ArcGIS intersection query rejected (${layerUrl}): ${JSON.stringify(data.error)}`);
+      return false;
+    }
     return (data.features?.length ?? 0) > 0;
   } catch {
     return false;
@@ -492,7 +521,10 @@ const seaLevelRiseAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => 
 const airportAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
   if (!ctx.parcel?.geometry) return { agent: "airport", status: "no_data", message: "No parcel geometry" };
 
-  const airportZone = await queryLayerByGeometry(AIRPORT_COMPAT_URL, ctx.parcel.geometry, ["ZONE", "NOISE"]);
+  // Layer fields are Name/Label/Airport/comp_zone/Shape/OBJECTID — "ZONE"
+  // and "NOISE" don't exist on this layer (verified against the live
+  // service) and made every lookup fail silently.
+  const airportZone = await queryLayerByGeometry(AIRPORT_COMPAT_URL, ctx.parcel.geometry, ["comp_zone", "Label", "Airport"]);
 
   if (!airportZone) {
     return {
@@ -506,8 +538,8 @@ const airportAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
   return {
     agent: "airport",
     status: "success",
-    message: `In airport compatibility zone: ${airportZone.ZONE || "Unknown"}`,
-    data: { in_airport_zone: true, airport_zone: airportZone.ZONE },
+    message: `In airport compatibility zone: ${airportZone.comp_zone || airportZone.Label || "Unknown"}`,
+    data: { in_airport_zone: true, airport_zone: airportZone.comp_zone, airport_name: airportZone.Airport },
   };
 };
 
@@ -543,9 +575,13 @@ const jurisdictionAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => 
 const naturalResourcesAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
   if (!ctx.parcel?.geometry) return { agent: "natural_resources", status: "no_data", message: "No parcel geometry" };
 
+  // "APN", "ACRES", and "CONTRACT" don't exist on this layer (verified
+  // against the live service) — the real fields are APN_12 and ACRES_1/
+  // ACREAGE; presence in this layer at all is what marks a Williamson Act
+  // contract, there's no separate boolean column for it.
   const [wetlands, williamson, streamside] = await Promise.all([
     checkIntersection(WETLANDS_URL, ctx.parcel.geometry),
-    queryLayerByGeometry(WILLIAMSON_URL, ctx.parcel.geometry, ["APN", "ACRES", "CONTRACT"]),
+    queryLayerByGeometry(WILLIAMSON_URL, ctx.parcel.geometry, ["APN_12", "ACRES_1", "ACREAGE"]),
     checkIntersection(STREAMSIDE_URL, ctx.parcel.geometry),
   ]);
 
@@ -561,7 +597,7 @@ const naturalResourcesAgent: ReconAgent = async (ctx): Promise<ReconAgentResult>
     data: {
       has_wetlands: wetlands,
       williamson_act: williamson ? true : false,
-      williamson_act_acres: williamson?.ACRES || null,
+      williamson_act_acres: williamson?.ACRES_1 || williamson?.ACREAGE || null,
       has_streamside_area: streamside,
     },
   };
@@ -673,10 +709,6 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
     await db.prepare(
       `DELETE FROM due_process_findings WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?)`
     ).bind(projectId, project.organization_id as string).run();
-    // Delete evidence_relations that reference ai_research evidence
-    await db.prepare(
-      `DELETE FROM evidence_relations WHERE evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?) OR related_evidence_id IN (SELECT id FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?)`
-    ).bind(projectId, project.organization_id as string, projectId, project.organization_id as string).run();
     // Now safe to delete evidence
     await db.prepare(
       `DELETE FROM evidence WHERE project_id = ? AND source = 'ai_research' AND organization_id = ?`
