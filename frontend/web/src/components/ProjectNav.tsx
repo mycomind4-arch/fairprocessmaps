@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Send,
   Search,
   Building2,
   FolderArchive,
@@ -23,6 +24,8 @@ export type ProjectSection =
   | "legal"
   | "graph"
   | "connectors"
+  | "respond"
+  | "policy"
   | "admin";
 
 interface NavItem {
@@ -51,6 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "BUILD THE DEFENSE",
     items: [
+      { id: "respond", label: "Respond to Notice", icon: Send },
       { id: "legal", label: "Defense & Response", icon: Gavel },
       { id: "graph", label: "Case Graph", icon: Network },
     ],
@@ -59,6 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "CASE SYSTEM",
     items: [
       { id: "connectors", label: "Sources & Connectors", icon: Plug },
+      { id: "policy", label: "Procedural Rules", icon: ScaleIcon },
       { id: "admin", label: "Case Settings", icon: Settings },
     ],
   },

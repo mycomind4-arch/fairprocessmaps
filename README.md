@@ -24,7 +24,9 @@ The original design called for PostGIS, Neo4j, Temporal, Meilisearch, MinIO, and
 a FastAPI backend. ADR-006 documents the pivot: for a single-county pilot, the
 operational overhead of 7+ services wasn't justified. Cloudflare Workers + D1 + R2
 gives us a globally distributed, zero-ops stack that scales to production without
-managing containers. The Python code in `backend/` is frozen reference.
+managing containers. The Python implementation of that stack was removed once
+it had been fully superseded; recover it from history before commit 8dba4b7 if
+you ever need it.
 
 See `docs/architecture/adr.md` → ADR-006 for the full rationale.
 
@@ -143,14 +145,15 @@ fairprocessmaps/
 │   │   │   ├── panels/     # Project dashboard panels
 │   │   │   └── *.tsx       # Map, search, modals, etc.
 │   │   └── lib/            # Shared logic
-│   │       ├── auto-triggers.ts # Due-process analyzer (timeline + CE + permits) + intelligence
+│   │       ├── policy/     # Versioned citation-anchored rule packs + evaluators
+│   │       ├── auto-triggers.ts # Runs the policy packs against a case file
 │   │       ├── api.ts      # Legacy API client (home page sidebar)
 │   │       └── types.ts    # TypeScript types
 │   ├── wrangler.toml      # Cloudflare config (D1, R2, vars)
 │   └── cloudflare-env.d.ts # Generated types
 ├── database/d1/schema.sql  # D1 schema
 ├── docs/architecture/adr.md # Architecture Decision Records
-├── backend/                # Frozen Python reference (not deployed)
+├── docs/policy-packs.md    # How procedural rules work; adding a jurisdiction
 └── INTEGRATION_NOTES.md    # What's wired vs. what's left
 ```
 

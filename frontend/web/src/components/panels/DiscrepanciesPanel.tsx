@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Scale, AlertTriangle, ShieldCheck, Loader2,
   AlertCircle, RefreshCw, Play, CheckCircle, XCircle,
-  BookOpen, FileSearch, Gavel, ChevronDown,
+  BookOpen, FileSearch, Gavel, ChevronDown, FileText,
 } from "lucide-react";
 
 interface Finding {
@@ -17,6 +17,40 @@ interface Finding {
   evidence_id: string | null;
   created_at: string;
   missing_info?: number | boolean;
+  rule_status?: string | null;
+  citation?: string | null;
+  source_url?: string | null;
+  authority?: string | null;
+  policy_pack?: string | null;
+  policy_version?: string | null;
+  provisional?: number | boolean | null;
+  recommended_action?: string | null;
+}
+
+// Neutral status vocabulary — see lib/policy/types.ts. These labels are what a
+// reader sees on an exported report, so they describe the record rather than
+// concluding anything about the law.
+const RULE_STATUS_LABELS: Record<string, string> = {
+  Observed: "Observed in record",
+  NotLocated: "Not located",
+  InsufficientEvidence: "Insufficient evidence",
+  AwaitingTrigger: "Awaiting trigger",
+  Satisfied: "Satisfied",
+};
+
+function ruleStatusStyle(status: string | null | undefined) {
+  switch (status) {
+    case "Observed":
+      return "bg-fp-red/15 text-fp-red";
+    case "NotLocated":
+      return "bg-fp-amber/15 text-fp-amber";
+    case "InsufficientEvidence":
+      return "bg-fp-blue/15 text-fp-blue";
+    case "Satisfied":
+      return "bg-fp-green/15 text-fp-green";
+    default:
+      return "bg-fp-surface-2 text-fp-text-dim";
+  }
 }
 
 function severityIcon(severity: string) {
@@ -70,9 +104,26 @@ function FindingCard({ finding, onResolve, onDismiss, onReopen }: {
             {ruleIcon(finding.rule)}
             <span className="text-sm font-medium text-fp-text">{ruleLabel(finding)}</span>
           </div>
-          <div className="text-xs text-fp-text-dim uppercase tracking-wide mt-1">
-            {finding.severity} · {finding.status} · {finding.created_at?.slice(0, 10)}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {finding.rule_status && (
+              <span
+                className={`px-2 py-0.5 rounded text-[11px] font-medium ${ruleStatusStyle(finding.rule_status)}`}
+              >
+                {RULE_STATUS_LABELS[finding.rule_status] ?? finding.rule_status}
+              </span>
+            )}
+            {finding.provisional ? (
+              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-fp-amber/10 text-fp-amber border border-fp-amber/30">
+                Provisional — pending legal review
+              </span>
+            ) : null}
+            <span className="text-xs text-fp-text-dim uppercase tracking-wide">
+              {finding.severity} · {finding.status} · {finding.created_at?.slice(0, 10)}
+            </span>
           </div>
+          {finding.citation && (
+            <div className="text-xs text-fp-text-dim mt-1 truncate">{finding.citation}</div>
+          )}
         </div>
         <ChevronDown
           className={`w-4 h-4 text-fp-text-dim transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
@@ -83,6 +134,45 @@ function FindingCard({ finding, onResolve, onDismiss, onReopen }: {
           {finding.detail && (
             <p className="text-sm text-fp-text-muted leading-relaxed mt-2">{finding.detail}</p>
           )}
+          {finding.recommended_action && (
+            <p className="text-sm text-fp-text-dim leading-relaxed mt-3">
+              <span className="text-fp-text-muted font-medium">Suggested next step: </span>
+              {finding.recommended_action}
+            </p>
+          )}
+          {finding.citation && (
+            <div className="mt-4 rounded-lg border border-fp-border/60 bg-fp-surface-2/40 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-fp-text-dim mb-1.5">
+                Authority relied on
+              </div>
+              <div className="text-sm text-fp-text">{finding.citation}</div>
+              {finding.authority && (
+                <div className="text-xs text-fp-text-dim mt-0.5">{finding.authority}</div>
+              )}
+              {finding.source_url && (
+                <a
+                  href={finding.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-xs text-fp-blue hover:underline mt-2"
+                >
+                  Read the cited text →
+                </a>
+              )}
+              {(finding.policy_pack || finding.policy_version) && (
+                <div className="text-[11px] text-fp-text-dim mt-3 font-mono">
+                  {finding.policy_pack} · {finding.policy_version}
+                </div>
+              )}
+            </div>
+          )}
+          {finding.provisional ? (
+            <p className="mt-3 text-xs text-fp-amber leading-relaxed">
+              This checkpoint comes from a policy pack that has not completed legal
+              review. Confirm the cited authority and any date calculation with
+              counsel before relying on it.
+            </p>
+          ) : null}
           {finding.evidence_id && (
             <div className="mt-4 text-xs text-fp-text-dim">
               Linked evidence: <span className="font-mono">{finding.evidence_id}</span>
@@ -122,6 +212,7 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
   const [findings, setFindings] = useState<Finding[]>([]);
   const [score, setScore] = useState<number | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [reportBusy, setReportBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,6 +237,31 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
   };
 
   useEffect(() => { fetchData(); /* eslint-disable-next-line */ }, [projectId]);
+
+  // Downloads the deterministic Procedural Integrity Report. Distinct from the
+  // brief generator: this describes the record rather than arguing from it, and
+  // carries a reproducibility receipt.
+  async function downloadIntegrityReport() {
+    setReportBusy(true);
+    try {
+      const res = await fetch(
+        `/api/v1/cases/${projectId}/integrity-report?format=markdown`,
+        { credentials: "include" },
+      );
+      if (!res.ok) throw new Error(`Report failed (${res.status})`);
+      const text = await res.text();
+      const url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `integrity-report-${projectId}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setReportBusy(false);
+    }
+  }
 
   const runAnalysis = async () => {
     setAnalyzing(true);
@@ -234,6 +350,18 @@ export default function DiscrepanciesPanel({ projectId }: { projectId: string })
                 <><Loader2 className="w-4 h-4 animate-spin" /> Running Agents…</>
               ) : (
                 <><Play className="w-4 h-4" /> Run All Agents</>
+              )}
+            </button>
+            <button
+              onClick={downloadIntegrityReport}
+              disabled={reportBusy}
+              title="Deterministic procedural audit covering every checkpoint, with citations and a reproducibility receipt"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-fp-border bg-fp-surface-2 text-fp-text text-sm font-medium hover:bg-fp-surface-2/70 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {reportBusy ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Preparing…</>
+              ) : (
+                <><FileText className="w-4 h-4" /> Integrity Report</>
               )}
             </button>
           </div>
