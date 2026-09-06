@@ -51,6 +51,9 @@ export type Action =
   // Drafting procedural rules for a jurisdiction. Admin-only: a bad rule
   // reaches a court filing, so this is not an ordinary user action.
   | "policy.compile"
+  // Storing an org-level AI provider API key. Admin-only: this is a
+  // credential, not a preference.
+  | "settings.ai.manage"
   | "agent.run"
   | "agent.review"
   | "agent.read";

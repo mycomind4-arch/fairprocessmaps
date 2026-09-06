@@ -23,25 +23,15 @@
  * because the action cannot be undone.
  */
 
-export type StageId =
-  /** Register the notice document and its metadata. */
-  | "intake"
-  /** Identify what kind of notice this is and who issued it. */
-  | "classify"
-  /** Pull parties, dates, case numbers, alleged conditions, cited authorities. */
-  | "extract"
-  /** Compute the response window from policy pack rules. */
-  | "deadline"
-  /** Run the procedural checkpoints against the case file. */
-  | "analyze"
-  /** Draft a response for a human to edit. */
-  | "draft"
-  /** A human reads, edits, and authorizes. Nothing outward-facing precedes this. */
-  | "authorize"
-  /** Send the authorized document by trackable mail. */
-  | "mail"
-  /** Record delivery evidence back onto the case. */
-  | "prove";
+/**
+ * A stage's identity is only meaningful within its own workflow — two
+ * different workflows can both have a stage called "authorize" without
+ * colliding, because every lookup (getStage, readyStages, the engine) is
+ * always scoped to one workflow's stage list, never the union of all of them.
+ * Left as `string` rather than a closed union so a new workflow can define
+ * its own stage ids without editing this file.
+ */
+export type StageId = string;
 
 export type StageStatus =
   | "pending"
@@ -227,16 +217,100 @@ export const NOTICE_RESPONSE_WORKFLOW: WorkflowDefinition = {
   stages: NOTICE_RESPONSE_STAGES,
 };
 
-export function getStage(id: StageId): StageDefinition | null {
-  return NOTICE_RESPONSE_STAGES.find((s) => s.id === id) ?? null;
+/**
+ * Public Records Request workflow.
+ *
+ * Distinct from Notice Response in one important way: the person is the one
+ * INITIATING contact with the agency, not responding to one. Sending is
+ * still gated the same way — a request letter is still outward-facing and
+ * still irreversible once mailed — but there is no inbound deadline to
+ * compute at intake. Instead, the workflow's own request date becomes the
+ * trigger the CPRA response-timing rule measures against, which is why
+ * "log the request" and "log the response" are both explicit stages: the
+ * timeline events they write are exactly what that policy rule and the
+ * Deadline Bar read.
+ */
+export const PUBLIC_RECORDS_REQUEST_STAGES: StageDefinition[] = [
+  {
+    id: "draft_request",
+    name: "Draft the request",
+    description:
+      "Produce a records request letter identifying the records sought and citing the Public Records Act. A starting point for a human to edit.",
+    requiresAuthorization: false,
+    dependsOn: [],
+    usesAI: true,
+  },
+  {
+    id: "authorize",
+    name: "Human review and authorization",
+    description: "A person reads the draft, edits it, and authorizes sending.",
+    requiresAuthorization: false,
+    dependsOn: ["draft_request"],
+    usesAI: false,
+  },
+  {
+    id: "send",
+    name: "Send the request",
+    description:
+      "Send the authorized request by trackable mail (or log that it was sent by email/in person). Irreversible once sent.",
+    requiresAuthorization: true,
+    dependsOn: ["authorize"],
+    usesAI: false,
+  },
+  {
+    id: "log_request",
+    name: "Record the request on the timeline",
+    description:
+      "Write a records_request_sent event with the real send date. This date is what the CPRA response-timing rule and the Deadline Bar measure against — nothing downstream works without it.",
+    requiresAuthorization: false,
+    dependsOn: ["send"],
+    usesAI: false,
+  },
+  {
+    id: "log_response",
+    name: "Record the outcome",
+    description:
+      "When a response arrives (or the window closes with none), record what happened. A logged non-response is itself the finding, not a gap to fill in later.",
+    requiresAuthorization: false,
+    dependsOn: ["log_request"],
+    usesAI: false,
+  },
+];
+
+export const PUBLIC_RECORDS_REQUEST_WORKFLOW: WorkflowDefinition = {
+  id: "public-records-request",
+  name: "Public Records Request",
+  description:
+    "Drafts, sends, and tracks a Public Records Act request — logging the send date so the statutory response window can be measured, and recording whatever response (or silence) follows.",
+  appliesTo: [],
+  stages: PUBLIC_RECORDS_REQUEST_STAGES,
+};
+
+/**
+ * Every workflow FairProcess knows how to run, keyed by id. A UI catalog
+ * lists these; starting a run looks one up by id here rather than importing
+ * a specific workflow's constants directly, so adding a workflow means
+ * adding one entry here, not touching every call site that runs one.
+ */
+export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
+  [NOTICE_RESPONSE_WORKFLOW.id]: NOTICE_RESPONSE_WORKFLOW,
+  [PUBLIC_RECORDS_REQUEST_WORKFLOW.id]: PUBLIC_RECORDS_REQUEST_WORKFLOW,
+};
+
+export function getWorkflow(id: string): WorkflowDefinition | null {
+  return WORKFLOW_REGISTRY[id] ?? null;
+}
+
+export function getStage(stages: StageDefinition[], id: StageId): StageDefinition | null {
+  return stages.find((s) => s.id === id) ?? null;
 }
 
 /** Stages whose dependencies are all complete. */
-export function readyStages(results: StageResult[]): StageDefinition[] {
+export function readyStages(stages: StageDefinition[], results: StageResult[]): StageDefinition[] {
   const complete = new Set(
     results.filter((r) => r.status === "complete").map((r) => r.stageId),
   );
-  return NOTICE_RESPONSE_STAGES.filter(
+  return stages.filter(
     (s) => !complete.has(s.id) && s.dependsOn.every((d) => complete.has(d)),
   );
 }

@@ -122,6 +122,38 @@ export interface PolicyRule {
   disclosureTerms?: string[];
   /** required_disclosure: event types whose linked evidence is examined. */
   documentEventTypes?: string[];
+  /**
+   * record_presence: the kind of instrument this checkpoint expects to find
+   * recorded at the County Recorder (e.g. "administrative_civil_penalty_lien",
+   * "notice_of_pendency"). Matched against RecorderSearchRecord.instrumentKind.
+   */
+  instrumentKind?: string;
+}
+
+/**
+ * A human's record of having actually searched the County Recorder's index
+ * for a given instrument — the thing the "record_presence" rule kind checks
+ * against. This is the origin feature this whole policy engine grew out of:
+ * counties are frequently required to record certain instruments and often
+ * simply do not, and "we searched the real public index and it is not there"
+ * is a categorically stronger finding than any narrative account, because it
+ * is independently reproducible by anyone who runs the same search.
+ *
+ * `found: false` is itself the finding, not a failure to find one — record it
+ * as diligently as a positive result.
+ */
+export interface RecorderSearchRecord {
+  instrumentKind: string;
+  found: boolean;
+  /** Recording date, when found. */
+  recordedDate?: string | null;
+  /** The recorder's own instrument/document number, when found. */
+  instrumentNumber?: string | null;
+  /** Who ran the search — a name or "county recorder online index". */
+  searchedBy: string;
+  searchedAt: string;
+  /** Free-text note on how the search was conducted, for reproducibility. */
+  sourceNote?: string | null;
 }
 
 export interface PolicyPack {

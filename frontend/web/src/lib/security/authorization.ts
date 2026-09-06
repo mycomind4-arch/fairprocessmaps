@@ -19,7 +19,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "event.read",
     "communication.read", "communication.create",
     "analysis.run",
-    "admin.debug", "policy.compile",
+    "admin.debug", "policy.compile", "settings.ai.manage",
     "agent.read", "agent.run", "agent.review",
   ]),
   investigator: new Set<Action>([

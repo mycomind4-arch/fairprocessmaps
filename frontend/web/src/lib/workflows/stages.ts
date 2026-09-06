@@ -288,18 +288,129 @@ ${JSON.stringify(extracted.citedAuthorities ?? [], null, 2)}`,
 // engine.ts is what enforces it. Keeping those separate means the gate cannot
 // be satisfied by a stage executor.
 
-export function authorizeStage() {
+export function authorizeStage(draftStageId: string = "draft") {
   return async (ctx: StageContext): Promise<StageResult> => {
-    const draft = upstream(ctx, "draft");
+    const draft = upstream(ctx, draftStageId);
     if (!draft?.body) {
       return needsInput(
         "authorize",
         "There is no draft to authorize.",
-        "Generate or write a response draft first.",
+        "Generate or write a draft first.",
       );
     }
     return ok("authorize", "Draft is ready for human review and authorization.", {
       readyForAuthorization: true,
     });
+  };
+}
+
+// ── Public records request drafting ─────────────────────────────────────────
+
+const RECORDS_REQUEST_SYSTEM = `You draft a California Public Records Act request letter.
+
+Purposes, in order:
+1. Identify the records sought with enough specificity that the agency can
+   locate them (case number, APN, address, date range, document types).
+2. Cite the Public Records Act (Cal. Gov. Code § 7920.000 et seq.) as the basis
+   for the request.
+3. Ask the agency to confirm receipt and state when a response can be expected.
+4. Ask, if any records are withheld, that the agency cite the specific
+   statutory exemption relied upon, per Gov. Code § 7922.000.
+
+Hard rules:
+- Do NOT invent case numbers, dates, or facts not supplied to you.
+- Do NOT state legal conclusions about whether prior requests were mishandled.
+  A cover note may reference that this is a follow-up to prior requests, stated
+  neutrally as fact ("this follows requests sent on the dates below"), never
+  as an accusation.
+- Keep it under one page.
+
+Respond with JSON only:
+{"subject": string, "body": string, "openQuestions": string[]}`;
+
+export function draftRecordsRequestStage(env: ClaudeBindingEnv) {
+  return async (ctx: StageContext): Promise<StageResult> => {
+    const input = ctx.input ?? {};
+
+    const raw = await callClaude(env, {
+      system: RECORDS_REQUEST_SYSTEM,
+      user: `Draft a Public Records Act request.
+
+RECORDS SOUGHT: ${input.recordsSought ?? "not specified — ask the reviewer to supply this"}
+CASE / MATTER REFERENCE: ${input.caseReference ?? "not stated"}
+PROPERTY ADDRESS / APN: ${input.propertyReference ?? "not stated"}
+PRIOR REQUESTS ALREADY SENT (dates, if any): ${JSON.stringify(input.priorRequestDates ?? [])}
+RECIPIENT AGENCY: ${input.agency ?? "Humboldt County Code Enforcement Unit"}`,
+      maxTokens: 1500,
+    });
+
+    const parsed = parseJson<{ subject: string; body: string; openQuestions: string[] }>(raw);
+
+    return ok(
+      "draft_request",
+      `Drafted a records request. ${parsed.openQuestions?.length ?? 0} open question(s) for the reviewer.`,
+      { ...parsed, proposed: true },
+    );
+  };
+}
+
+/**
+ * Records the actual send — deterministic, driven entirely by what a human
+ * supplies via the advance call's stageInput, since the workflow itself
+ * cannot verify how a letter was actually delivered (mail, email, in person).
+ * This stage does not itself write the timeline event; the API route does,
+ * once this stage confirms the input is present, so the write happens in the
+ * same place as every other case-data write in the app.
+ */
+export function logRecordsRequestSentStage() {
+  return async (ctx: StageContext): Promise<StageResult> => {
+    const input = ctx.input ?? {};
+    const sentDate = input.sentDate as string | undefined;
+    const method = (input.method as string | undefined) ?? "unspecified method";
+
+    if (!sentDate) {
+      return needsInput(
+        "log_request",
+        "No send date was supplied.",
+        "Provide the date this request was actually sent (mailed, emailed, or delivered in person).",
+      );
+    }
+
+    return ok(
+      "log_request",
+      `Recorded: records request sent ${sentDate} (${method}). This date is what the response-timing rule and the Deadline Bar will measure against.`,
+      { sentDate, method, eventType: "records_request_sent" },
+    );
+  };
+}
+
+/** Records the response outcome — same pattern as logRecordsRequestSentStage. */
+export function logRecordsResponseStage() {
+  return async (ctx: StageContext): Promise<StageResult> => {
+    const input = ctx.input ?? {};
+    const responded = input.responded as boolean | undefined;
+
+    if (responded === undefined) {
+      return needsInput(
+        "log_response",
+        "No outcome was supplied yet.",
+        "Once a response arrives, or once the response window has closed with none, record the outcome here.",
+      );
+    }
+
+    if (responded) {
+      const responseDate = input.responseDate as string | undefined;
+      return ok(
+        "log_response",
+        `Recorded: response received${responseDate ? ` ${responseDate}` : ""}.`,
+        { responded: true, responseDate, eventType: "records_response_received" },
+      );
+    }
+
+    return ok(
+      "log_response",
+      "Recorded: no response received. This logged non-response is itself the finding the response-timing rule reads — not a gap awaiting more information.",
+      { responded: false, eventType: null },
+    );
   };
 }

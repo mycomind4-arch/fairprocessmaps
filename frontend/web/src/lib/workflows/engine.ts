@@ -19,7 +19,7 @@ import type {
   StageResult,
   WorkflowRun,
 } from "./types";
-import { NOTICE_RESPONSE_STAGES, getStage, readyStages } from "./types";
+import { getStage, readyStages } from "./types";
 
 export interface StageContext {
   runId: string;
@@ -28,6 +28,13 @@ export interface StageContext {
   actor: string;
   /** Results of previously completed stages, for reading upstream output. */
   priorResults: StageResult[];
+  /**
+   * Human-supplied data for the stage about to run — e.g. the actual date a
+   * records request was sent, which nothing in the system can observe on its
+   * own. Only the stage currently executing reads this; it is not upstream
+   * output and is not persisted the way stage results are.
+   */
+  input?: Record<string, unknown>;
 }
 
 export type StageExecutor = (ctx: StageContext) => Promise<StageResult>;
@@ -78,9 +85,10 @@ function blocked(
 export async function runStage(
   deps: EngineDeps,
   ctx: StageContext,
+  stages: StageDefinition[],
   stageId: StageId,
 ): Promise<StageResult> {
-  const stage = getStage(stageId);
+  const stage = getStage(stages, stageId);
   if (!stage) {
     throw new Error(`Unknown stage: ${stageId}`);
   }
@@ -166,20 +174,21 @@ export async function runStage(
 export async function advanceRun(
   deps: EngineDeps,
   ctx: StageContext,
+  stages: StageDefinition[],
 ): Promise<{ results: StageResult[]; haltedAt: StageId | null; status: WorkflowRun["status"] }> {
   const results = [...ctx.priorResults];
 
   for (;;) {
-    const ready = readyStages(results);
+    const ready = readyStages(stages, results);
     if (ready.length === 0) {
-      const allDone = NOTICE_RESPONSE_STAGES.every((s) =>
+      const allDone = stages.every((s) =>
         results.some((r) => r.stageId === s.id && r.status === "complete"),
       );
       return { results, haltedAt: null, status: allDone ? "complete" : "running" };
     }
 
     const next = ready[0];
-    const result = await runStage(deps, { ...ctx, priorResults: results }, next.id);
+    const result = await runStage(deps, { ...ctx, priorResults: results }, stages, next.id);
     results.push(result);
 
     if (result.status === "awaiting_authorization") {

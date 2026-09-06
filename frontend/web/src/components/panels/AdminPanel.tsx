@@ -15,6 +15,7 @@ import {
   Check,
   X,
   Activity,
+  FileArchive,
 } from "lucide-react";
 
 // ── Types ──
@@ -51,6 +52,8 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("viewer");
   const [activeTab, setActiveTab] = useState<"general" | "members" | "permissions" | "organization" | "danger" | "all">("all");
+  const [exportingCaseFile, setExportingCaseFile] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     // Load settings from localStorage
@@ -133,6 +136,32 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
     const next = members.filter((m) => m.id !== id);
     setMembers(next);
     localStorage.setItem(`fairprocess_admin_members_${projectId}`, JSON.stringify(next));
+  };
+
+  const downloadCaseFile = async () => {
+    setExportingCaseFile(true);
+    setExportError(null);
+    try {
+      const res = await fetch(`/api/v1/cases/${projectId}/export`, { credentials: "include" });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Export failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = /filename="([^"]+)"/.exec(disposition);
+      const filename = match?.[1] ?? `case-${projectId}.fpcase.zip`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Could not export this case");
+    } finally {
+      setExportingCaseFile(false);
+    }
   };
 
   const exportData = () => {
@@ -456,6 +485,36 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
                 <Download className="h-4 w-4 text-fp-blue" />
                 Export JSON
               </button>
+            </div>
+
+            <div className="pt-4 border-t border-fp-border">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-fp-text flex items-center gap-2">
+                    <FileArchive className="h-4 w-4 text-fp-blue" />
+                    Case File (full backup)
+                  </h4>
+                  <p className="text-xs text-fp-text-muted mt-0.5 max-w-md leading-relaxed">
+                    Everything this case actually is — property, timeline, evidence files, findings,
+                    workflow runs, and drafted responses — in one file. Reopen it from the dashboard's
+                    "Import case file" button any time, in any organization, to rebuild the case exactly
+                    as it was.
+                  </p>
+                </div>
+                <button
+                  onClick={downloadCaseFile}
+                  disabled={exportingCaseFile}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-fp-blue text-white text-xs font-medium hover:bg-fp-blue/90 transition-all shadow-md shrink-0 disabled:opacity-50"
+                >
+                  {exportingCaseFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {exportingCaseFile ? "Packaging…" : "Download case file"}
+                </button>
+              </div>
+              {exportError && (
+                <p className="mt-2 text-xs text-fp-red flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" /> {exportError}
+                </p>
+              )}
             </div>
           </div>
         </section>

@@ -74,7 +74,11 @@ export async function POST(
     const orgId = user.organization_id;
 
     const project = await db
-      .prepare(`SELECT id FROM projects WHERE id = ? AND organization_id = ?`)
+      .prepare(
+        `SELECT p.id, pr.apn AS property_apn
+           FROM projects p LEFT JOIN properties pr ON p.property_id = pr.id
+          WHERE p.id = ? AND p.organization_id = ?`,
+      )
       .bind(id, orgId)
       .first();
     if (!project) {
@@ -188,7 +192,9 @@ export async function POST(
       }
     }
 
-    const built = buildCase(docs);
+    // Cross-checked against every document that carries a legible APN — a
+    // mismatch usually means a page was misfiled into the wrong case.
+    const built = buildCase(docs, (project.property_apn as string) ?? null);
 
     // Write proposed timeline events, skipping any date already on the timeline
     // for the same document — a re-read must not duplicate confirmed history.

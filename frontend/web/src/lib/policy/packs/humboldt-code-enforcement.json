@@ -155,6 +155,24 @@
         "contest"
       ],
       "notes": "Informational only. Many cases close by voluntary compliance, where no hearing is expected or required. A result here is a prompt to look, not a signal of irregularity."
+    },
+    {
+      "id": "records_request_response_timing",
+      "kind": "elapsed_days",
+      "name": "Public Records Act Response Timing",
+      "description": "Examines the elapsed time between a public records request and the agency's response.",
+      "severity": "critical",
+      "citation": "Cal. Gov. Code § 7922.535 (formerly § 6253); extension provision § 7922.545 (formerly § 6253(c))",
+      "sourceUrl": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=GOV&sectionNum=7922.535",
+      "authority": "California Legislature (California Public Records Act)",
+      "minCalendarDays": 10,
+      "triggerEventTypes": [
+        "records_request_sent"
+      ],
+      "actionEventTypes": [
+        "records_response_received"
+      ],
+      "notes": "UNVERIFIED DAY COUNT. The Public Records Act generally requires a response within 10 calendar days of a request, with a further 14-day extension available in writing for specified reasons (unusual circumstances: the request seeks records from multiple facilities, requires search through a large volume of records, requires consultation with another agency, or requires computer programming to extract data) under Gov. Code § 7922.545. This rule uses the base 10-day figure and does not currently model the extension. IMPORTANT: this rule's evaluator (used for the findings panel) only fires once a response event exists to measure the interval against -- if no response has been logged at all, it correctly reports AwaitingTrigger, which means only 'no response event is logged yet', NOT 'the county is not yet overdue.' For a request where the window may already be blown with no response received, the Deadline Bar (not this findings panel) is the correct place to see how many days overdue the county is -- it compares the request date directly against today, independent of whether a response was ever logged. A verbal promise to send records, if made, is not itself a response under the Act and does not extend the statutory window -- confirm this reading with counsel before relying on it."
     }
   ]
 }
