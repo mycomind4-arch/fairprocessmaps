@@ -11,6 +11,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { RECORDS_AGENTS } from "./recon-agents-records";
 import { runAnalysisAgents } from "./analysis-agents";
+import { synthesizePropertyIntelligence, type ClaudeBindingEnv } from "./claude";
 
 // ── ArcGIS endpoints ──
 
@@ -811,6 +812,28 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
 
   let intelligenceSummary = summaryLines.join("\n");
 
+  // Step 3b: Optional AI synthesis — cross-references the 16 raw results
+  // into one narrative (e.g. "coastal zone AND high fire hazard" is a
+  // different picture than either fact alone). Purely additive: no key
+  // configured, or the call failing, leaves the flat summary above intact
+  // and nothing here is required for recon to be useful.
+  let aiSynthesis: string | null = null;
+  try {
+    aiSynthesis = await synthesizePropertyIntelligence(env as unknown as ClaudeBindingEnv, {
+      apn,
+      address: (project.address as string) ?? null,
+      city: (project.city as string) ?? null,
+      results: results.map((r) => ({ agent: r.agent, status: r.status, message: r.message, data: r.data })),
+    });
+  } catch {
+    // No ANTHROPIC_API_KEY configured, or the call failed — fine, the
+    // per-agent summary already written above stands on its own.
+  }
+
+  if (aiSynthesis) {
+    intelligenceSummary = `=== AI SYNTHESIS ===\n${aiSynthesis}\n\n${intelligenceSummary}`;
+  }
+
   // Step 4: Write to property_intelligence cache
   const reconId = crypto.randomUUID();
   await db.prepare(
@@ -843,7 +866,7 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
     project.organization_id as string,
     title,
     intelligenceSummary,
-    `Full recon: ${succeeded}/${ALL_AGENTS.length} agents succeeded. Key findings: ${results.filter(r => r.status === "success").map(r => r.message).join("; ")}`,
+    aiSynthesis ?? `Full recon: ${succeeded}/${ALL_AGENTS.length} agents succeeded. Key findings: ${results.filter(r => r.status === "success").map(r => r.message).join("; ")}`,
   ).run();
 
   // Step 6: Create timeline event

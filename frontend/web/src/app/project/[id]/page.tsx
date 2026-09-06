@@ -18,6 +18,7 @@ import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
 import PolicyReviewPanel from "@/components/panels/PolicyReviewPanel";
 import NoticeResponsePanel from "@/components/panels/NoticeResponsePanel";
+import CaseAssistantPanel from "@/components/panels/CaseAssistantPanel";
 import DeadlineBar from "@/components/DeadlineBar";
 import AuthorityEnforcementPanel from "@/components/panels/AuthorityEnforcementPanel";
 import { useReconStream, TopProgressBar, AgentPopup } from "@/components/ReconProgressModal";
@@ -242,6 +243,7 @@ export default function ProjectDashboard() {
           {section === "legal" && <LegalToolsPanel projectId={id} />}
           {section === "graph" && <CaseGraphPanel projectId={id} />}
           {section === "connectors" && <ConnectorsPanel projectId={id} />}
+          {section === "assistant" && <CaseAssistantPanel projectId={id} />}
           {section === "respond" && <NoticeResponsePanel projectId={id} />}
           {section === "policy" && <PolicyReviewPanel />}
           {section === "admin" && <AdminPanel projectId={id} />}

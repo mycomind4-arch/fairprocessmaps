@@ -72,7 +72,6 @@ export async function callClaude(
     body: JSON.stringify({
       model,
       max_tokens: opts.maxTokens ?? 3500,
-      temperature: 0,
       system: opts.system,
       messages: [{ role: "user", content: opts.user }],
     }),
@@ -178,7 +177,6 @@ export async function callClaudeDocuments(
     body: JSON.stringify({
       model,
       max_tokens: opts.maxTokens ?? 4096,
-      temperature: 0,
       system: opts.system,
       messages: [{ role: "user", content }],
     }),
@@ -227,7 +225,6 @@ export async function callClaudeVision(
     body: JSON.stringify({
       model,
       max_tokens: opts.maxTokens ?? 4096,
-      temperature: 0,
       system: opts.system,
       messages: [{ role: "user", content }],
     }),
@@ -297,7 +294,6 @@ Keep every item concise and grounded in the supplied record.`;
     body: JSON.stringify({
       model,
       max_tokens: 3500,
-      temperature: 0,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
     }),
@@ -352,4 +348,142 @@ Keep every item concise and grounded in the supplied record.`;
     potential_arguments: result.potential_arguments as string[],
     confidence: result.confidence as "low" | "medium" | "high",
   };
+}
+
+// ── Property intelligence synthesis ─────────────────────────────────────────
+
+export interface ReconResultSummary {
+  agent: string;
+  status: string;
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+/**
+ * Turn the 16 recon agents' raw, disconnected results into one cohesive
+ * property-intelligence briefing.
+ *
+ * The agents each answer one narrow question against one government data
+ * source; nothing reads them together. A parcel that is both in the Coastal
+ * Zone and a Very High fire hazard severity zone has a materially different
+ * development and disclosure picture than either fact alone — but that's
+ * only visible to someone who reads all 16 rows and connects them by hand.
+ * This is that cross-reference, done once per property instead of by every
+ * reader.
+ *
+ * Optional by design: callers should catch and ignore a failure here (no
+ * key configured, the call fails, whatever) and fall back to the flat
+ * per-agent summary that already exists. Synthesis is a bonus on top of
+ * real data, never a requirement for the recon report to be useful.
+ */
+export async function synthesizePropertyIntelligence(
+  env: ClaudeBindingEnv,
+  input: {
+    apn: string;
+    address: string | null;
+    city: string | null;
+    results: ReconResultSummary[];
+  },
+): Promise<string> {
+  const system = `You write a short, factual property-intelligence briefing from structured
+government-records lookups (county GIS layers, building permits, code
+enforcement, the county recorder).
+
+Rules:
+- Describe what the records show. Never conclude whether a law was broken,
+  a permit was properly issued, or an enforcement action was justified —
+  that is a legal conclusion, not yours to reach.
+- Cross-reference. When two or more results compound into a materially
+  different picture than either alone (a coastal-zone parcel that is also
+  in a high fire-hazard-severity zone; ADU eligibility undercut by a
+  Williamson Act contract; a code enforcement case with no corresponding
+  building permit on file), say so explicitly. That connection is the
+  entire point of a synthesis pass instead of reading 16 rows separately.
+- Be as explicit about what was NOT found as what was. A source that
+  returned no result is an absence in the record, not evidence the
+  underlying fact is false — a missing building permit does not mean no
+  work was ever done, only that none was found where this looked.
+- Three short paragraphs at most. Do not restate every field as a bullet —
+  the raw results are already on screen next to this. Write only what a
+  person skimming the raw list would not otherwise piece together.`;
+
+  const user = `Property: ${input.address || "Unknown address"}, ${input.city || "Unknown city"} (APN ${input.apn})
+
+Recon results (agent, status, message, and any structured data):
+${JSON.stringify(input.results).slice(0, 12000)}`;
+
+  return callClaude(env, { system, user, maxTokens: 900 });
+}
+
+// ── Low-level agentic turn (tool use) ───────────────────────────────────────
+//
+// Everything above this line answers one question with one response. The
+// case assistant is different: it holds a conversation and can call tools
+// mid-turn to read the case record or propose a change to it. This is the
+// primitive that loop is built on — one request/response against the
+// Messages API with `tools` attached, returning the raw content blocks
+// (including any tool_use blocks) rather than pre-extracting text.
+//
+// Deliberately a manual loop, not the SDK's tool runner: this codebase talks
+// to the Messages API over plain fetch everywhere else, and introducing a
+// new dependency for one caller isn't worth the inconsistency.
+
+export interface ClaudeMessageParam {
+  role: "user" | "assistant";
+  content: string | Array<Record<string, unknown>>;
+}
+
+export interface ClaudeToolDef {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}
+
+export interface ClaudeAgentTurnResult {
+  content: Array<Record<string, unknown>>;
+  stopReason: string | null;
+}
+
+export async function callClaudeAgentTurn(
+  env: ClaudeBindingEnv,
+  opts: {
+    system: string;
+    messages: ClaudeMessageParam[];
+    tools: ClaudeToolDef[];
+    maxTokens?: number;
+  },
+): Promise<ClaudeAgentTurnResult> {
+  const apiKey = getBinding(env, "ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
+
+  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
+  const apiUrl = getBinding(env, "ANTHROPIC_API_URL") ?? "https://api.anthropic.com/v1/messages";
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: opts.maxTokens ?? 2000,
+      system: opts.system,
+      messages: opts.messages,
+      tools: opts.tools,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Claude request failed (${response.status}): ${body.slice(0, 800)}`);
+  }
+
+  const payload = (await response.json()) as {
+    content?: Array<Record<string, unknown>>;
+    stop_reason?: string;
+  };
+
+  return { content: payload.content ?? [], stopReason: payload.stop_reason ?? null };
 }

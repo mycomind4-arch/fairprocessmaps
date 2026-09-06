@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import EventReconstruction from "./EventReconstruction";
 import ProceduralClock from "./ProceduralClock";
+import EscalationArc from "./EscalationArc";
 
 interface TimelineItem {
   id: string;
@@ -258,6 +259,8 @@ export default function TimelinePanel({ projectId }: { projectId: string }) {
           <Loader2 className="w-4 h-4 animate-spin text-fp-blue" /> Loading timeline events…
         </div>
       )}
+
+      {!loading && items.length > 0 && <EscalationArc items={items} />}
 
       {/* Timeline Event Cards List */}
       {!loading && items.length > 0 && (
