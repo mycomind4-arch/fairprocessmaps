@@ -74,6 +74,8 @@ export async function POST(req: NextRequest) {
     const { env, ctx } = getCloudflareContext();
     const db = env.DB;
     const projectId = crypto.randomUUID();
+    const caseId = crypto.randomUUID();
+    const caseProjectId = crypto.randomUUID();
     const now = new Date().toISOString();
 
     await env.DB.prepare(
@@ -81,6 +83,23 @@ export async function POST(req: NextRequest) {
        VALUES (?, ?, ?, ?, ?, ?)`,
     )
       .bind(projectId, propertyId, body.name.trim(), body.case_type, body.department ?? null, user.organization_id)
+      .run();
+
+    // The case-detail page (/api/v1/cases/[id]) reads through `cases` joined
+    // via `case_projects` — it never queries `projects` directly. Without
+    // this, a project created here exists but is invisible to that endpoint
+    // and 404s the moment someone opens it.
+    await env.DB.prepare(
+      `INSERT INTO cases (id, organization_id, name, case_type)
+       VALUES (?, ?, ?, ?)`,
+    )
+      .bind(caseId, user.organization_id, body.name.trim(), body.case_type)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO case_projects (id, case_id, project_id, role)
+       VALUES (?, ?, ?, 'primary')`,
+    )
+      .bind(caseProjectId, caseId, projectId)
       .run();
 
     const created = await env.DB.prepare("SELECT * FROM projects WHERE id = ?").bind(projectId).first();
