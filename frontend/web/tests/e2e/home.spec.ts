@@ -1,26 +1,21 @@
 import { test, expect } from "@playwright/test";
 
-test("home page loads with map and search", async ({ page }) => {
+test("landing page loads with header and hero content", async ({ page }) => {
   await page.goto("/");
 
-  // Header should be visible
-  await expect(page.locator("text=FairProcess")).toBeVisible();
+  // Header logo/wordmark should be visible
+  await expect(page.locator("header").getByText("FairProcessMaps", { exact: true })).toBeVisible();
 
-  // Search bar should be present
-  await expect(
-    page.getByPlaceholder("Search properties by address, APN, or evidence keywords...")
-  ).toBeVisible();
-
-  // Map container should be rendered
-  await expect(page.locator(".maplibregl-map")).toBeVisible({ timeout: 15000 });
+  // Hero heading should be present
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Build the record");
 });
 
-test("sidebar shows upload tab when no property selected", async ({ page }) => {
+test("sign in button opens the login modal", async ({ page }) => {
   await page.goto("/");
 
-  // Upload tab should be clickable
-  await page.click("text=Upload");
+  await page.getByRole("button", { name: "Sign in" }).click();
 
-  // Should show the "select a property" prompt
-  await expect(page.locator("text=Select a property to upload evidence")).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "Sign in" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Welcome Back" })).toBeVisible();
 });
