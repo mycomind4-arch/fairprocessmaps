@@ -62,6 +62,47 @@ export interface ValidationFailure {
   status: number;
 }
 
+/** Extension fallback for browsers (and archive entries) that don't carry a
+ * reliable MIME type. Shared between direct upload and ZIP-entry expansion so
+ * both apply the same allowlist logic. */
+export const EXTENSION_TO_MIME: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  txt: "text/plain",
+  csv: "text/csv",
+  json: "application/json",
+  xml: "application/xml",
+  htm: "text/html",
+  html: "text/html",
+  md: "text/markdown",
+  rtf: "application/rtf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  tif: "image/tiff",
+  tiff: "image/tiff",
+  bmp: "image/bmp",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  oga: "audio/ogg",
+  m4a: "audio/mp4",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  zip: "application/zip",
+};
+
+/** Resolve a filename to an allowlisted MIME type, or null if none applies. */
+export function resolveAllowedMimeType(providedType: string, fileName: string): string | null {
+  if (providedType && ALLOWED_MIME_TYPES.has(providedType)) return providedType;
+  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+  const byExt = EXTENSION_TO_MIME[ext];
+  if (byExt && ALLOWED_MIME_TYPES.has(byExt)) return byExt;
+  return null;
+}
+
 export function validateUpload(file: File): ValidationSuccess | ValidationFailure {
   // Size check
   if (file.size > MAX_FILE_SIZE) {
@@ -76,54 +117,16 @@ export function validateUpload(file: File): ValidationSuccess | ValidationFailur
     return { ok: false, error: "File is empty", status: 400 };
   }
 
-  // MIME check — use file.type, fall back to extension detection
-  let contentType = file.type || "application/octet-stream";
-
-  // Extension-based fallback for browsers that don't set MIME type
-  if (!ALLOWED_MIME_TYPES.has(contentType)) {
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-    const extMap: Record<string, string> = {
-      pdf: "application/pdf",
-      doc: "application/msword",
-      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      txt: "text/plain",
-      csv: "text/csv",
-      json: "application/json",
-      xml: "application/xml",
-      htm: "text/html",
-      html: "text/html",
-      md: "text/markdown",
-      rtf: "application/rtf",
-      jpg: "image/jpeg",
-      jpeg: "image/jpeg",
-      png: "image/png",
-      gif: "image/gif",
-      webp: "image/webp",
-      tif: "image/tiff",
-      tiff: "image/tiff",
-      bmp: "image/bmp",
-      mp3: "audio/mpeg",
-      wav: "audio/wav",
-      oga: "audio/ogg",
-      m4a: "audio/mp4",
-      mp4: "video/mp4",
-      mov: "video/quicktime",
-      zip: "application/zip",
-    };
-    if (extMap[ext]) {
-      contentType = extMap[ext];
-    }
-  }
-
-  if (!ALLOWED_MIME_TYPES.has(contentType)) {
+  const resolved = resolveAllowedMimeType(file.type, file.name);
+  if (!resolved) {
     return {
       ok: false,
-      error: `File type '${contentType}' is not allowed`,
+      error: `File type '${file.type || "unknown"}' is not allowed`,
       status: 415,
     };
   }
 
-  return { ok: true, contentType, file };
+  return { ok: true, contentType: resolved, file };
 }
 
 // ── Filename sanitization ──────────────────────────────────────────────────────
@@ -157,7 +160,15 @@ export function safeR2Key(
 // ── SHA-256 hash ───────────────────────────────────────────────────────────────
 
 export async function computeSHA256(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
+  return computeSHA256Bytes(await file.arrayBuffer());
+}
+
+/**
+ * Same hash, for bytes that never went through a File object — ZIP entries
+ * unpacked in-memory, for instance.
+ */
+export async function computeSHA256Bytes(data: ArrayBuffer | Uint8Array): Promise<string> {
+  const buffer = data instanceof Uint8Array ? data.slice().buffer : data;
   const hash = await crypto.subtle.digest("SHA-256", buffer);
   return Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, "0"))

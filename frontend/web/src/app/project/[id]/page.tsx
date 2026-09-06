@@ -238,7 +238,7 @@ export default function ProjectDashboard() {
           {section === "intelligence" && <PropertyIntelligence projectId={id} propertyId={project?.property_id ?? ""} onNavigate={setSection} />}
           {section === "authority" && <AuthorityEnforcementPanel projectId={id} />}
           {section === "timeline" && <TimelinePanel projectId={id} />}
-          {section === "vault" && <EvidenceVaultPanel projectId={id} />}
+          {section === "vault" && <EvidenceVaultPanel projectId={id} onNavigate={setSection} />}
           {section === "analysis" && <AnalysisPanel projectId={id} />}
           {section === "legal" && <LegalToolsPanel projectId={id} />}
           {section === "graph" && <CaseGraphPanel projectId={id} />}

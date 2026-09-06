@@ -16,6 +16,7 @@ import {
   Ban,
   Eye,
 } from "lucide-react";
+import ZipIntakeWizard from "@/components/ZipIntakeWizard";
 
 interface EvidenceItem {
   id: string;
@@ -66,12 +67,19 @@ function getEvidenceTypeIcon(docType: string | null, source: string) {
   return FileText;
 }
 
-export default function EvidenceVaultPanel({ projectId }: { projectId: string }) {
+export default function EvidenceVaultPanel({
+  projectId,
+  onNavigate,
+}: {
+  projectId: string;
+  onNavigate?: (section: "analysis" | "legal") => void;
+}) {
   const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [zipEvidenceId, setZipEvidenceId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchData = async () => {
@@ -101,9 +109,10 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
 
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    const list = Array.from(files);
     const formData = new FormData();
     formData.append("projectId", projectId);
-    for (const file of Array.from(files)) {
+    for (const file of list) {
       formData.append("files", file);
     }
     try {
@@ -111,6 +120,15 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
         throw new Error(`Upload failed: ${res.status} ${txt.slice(0, 200)}`);
+      }
+      const data = (await res.json().catch(() => ({}))) as { ids?: string[] };
+      // A ZIP uploads like any other file — this offers to expand it into its
+      // individual pages/documents rather than leaving it sitting unread.
+      const zipIndex = list.findIndex(
+        (f) => f.type === "application/zip" || f.name.toLowerCase().endsWith(".zip"),
+      );
+      if (zipIndex !== -1 && data.ids?.[zipIndex]) {
+        setZipEvidenceId(data.ids[zipIndex]);
       }
       fetchData();
     } catch (err) {
@@ -314,6 +332,16 @@ export default function EvidenceVaultPanel({ projectId }: { projectId: string })
           <p className="text-sm text-fp-text-muted">No evidence documents found</p>
           <p className="text-xs text-fp-text-dim mt-1">Upload documents or adjust filters.</p>
         </div>
+      )}
+
+      {zipEvidenceId && (
+        <ZipIntakeWizard
+          projectId={projectId}
+          zipEvidenceId={zipEvidenceId}
+          onNavigate={onNavigate}
+          onClose={() => setZipEvidenceId(null)}
+          onDone={() => { setZipEvidenceId(null); fetchData(); }}
+        />
       )}
     </div>
   );
