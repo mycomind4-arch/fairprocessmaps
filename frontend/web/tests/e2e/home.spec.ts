@@ -7,7 +7,9 @@ test("home page loads with map and search", async ({ page }) => {
   await expect(page.locator("text=FairProcess")).toBeVisible();
 
   // Search bar should be present
-  await expect(page.locator("placeholder=Search properties, evidence, addresses...")).toBeVisible();
+  await expect(
+    page.getByPlaceholder("Search properties by address, APN, or evidence keywords...")
+  ).toBeVisible();
 
   // Map container should be rendered
   await expect(page.locator(".maplibregl-map")).toBeVisible({ timeout: 15000 });
@@ -19,6 +21,6 @@ test("sidebar shows upload tab when no property selected", async ({ page }) => {
   // Upload tab should be clickable
   await page.click("text=Upload");
 
-  // Should show "Select a property first" message
-  await expect(page.locator("text=Select a property first to upload evidence")).toBeVisible();
+  // Should show the "select a property" prompt
+  await expect(page.locator("text=Select a property to upload evidence")).toBeVisible();
 });
