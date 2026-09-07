@@ -355,7 +355,7 @@ Contradictory proposals both stored as pending. No automatic detection or surfac
 | Persistent | ✅ | D1 + R2 |
 | Immutable | ✅ | DELETE returns 405 |
 | Versioned | ❌ | No file version history |
-| Searchable | ⚠️ | Only by project ID, no full-text |
+| Searchable | ✅ | Full-text over title/extracted_text/ai_summary (/api/v1/evidence/search) |
 | Categorized | ⚠️ | Has doc_type/source, no taxonomy |
 | Source-linked | ✅ | source field |
 | Time-linked | ✅ | created_at, uploaded_at |
@@ -493,9 +493,9 @@ Gen 1 uses middleware pattern. Gen 2 calls `authorize()` directly. Some Gen 2 ro
 
 ### Missing Endpoints
 
-- No `PUT/PATCH /api/v1/projects/{id}` — can't update project metadata
+- `PATCH /api/v1/property-projects?id=` exists but status-only (archive/reopen) — still no way to update name/case_type/description
 - No `GET /api/v1/cases` — can't list cases
-- No evidence full-text search
+- Evidence full-text search: added (`GET /api/v1/evidence/search`)
 - No statute search
 - No jurisdiction listing
 - No notification endpoint for pending proposals
@@ -797,7 +797,7 @@ Public Data / Jurisdiction Connectors (adapter pattern)
 
 | # | Finding | Impact |
 |---|---------|--------|
-| P2-1 | No full-text search across evidence | Can't find by content |
+| P2-1 | ~~No full-text search across evidence~~ Fixed — `/api/v1/evidence/search` | — |
 | P2-2 | No notification system | Users don't know when to review |
 | P2-3 | No evidence-to-entity linking | Can't link to people/agencies |
 | P2-4 | No evidence versioning | Can't track changes |

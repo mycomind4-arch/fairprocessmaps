@@ -9,7 +9,7 @@ import {
   Upload,
   Search,
   Image as ImageIcon,
-  Map,
+  Map as MapIcon,
   FileCheck,
   Mail,
   Download,
@@ -53,7 +53,7 @@ function getEvidenceTypeIcon(docType: string | null, source: string) {
   const src = (source || "").toLowerCase();
 
   if (dt.includes("gis") || dt.includes("map") || dt.includes("parcel") || src.includes("building_dept")) {
-    return Map;
+    return MapIcon;
   }
   if (dt.includes("permit") || dt.includes("license") || dt.includes("approval")) {
     return FileCheck;
@@ -80,7 +80,32 @@ export default function EvidenceVaultPanel({
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [zipEvidenceId, setZipEvidenceId] = useState<string | null>(null);
+  const [uploadNote, setUploadNote] = useState<{ text: string; tone: "success" | "info" } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Full-text content search (extracted_text + ai_summary), server-side —
+  // the title filter above only ever matched a document's name. Debounced
+  // so typing doesn't fire a request per keystroke.
+  const [contentMatches, setContentMatches] = useState<Map<string, { snippet: string | null; matchedIn: string }>>(new Map());
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    const q = search.trim();
+    if (!q) { setContentMatches(new Map()); return; }
+    setSearching(true);
+    const handle = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/v1/evidence/search?projectId=${projectId}&q=${encodeURIComponent(q)}`);
+        const data = await res.json() as { items?: { id: string; snippet: string | null; matched_in: string }[] };
+        setContentMatches(new Map((data.items ?? []).map((it) => [it.id, { snippet: it.snippet, matchedIn: it.matched_in }])));
+      } catch {
+        setContentMatches(new Map());
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [search, projectId]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -103,8 +128,9 @@ export default function EvidenceVaultPanel({
 
   const filtered = evidence.filter((e) => {
     if (filter !== "all" && e.source !== filter) return false;
-    if (search && e.title && !e.title.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
+    if (!search) return true;
+    const titleMatch = e.title?.toLowerCase().includes(search.toLowerCase()) ?? false;
+    return titleMatch || contentMatches.has(e.id);
   });
 
   const handleUpload = async (files: FileList | null) => {
@@ -121,7 +147,16 @@ export default function EvidenceVaultPanel({
         const txt = await res.text().catch(() => "");
         throw new Error(`Upload failed: ${res.status} ${txt.slice(0, 200)}`);
       }
-      const data = (await res.json().catch(() => ({}))) as { ids?: string[] };
+      const data = (await res.json().catch(() => ({}))) as {
+        ids?: string[];
+        vision?: { read: number; summary: string; confirmations: { fileName: string; fields: string[] }[] } | null;
+      };
+      if (data.vision && data.vision.read > 0) {
+        setUploadNote({
+          text: data.vision.summary,
+          tone: data.vision.confirmations.length > 0 ? "info" : "success",
+        });
+      }
       // A ZIP uploads like any other file — this offers to expand it into its
       // individual pages/documents rather than leaving it sitting unread.
       const zipIndex = list.findIndex(
@@ -220,11 +255,15 @@ export default function EvidenceVaultPanel({
           ))}
         </div>
         <div className="flex-1 max-w-sm relative min-w-[200px]">
-          <Search className="w-4 h-4 text-fp-text-dim absolute left-3 top-1/2 -translate-y-1/2" />
+          {searching ? (
+            <Loader2 className="w-4 h-4 text-fp-text-dim absolute left-3 top-1/2 -translate-y-1/2 animate-spin" />
+          ) : (
+            <Search className="w-4 h-4 text-fp-text-dim absolute left-3 top-1/2 -translate-y-1/2" />
+          )}
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search evidence…"
+            placeholder="Search evidence — title and document content…"
             aria-label="Search evidence documents"
             className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-fp-surface border border-fp-border text-sm text-fp-text placeholder:text-fp-text-dim focus:outline-none focus:border-fp-blue transition-all"
           />
@@ -236,6 +275,16 @@ export default function EvidenceVaultPanel({
         <div className="flex items-center gap-3 text-fp-red text-sm p-3 rounded-lg bg-fp-red/10 border border-fp-red/20">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/* AI reading result — from vision reading newly-uploaded documents */}
+      {uploadNote && (
+        <div className={`flex items-start justify-between gap-3 text-sm p-3 rounded-lg border ${
+          uploadNote.tone === "success" ? "text-fp-green bg-fp-green/10 border-fp-green/20" : "text-fp-cyan bg-fp-cyan/10 border-fp-cyan/20"
+        }`}>
+          <span>{uploadNote.text}</span>
+          <button onClick={() => setUploadNote(null)} className="shrink-0 opacity-70 hover:opacity-100">×</button>
         </div>
       )}
 
@@ -295,6 +344,11 @@ export default function EvidenceVaultPanel({
                     {item.ai_summary && (
                       <p className="text-xs text-fp-text-muted mt-2 leading-relaxed line-clamp-2">
                         {item.ai_summary}
+                      </p>
+                    )}
+                    {search && contentMatches.get(item.id)?.snippet && (
+                      <p className="text-xs text-fp-cyan/80 mt-1.5 leading-relaxed line-clamp-2 italic">
+                        Matched in document content: “{contentMatches.get(item.id)!.snippet}”
                       </p>
                     )}
                     <div className="flex items-center gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
