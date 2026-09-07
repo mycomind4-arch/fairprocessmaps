@@ -19,6 +19,8 @@ import {
   BookOpen,
   TrendingDown,
   CircleDot,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 
 // ── Types ──
@@ -107,6 +109,8 @@ export default function CodeEnforcementPanel({ projectId }: { projectId: string 
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [selectedCase, setSelectedCase] = useState<EnforcementCase | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ text: string; tone: "success" | "info" | "error" } | null>(null);
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
@@ -127,6 +131,38 @@ export default function CodeEnforcementPanel({ projectId }: { projectId: string 
     fetchCases();
   }, [fetchCases]);
 
+  const syncFromCounty = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch("/api/v1/enforcement/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: projectId }),
+      });
+      const data = await res.json() as {
+        error?: string; cases_created?: number; cases_updated?: number;
+        timeline_events_created?: number; analysis?: { findings: number; critical: number } | null;
+      };
+      if (!res.ok) {
+        setSyncResult({ text: data.error || "Sync failed", tone: "error" });
+      } else if ((data.cases_created ?? 0) > 0) {
+        setSyncResult({
+          text: `${data.cases_created} new case(s) from county GIS, ${data.timeline_events_created ?? 0} timeline event(s) created` +
+            (data.analysis ? ` · analysis re-run (${data.analysis.findings} findings, ${data.analysis.critical} critical)` : ""),
+          tone: "success",
+        });
+        fetchCases();
+      } else {
+        setSyncResult({ text: "County records checked — no new cases found (matches what's already on file)", tone: "info" });
+      }
+    } catch (err) {
+      setSyncResult({ text: String(err), tone: "error" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   // Stats
   const openCount = cases.filter((c) => c.status !== "closed" && c.status !== "abated").length;
   const overdueCount = cases.filter((c) => {
@@ -146,14 +182,37 @@ export default function CodeEnforcementPanel({ projectId }: { projectId: string 
           <p className="text-sm text-fp-text-muted mt-1">Violation cases, notices, and enforcement actions</p>
           <div className="border-t border-fp-border mt-6" />
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Case
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={syncFromCounty}
+            disabled={syncing}
+            title="Query Humboldt County's public ArcGIS Code Enforcement layer by this property's APN"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-fp-border text-fp-text-muted text-sm font-medium hover:bg-fp-surface-2 hover:text-fp-text transition-colors disabled:opacity-50"
+          >
+            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {syncing ? "Syncing…" : "Sync from County"}
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Case
+          </button>
+        </div>
       </div>
+
+      {/* Sync result banner */}
+      {syncResult && (
+        <div className={`rounded-lg border p-3 text-sm flex items-start justify-between gap-3 ${
+          syncResult.tone === "success" ? "border-fp-green/30 bg-fp-green/5 text-fp-green"
+          : syncResult.tone === "error" ? "border-fp-red/30 bg-fp-red/5 text-fp-red"
+          : "border-fp-border bg-fp-surface/40 text-fp-text-muted"
+        }`}>
+          <span>{syncResult.text}</span>
+          <button onClick={() => setSyncResult(null)} className="shrink-0 hover:opacity-70"><X className="w-4 h-4" /></button>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-4">
