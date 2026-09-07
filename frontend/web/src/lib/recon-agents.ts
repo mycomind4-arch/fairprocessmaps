@@ -1,3 +1,4 @@
+import { resolveEffectiveClaudeEnv } from "@/lib/security/ai-settings";
 /**
  * Multi-Agent Property Intelligence Reconnaissance
  * 
@@ -819,7 +820,7 @@ export async function runRecon(projectId: string, force: boolean = false): Promi
   // and nothing here is required for recon to be useful.
   let aiSynthesis: string | null = null;
   try {
-    aiSynthesis = await synthesizePropertyIntelligence(env as unknown as ClaudeBindingEnv, {
+    aiSynthesis = await synthesizePropertyIntelligence(await resolveEffectiveClaudeEnv(env, db, project.organization_id as string), {
       apn,
       address: (project.address as string) ?? null,
       city: (project.city as string) ?? null,

@@ -1,3 +1,4 @@
+import { resolveEffectiveClaudeEnv } from "@/lib/security/ai-settings";
 /**
  * POST /api/v1/evidence/upload — upload evidence to R2 with full security.
  *
@@ -86,7 +87,9 @@ export async function POST(req: NextRequest) {
     // files still upload and store normally, just without AI reading for
     // this request. Shares the same bucket as /cases/[id]/intake's bulk
     // reads so the two paths can't combine into a cost surprise.
-    const visionLimit = await checkRateLimit(req, "case_intake", 5, 300);
+    const visionLimit = formData.get("deferReading") === "true"
+      ? { ok: false }
+      : await checkRateLimit(req, "case_intake", 5, 300);
     const visionBudgetAvailable = visionLimit.ok;
     // The rate limit above bounds requests, not files within one request —
     // without this, a single upload of many files would still fire a vision
@@ -132,7 +135,7 @@ export async function POST(req: NextRequest) {
           if (routed.kind !== "unsupported") {
             visionReadsThisRequest++;
             const result = await readNotice(
-              env as never,
+              await resolveEffectiveClaudeEnv(env, db, user.organization_id),
               isTextual(routed) ? [] : routed.claudeDocument ? [routed.claudeDocument] : [],
               isTextual(routed) ? routed.text : undefined,
             );

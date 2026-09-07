@@ -1,3 +1,4 @@
+import { resolveEffectiveClaudeEnv } from "@/lib/security/ai-settings";
 /**
  * Case Assistant — a conversational, tool-using Claude session scoped to one
  * case.
@@ -422,6 +423,7 @@ async function loopUntilTextOrPending(
   orgId: string,
   messages: ClaudeMessageParam[],
 ): Promise<AssistantTurnResult> {
+  env = await resolveEffectiveClaudeEnv(env, db, orgId);
   for (let iteration = 0; iteration < MAX_LOOP_ITERATIONS; iteration++) {
     const turn = await callClaudeAgentTurn(env, { system: SYSTEM, messages, tools: TOOLS, maxTokens: 2000 });
 

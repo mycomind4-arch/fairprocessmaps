@@ -59,7 +59,7 @@ export async function callClaude(
   const apiKey = getBinding(env, "ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
 
-  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
+  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-5-20250929";
   const apiUrl = getBinding(env, "ANTHROPIC_API_URL") ?? "https://api.anthropic.com/v1/messages";
 
   const response = await fetch(apiUrl, {
@@ -149,7 +149,7 @@ export async function callClaudeDocuments(
     throw new Error("callClaudeDocuments requires at least one document");
   }
 
-  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
+  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-5-20250929";
   const apiUrl = getBinding(env, "ANTHROPIC_API_URL") ?? "https://api.anthropic.com/v1/messages";
 
   const content: Record<string, unknown>[] = [];
@@ -201,7 +201,7 @@ export async function callClaudeVision(
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
   if (opts.images.length === 0) throw new Error("callClaudeVision requires at least one image");
 
-  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
+  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-5-20250929";
   const apiUrl = getBinding(env, "ANTHROPIC_API_URL") ?? "https://api.anthropic.com/v1/messages";
 
   const content: Record<string, unknown>[] = [];
@@ -253,7 +253,7 @@ export async function synthesizeCaseReview(
   const apiKey = getBinding(env, "ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
 
-  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
+  const model = getBinding(env, "ANTHROPIC_MODEL") ?? "claude-sonnet-4-5-20250929";
   const apiUrl = getBinding(env, "ANTHROPIC_API_URL") ?? "https://api.anthropic.com/v1/messages";
 
   const userPrompt = `Analyze this case record.

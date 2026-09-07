@@ -1,3 +1,4 @@
+import { resolveEffectiveClaudeEnv } from "@/lib/security/ai-settings";
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { requireAuth } from "@/lib/security/middleware";
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ai_summary: typeof row.ai_summary === "string" ? row.ai_summary.slice(0, 4000) : null,
     }));
 
-    const review = await synthesizeCaseReview(env as unknown as ClaudeBindingEnv, {
+    const review = await synthesizeCaseReview(await resolveEffectiveClaudeEnv(env, env.DB, user.organization_id), {
       caseRecord,
       evidence,
       timeline: timelineResult.results ?? [],

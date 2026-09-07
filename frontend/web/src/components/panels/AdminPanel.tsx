@@ -7,6 +7,7 @@ import {
   Users,
   Building2,
   Download,
+  FileArchive,
   Trash2,
   Plus,
   Shield,
@@ -132,6 +133,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
   const [archiving, setArchiving] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
+  const [exportingCaseFile, setExportingCaseFile] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("all");
   const [errorFlash, setErrorFlash] = useState<string | null>(null);
 
@@ -315,6 +317,24 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
     }
   }, [errorFlash]);
 
+  const downloadCaseFile = async () => {
+    setExportingCaseFile(true);
+    try {
+      const res = await fetch(`/api/v1/cases/${projectId}/export`);
+      if (!res.ok) throw new Error((await res.json()).error ?? "Export failed");
+      const url = URL.createObjectURL(await res.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `fairprocess-${projectId}.fpcase.zip`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setErrorFlash(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExportingCaseFile(false);
+    }
+  };
+
   const showSection = (sec: string) => activeTab === "all" || activeTab === sec;
 
   return (
@@ -363,6 +383,14 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
           );
         })}
       </div>
+
+      {showSection("general") && <section className="rounded-xl surface-flat p-6 space-y-3">
+        <h3 className="text-base font-semibold">Portable case file</h3>
+        <p className="text-sm text-fp-text-muted">Download the case record and evidence files to reopen as a separate case. Imported mailing approvals require a new review.</p>
+        <button onClick={downloadCaseFile} disabled={exportingCaseFile} className="inline-flex items-center gap-2 rounded-lg bg-fp-blue px-4 py-2 text-sm text-white disabled:opacity-50">
+          {exportingCaseFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileArchive className="h-4 w-4" />} Download case file
+        </button>
+      </section>}
 
       {/* SECTION: GENERAL */}
       {showSection("general") && (

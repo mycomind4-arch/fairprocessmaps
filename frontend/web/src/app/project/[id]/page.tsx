@@ -17,9 +17,13 @@ import CaseGraphPanel from "@/components/panels/CaseGraphPanel";
 import ConnectorsPanel from "@/components/panels/ConnectorsPanel";
 import AdminPanel from "@/components/panels/AdminPanel";
 import PolicyReviewPanel from "@/components/panels/PolicyReviewPanel";
+import AiSettingsPanel from "@/components/panels/AiSettingsPanel";
+import WorkflowCatalogPanel from "@/components/panels/WorkflowCatalogPanel";
+import PublicRecordsRequestPanel from "@/components/panels/PublicRecordsRequestPanel";
 import NoticeResponsePanel from "@/components/panels/NoticeResponsePanel";
 import CaseAssistantPanel from "@/components/panels/CaseAssistantPanel";
 import DeadlineBar from "@/components/DeadlineBar";
+import CaseIntakePanel from "@/components/panels/CaseIntakePanel";
 import AuthorityEnforcementPanel from "@/components/panels/AuthorityEnforcementPanel";
 import { useReconStream, TopProgressBar, AgentPopup } from "@/components/ReconProgressModal";
 import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Menu } from "lucide-react";
@@ -235,6 +239,7 @@ export default function ProjectDashboard() {
             <MiniMap centroid={toLngLat(project.property.centroid)!} geomGeoJSON={(project.property.geom as any) ?? undefined} onExpand={() => setMapExpanded(true)} />
           )}
 
+          {section === "intake" && <CaseIntakePanel projectId={id} onNavigate={setSection} />}
           {section === "intelligence" && <PropertyIntelligence projectId={id} propertyId={project?.property_id ?? ""} onNavigate={setSection} />}
           {section === "authority" && <AuthorityEnforcementPanel projectId={id} />}
           {section === "timeline" && <TimelinePanel projectId={id} />}
@@ -246,6 +251,9 @@ export default function ProjectDashboard() {
           {section === "assistant" && <CaseAssistantPanel projectId={id} />}
           {section === "respond" && <NoticeResponsePanel projectId={id} />}
           {section === "policy" && <PolicyReviewPanel />}
+          {section === "workflows" && <WorkflowCatalogPanel projectId={id} onNavigate={setSection} />}
+          {section === "records-request" && <PublicRecordsRequestPanel projectId={id} />}
+          {section === "ai-settings" && <AiSettingsPanel />}
           {section === "admin" && <AdminPanel projectId={id} />}
         </main>
       </div>

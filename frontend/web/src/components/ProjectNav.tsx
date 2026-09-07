@@ -1,6 +1,9 @@
 "use client";
 
 import {
+  Cog,
+  KeyRound,
+  Sparkles,
   Send,
   Search,
   Building2,
@@ -13,10 +16,10 @@ import {
   Gavel,
   FileSignature,
   Mail,
-  Sparkles,
 } from "lucide-react";
 
 export type ProjectSection =
+  | "intake"
   | "intelligence"
   | "authority"
   | "timeline"
@@ -28,7 +31,10 @@ export type ProjectSection =
   | "respond"
   | "policy"
   | "admin"
-  | "assistant";
+  | "assistant"
+  | "ai-settings"
+  | "workflows"
+  | "records-request";
 
 interface NavItem {
   id: ProjectSection;
@@ -46,6 +52,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "CASE WORKSPACE",
     items: [
+      { id: "intake", label: "Assemble Case", icon: Sparkles },
+      { id: "workflows", label: "Workflows", icon: Cog },
       { id: "intelligence", label: "Property & Records", icon: Search },
       { id: "authority", label: "Authorities", icon: Building2 },
       { id: "vault", label: "Evidence", icon: FolderArchive },
@@ -57,6 +65,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "BUILD THE DEFENSE",
     items: [
       { id: "assistant", label: "Case Assistant", icon: Sparkles },
+      { id: "records-request", label: "Records Request", icon: Mail },
       { id: "respond", label: "Respond to Notice", icon: Send },
       { id: "legal", label: "Defense & Response", icon: Gavel },
       { id: "graph", label: "Case Graph", icon: Network },
@@ -67,6 +76,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "connectors", label: "Sources & Connectors", icon: Plug },
       { id: "policy", label: "Procedural Rules", icon: ScaleIcon },
+      { id: "ai-settings", label: "AI Provider", icon: KeyRound },
       { id: "admin", label: "Case Settings", icon: Settings },
     ],
   },

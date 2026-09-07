@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { ArrowRight, AlertTriangle, CheckCircle2, ChevronRight, FileText, Loader2, LogOut, Plus, RefreshCw, Search, ShieldAlert } from "lucide-react";
+import { ArrowRight, AlertTriangle, CheckCircle2, ChevronRight, FileText, FileArchive, Loader2, LogOut, Plus, RefreshCw, Search, ShieldAlert } from "lucide-react";
 import { CardSkeleton } from "@/components/ui/states";
 
 interface CaseListItem {
@@ -37,6 +37,9 @@ export default function Dashboard() {
   const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
   const [fetching, setFetching] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadData = useCallback(() => {
     setFetching(true);
@@ -71,6 +74,26 @@ export default function Dashboard() {
     if (!loading) loadData();
   }, [user, loading, router, loadData]);
 
+  const handleImportFile = async (file: File) => {
+    setImporting(true);
+    setImportError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/v1/cases/import", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; projectId?: string };
+      if (!res.ok) throw new Error(body.error ?? `Import failed (${res.status})`);
+      router.push(`/project/${body.projectId}`);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Could not import this case file");
+      setImporting(false);
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-fp-bg"><div className="space-y-3"><CardSkeleton /><CardSkeleton /></div></div>;
   }
@@ -104,10 +127,34 @@ export default function Dashboard() {
             <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mt-2">Cases</h1>
             <p className="text-sm text-fp-text-muted mt-2 max-w-xl">Build a defensible record from evidence through response and proof.</p>
           </div>
-          <button onClick={() => router.push("/map")} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-semibold hover:bg-blue-700 transition-colors">
-            <Plus className="w-4 h-4" /> New case <ArrowRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-3">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".zip,application/zip"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) handleImportFile(file);
+              }}
+            />
+            <button
+              onClick={() => importInputRef.current?.click()}
+              disabled={importing}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-fp-border text-fp-text text-sm font-semibold hover:bg-fp-surface-2 transition-colors disabled:opacity-50"
+              title="Reopen a case file (.fpcase.zip) exported from Case Settings"
+            >
+              {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />}
+              {importing ? "Reopening…" : "Import case file"}
+            </button>
+            <button onClick={() => router.push("/map")} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-semibold hover:bg-blue-700 transition-colors">
+              <Plus className="w-4 h-4" /> New case <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+
+        {importError && <div className="mb-6 flex items-center justify-between gap-4 p-3 rounded-lg bg-red-50 border border-red-100 text-sm"><div className="flex items-center gap-2 text-red-700"><AlertTriangle className="w-4 h-4" />{importError}</div><button onClick={() => setImportError(null)} className="text-xs font-semibold text-red-700">Dismiss</button></div>}
 
         {fetchError && <div className="mb-6 flex items-center justify-between gap-4 p-3 rounded-lg bg-red-50 border border-red-100 text-sm"><div className="flex items-center gap-2 text-red-700"><AlertTriangle className="w-4 h-4" />{fetchError}</div><button onClick={loadData} className="text-xs font-semibold text-red-700 flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5" /> Retry</button></div>}
 

@@ -1,3 +1,4 @@
+import { resolveEffectiveClaudeEnv } from "@/lib/security/ai-settings";
 /**
  * POST /api/v1/cases/[id]/group-documents — propose which raw files belong
  * to the same document, before any of them is read in full.
@@ -152,7 +153,7 @@ export async function POST(
         });
       }
 
-      const reads = await cheapClassifyDocuments(env as never, files);
+      const reads = await cheapClassifyDocuments(await resolveEffectiveClaudeEnv(env, db, orgId), files);
       groups = refineGroupsWithCheapReads(groups, reads);
     }
 

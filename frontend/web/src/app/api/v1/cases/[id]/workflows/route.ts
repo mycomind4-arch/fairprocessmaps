@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/security/middleware";
 import { authorize } from "@/lib/security/authorization";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { humanActor, emitAuditEvent } from "@/lib/security/events";
-import { NOTICE_RESPONSE_WORKFLOW } from "@/lib/workflows/types";
+import { NOTICE_RESPONSE_WORKFLOW, WORKFLOW_REGISTRY, getWorkflow } from "@/lib/workflows/types";
 
 export const runtime = "nodejs";
 
@@ -72,6 +72,8 @@ export async function GET(
     return NextResponse.json(
       {
         definition: NOTICE_RESPONSE_WORKFLOW,
+        // Every workflow available to start, for a catalog UI.
+        catalog: Object.values(WORKFLOW_REGISTRY),
         runs: runRows.map((r) => ({ ...r, stages: byRun.get(r.id as string) ?? [] })),
       },
       { headers: { "Cache-Control": "no-store" } },
@@ -110,12 +112,23 @@ export async function POST(
     if (!limit.ok) return limit.response!;
 
     const body = (await req.json()) as {
+      workflowId?: string;
       sourceEvidenceId?: string;
       noticeType?: string;
       serviceDate?: string;
     };
 
-    if (!body.sourceEvidenceId) {
+    const workflow = getWorkflow(body.workflowId ?? NOTICE_RESPONSE_WORKFLOW.id);
+    if (!workflow) {
+      return NextResponse.json(
+        { error: `Unknown workflow: ${body.workflowId}` },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    // Only the notice-response workflow starts from a source document; a
+    // records request has nothing to read yet — it starts from a blank draft.
+    if (workflow.id === NOTICE_RESPONSE_WORKFLOW.id && !body.sourceEvidenceId) {
       return NextResponse.json(
         { error: "sourceEvidenceId is required — a run must start from a notice document." },
         { status: 400, headers: { "Cache-Control": "no-store" } },
@@ -137,15 +150,17 @@ export async function POST(
       );
     }
 
-    const evidence = await db
-      .prepare(`SELECT id FROM evidence WHERE id = ? AND project_id = ? AND organization_id = ?`)
-      .bind(body.sourceEvidenceId, id, orgId)
-      .first();
-    if (!evidence) {
-      return NextResponse.json(
-        { error: "Notice document not found on this case" },
-        { status: 404, headers: { "Cache-Control": "no-store" } },
-      );
+    if (body.sourceEvidenceId) {
+      const evidence = await db
+        .prepare(`SELECT id FROM evidence WHERE id = ? AND project_id = ? AND organization_id = ?`)
+        .bind(body.sourceEvidenceId, id, orgId)
+        .first();
+      if (!evidence) {
+        return NextResponse.json(
+          { error: "Notice document not found on this case" },
+          { status: 404, headers: { "Cache-Control": "no-store" } },
+        );
+      }
     }
 
     const runId = crypto.randomUUID();
@@ -154,14 +169,15 @@ export async function POST(
         `INSERT INTO workflow_runs
            (id, workflow_id, case_id, organization_id, status, current_stage,
             source_evidence_id, notice_type, service_date, created_by)
-         VALUES (?, ?, ?, ?, 'running', 'intake', ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, 'running', ?, ?, ?, ?, ?)`,
       )
       .bind(
         runId,
-        NOTICE_RESPONSE_WORKFLOW.id,
+        workflow.id,
         id,
         orgId,
-        body.sourceEvidenceId,
+        workflow.stages[0]?.id ?? null,
+        body.sourceEvidenceId ?? null,
         body.noticeType ?? null,
         body.serviceDate ?? null,
         user.email ?? user.id,
@@ -182,13 +198,14 @@ export async function POST(
         id: runId,
         caseId: id,
         status: "running",
-        stages: NOTICE_RESPONSE_WORKFLOW.stages.map((s) => ({
+        workflowId: workflow.id,
+        stages: workflow.stages.map((s) => ({
           id: s.id,
           name: s.name,
           requiresAuthorization: s.requiresAuthorization,
           usesAI: s.usesAI,
         })),
-        note: "No document will be sent until a person authorizes the mail stage.",
+        note: "Nothing is sent outside the organization until a person authorizes it.",
       },
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );

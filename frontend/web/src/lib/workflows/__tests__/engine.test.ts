@@ -10,6 +10,7 @@ import { runStage, advanceRun, hashContent, type EngineDeps, type StageContext }
 import type { StageAuthorization, StageId, StageResult } from "../types";
 import { NOTICE_RESPONSE_STAGES } from "../types";
 
+
 function ctx(priorResults: StageResult[] = []): StageContext {
   return {
     runId: "run-1",
@@ -59,6 +60,7 @@ describe("the authorization gate", () => {
     const result = await runStage(
       deps({ executors: { mail: send as never } }),
       ctx(upToMail),
+      NOTICE_RESPONSE_STAGES,
       "mail",
     );
 
@@ -81,6 +83,7 @@ describe("the authorization gate", () => {
         executors: { mail: send as never },
       }),
       ctx(upToMail),
+      NOTICE_RESPONSE_STAGES,
       "mail",
     );
 
@@ -99,6 +102,7 @@ describe("the authorization gate", () => {
         executors: { mail: send as never },
       }),
       ctx(upToMail),
+      NOTICE_RESPONSE_STAGES,
       "mail",
     );
 
@@ -121,6 +125,7 @@ describe("the authorization gate", () => {
         executors: { mail: send as never },
       }),
       ctx(partial),
+      NOTICE_RESPONSE_STAGES,
       "mail",
     );
 
@@ -136,6 +141,7 @@ describe("the authorization gate", () => {
     const result = await runStage(
       deps({ currentContentHash: async () => "anything", executors: { mail: send as never } }),
       ctx(upToMail),
+      NOTICE_RESPONSE_STAGES,
       "mail",
     );
     expect(result.status).toBe("awaiting_authorization");
@@ -145,7 +151,12 @@ describe("the authorization gate", () => {
 
 describe("stage ordering", () => {
   it("blocks a stage whose dependencies are incomplete", async () => {
-    const result = await runStage(deps(), ctx([]), "draft");
+    const result = await runStage(
+      deps(),
+      ctx([]),
+      NOTICE_RESPONSE_STAGES,
+      "draft",
+    );
     expect(result.status).toBe("blocked");
     expect(result.summary).toMatch(/has not completed/);
   });
@@ -160,6 +171,7 @@ describe("stage ordering", () => {
         },
       }),
       ctx([]),
+      NOTICE_RESPONSE_STAGES,
       "intake",
     );
     expect(result.status).toBe("failed");
@@ -184,6 +196,7 @@ describe("advanceRun", () => {
     const { haltedAt, status, results } = await advanceRun(
       deps({ executors: executors as never }),
       ctx([]),
+      NOTICE_RESPONSE_STAGES,
     );
 
     expect(haltedAt).toBe("mail");
@@ -215,6 +228,7 @@ describe("advanceRun", () => {
         executors: executors as never,
       }),
       ctx([]),
+      NOTICE_RESPONSE_STAGES,
     );
 
     expect(status).toBe("complete");

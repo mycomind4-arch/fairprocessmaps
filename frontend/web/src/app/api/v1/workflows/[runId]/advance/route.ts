@@ -1,3 +1,4 @@
+import { resolveEffectiveClaudeEnv } from "@/lib/security/ai-settings";
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { requireAuth } from "@/lib/security/middleware";
@@ -12,7 +13,12 @@ import {
   extractStage,
   draftStage,
   authorizeStage,
+  draftRecordsRequestStage,
+  logRecordsRequestSentStage,
+  confirmRecordsRequestSentStage,
+  logRecordsResponseStage,
 } from "@/lib/workflows/stages";
+import { getWorkflow } from "@/lib/workflows/types";
 import { runAnalysis } from "@/lib/auto-triggers";
 import { resolvePack, defaultPack } from "@/lib/policy/registry";
 import { LobProvider, isLobConfigured, isLobTestMode } from "@/lib/mail/lob";
@@ -54,7 +60,7 @@ export async function POST(
 
     const run = await db
       .prepare(
-        `SELECT id, case_id, status, source_evidence_id
+        `SELECT id, case_id, status, source_evidence_id, workflow_id
            FROM workflow_runs WHERE id = ? AND organization_id = ?`,
       )
       .bind(runId, orgId)
@@ -66,6 +72,18 @@ export async function POST(
         { status: 404, headers: { "Cache-Control": "no-store" } },
       );
     }
+
+    const workflow = getWorkflow(run.workflow_id as string);
+    if (!workflow) {
+      return NextResponse.json(
+        { error: `Unknown workflow: ${run.workflow_id}` },
+        { status: 500, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    // Human-supplied data for whichever stage is about to run next — e.g. the
+    // actual date a records request was sent. Optional: most stages need none.
+    const body = (await req.json().catch(() => ({}))) as { stageInput?: Record<string, unknown> };
     if (run.status === "cancelled" || run.status === "complete") {
       return NextResponse.json(
         { error: `This run is ${run.status}.` },
@@ -107,7 +125,7 @@ export async function POST(
         `SELECT id, extracted_text, ai_summary FROM evidence
           WHERE id = ? AND organization_id = ?`,
       )
-      .bind(run.source_evidence_id as string, orgId)
+      .bind(run.source_evidence_id ?? null, orgId)
       .first();
 
     const noticeText = [evidence?.extracted_text, evidence?.ai_summary]
@@ -129,6 +147,7 @@ export async function POST(
 
     // ── Engine wiring ──
 
+    const aiEnv = await resolveEffectiveClaudeEnv(env, db, orgId);
     const deps: EngineDeps = {
       async loadAuthorization(rid, stageId): Promise<StageAuthorization | null> {
         const row = await db
@@ -152,16 +171,16 @@ export async function POST(
         };
       },
 
-      async currentContentHash(rid, _stageId) {
+      async currentContentHash(rid, stageId) {
         // The content that would be mailed is the current draft body.
         const row = await db
           .prepare(
             `SELECT output FROM workflow_stage_results
-              WHERE run_id = ? AND stage_id = 'draft' AND status = 'complete'
+              WHERE run_id = ? AND stage_id = ? AND status = 'complete'
                 AND organization_id = ?
               ORDER BY started_at DESC LIMIT 1`,
           )
-          .bind(rid, orgId)
+          .bind(rid, stageId === "send" ? "draft_request" : "draft", orgId)
           .first();
         if (!row?.output) return null;
         const parsed = JSON.parse(row.output as string) as { body?: string };
@@ -177,9 +196,15 @@ export async function POST(
           startedAt: new Date().toISOString(),
         }),
 
-        classify: classifyStage(env as never, noticeText),
-        extract: extractStage(env as never, noticeText),
+        classify: classifyStage(aiEnv, noticeText),
+        extract: extractStage(aiEnv, noticeText),
         deadline: deadlineStage(pack),
+
+        // Public Records Request workflow.
+        draft_request: draftRecordsRequestStage(aiEnv),
+        send: confirmRecordsRequestSentStage(),
+        log_request: logRecordsRequestSentStage(),
+        log_response: logRecordsResponseStage(),
 
         analyze: async () => {
           const result = await runAnalysis(caseId);
@@ -197,8 +222,8 @@ export async function POST(
           };
         },
 
-        draft: draftStage(env as never),
-        authorize: authorizeStage(),
+        draft: draftStage(aiEnv),
+        authorize: authorizeStage(workflow.id === "public-records-request" ? "draft_request" : "draft"),
 
         // The mail executor is only ever reached after the engine's gate has
         // already verified a matching authorization exists.
@@ -234,13 +259,54 @@ export async function POST(
       },
     };
 
-    const { results, haltedAt, status } = await advanceRun(deps, {
-      runId,
-      caseId,
-      organizationId: orgId,
-      actor: user.email ?? user.id,
-      priorResults,
-    });
+    const { results, haltedAt, status } = await advanceRun(
+      deps,
+      {
+        runId,
+        caseId,
+        organizationId: orgId,
+        actor: user.email ?? user.id,
+        priorResults,
+        input: body.stageInput,
+      },
+      workflow.stages,
+    );
+
+    // The logging stages are the point where a human-confirmed fact becomes a
+    // real, dated case record — the same discipline as every other timeline
+    // write in the app: the API route writes it, not the stage function.
+    for (const r of results.slice(priorResults.length)) {
+      if (r.stageId === "log_request" && r.status === "complete" && r.output?.sentDate) {
+        await db
+          .prepare(
+            `INSERT INTO timeline_events (id, project_id, organization_id, event_date, event_type, description)
+             VALUES (?, ?, ?, ?, 'records_request_sent', ?)`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            caseId,
+            orgId,
+            r.output.sentDate,
+            `Public records request sent (${r.output.method ?? "method not specified"})`,
+          )
+          .run();
+      }
+      if (r.stageId === "log_response" && r.status === "complete") {
+        if (r.output?.responded && r.output.responseDate) {
+          await db
+            .prepare(
+              `INSERT INTO timeline_events (id, project_id, organization_id, event_date, event_type, description)
+               VALUES (?, ?, ?, ?, 'records_response_received', 'Response to public records request received')`,
+            )
+            .bind(crypto.randomUUID(), caseId, orgId, r.output.responseDate)
+            .run();
+        }
+        // A logged non-response deliberately writes no event: the
+        // records_request_sent event already on the timeline, measured
+        // against today, is what the Deadline Bar and the CPRA rule both
+        // read — there is no second event to add for silence.
+      }
+    }
 
     // Persist the stages that ran this call.
     const fresh = results.slice(priorResults.length);

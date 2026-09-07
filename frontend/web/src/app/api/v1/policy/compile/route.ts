@@ -1,3 +1,4 @@
+import { resolveEffectiveClaudeEnv } from "@/lib/security/ai-settings";
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { requireAuth } from "@/lib/security/middleware";
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const { env } = getCloudflareContext();
 
-    const result = await compilePolicyPack(env as never, {
+    const result = await compilePolicyPack(await resolveEffectiveClaudeEnv(env, env.DB, user.organization_id), {
       jurisdiction: body.jurisdiction!,
       caseTypes: body.caseTypes?.length ? body.caseTypes : ["code_enforcement"],
       sourceText: body.sourceText!,
