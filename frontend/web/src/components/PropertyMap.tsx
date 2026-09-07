@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Map as MaplibreMap, NavigationControl, GeolocateControl, ScaleControl, Popup, type Map as MaplibreMapType, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import RasterMap from "./RasterMap";
+import { supportsWebGL2 } from "@/lib/map-support";
 
 interface PropertyMapProps {
   onSelectProperty?: (id: string | null) => void;
@@ -216,6 +218,9 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
   const [parcelInfo, setParcelInfo] = useState<ParcelInfo | null>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
   const [mapLoading, setMapLoading] = useState(true);
+  const [raster, setRaster] = useState(false);
+  const [rasterPoint, setRasterPoint] = useState<[number, number] | null>(null);
+  const lookupSequence = useRef(0);
   const isFirstRender = useRef(true);
   const onOpenAsProjectRef = useRef(onOpenAsProject);
   onOpenAsProjectRef.current = onOpenAsProject;
@@ -223,6 +228,11 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
   // ── Init map ──
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
+    if (!supportsWebGL2()) {
+      setRaster(true);
+      setMapLoading(false);
+      return;
+    }
 
     const map = new MaplibreMap({
       container: mapContainer.current,
@@ -421,7 +431,32 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
 
   return (
     <div className="relative w-full h-full">
-      <div ref={mapContainer} className="w-full h-full" />
+      {raster ? <RasterMap
+        center={initialCenter ?? HUMBOLDT_CENTER}
+        zoom={initialZoom ?? HUMBOLDT_ZOOM}
+        tiles={(baseLayer === "satellite" ? SATELLITE_TILES : baseLayer === "street" ? STREET_TILES : DARK_TILES)[0]}
+        parcels={showParcels}
+        onClick={async (point) => {
+          const sequence = ++lookupSequence.current;
+          setLoadingParcel(true);
+          setParcelInfo(null);
+          const info = await fetchParcelAt(point[0], point[1]);
+          if (sequence !== lookupSequence.current) return;
+          setRasterPoint(point);
+          setParcelInfo(info);
+          setLoadingParcel(false);
+        }}
+      /> : <div ref={mapContainer} className="w-full h-full" />}
+      {raster && rasterPoint && !loadingParcel && (
+        <div className="absolute bottom-12 right-3 z-10 max-w-xs rounded-lg bg-slate-900 p-4 text-sm text-white shadow-lg">
+          {parcelInfo ? <>
+            <p>{parcelInfo.address || parcelInfo.apn}</p>
+            <p>APN {parcelInfo.apn} · {parcelInfo.acres} acres</p>
+            {onOpenAsProject && <button className="mt-2 rounded bg-blue-600 px-3 py-2" onClick={() => onOpenAsProject(parcelInfo, rasterPoint)}>Open as Project</button>}
+          </> : <p>No parcel found at this location.</p>}
+          <button className="ml-3 underline" onClick={() => setRasterPoint(null)}>Close</button>
+        </div>
+      )}
 
       {/* Map loading overlay */}
       {mapLoading && (

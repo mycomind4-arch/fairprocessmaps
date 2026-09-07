@@ -59,6 +59,11 @@ npx wrangler dev
 > depend on Cloudflare D1 and R2 bindings which only work through wrangler.
 > Plain `next dev` won't have `env.DB` or `env.EVIDENCE_BUCKET`.
 
+Build the current source with `npm run cf:build` before starting Wrangler, which
+serves the generated `.open-next` output. The case and full-screen maps use a
+Leaflet tile-map fallback when WebGL2 is unavailable (including some embedded
+browsers), so switching case sections does not depend on GPU support.
+
 ### Production Deploy
 
 ```bash

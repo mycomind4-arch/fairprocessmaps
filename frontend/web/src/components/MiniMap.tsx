@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Map as MaplibreMap, type Map as MaplibreMapType } from "maplibre-gl";
 import { Maximize2 } from "lucide-react";
+import RasterMap from "./RasterMap";
+import { supportsWebGL2 } from "@/lib/map-support";
 
 interface MiniMapProps {
   centroid: { lng: number; lat: number };
@@ -21,9 +23,11 @@ export default function MiniMap({ centroid, geomGeoJSON, onExpand }: MiniMapProp
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMapType | null>(null);
   const [view, setView] = useState<"satellite" | "street">("satellite");
+  const [raster, setRaster] = useState(false);
 
   useEffect(() => {
     if (!container.current || mapRef.current) return;
+    if (!supportsWebGL2()) { setRaster(true); return; }
 
     const tiles = view === "satellite" ? SATELLITE_TILES : STREET_TILES;
     const map = new MaplibreMap({
@@ -56,11 +60,11 @@ export default function MiniMap({ centroid, geomGeoJSON, onExpand }: MiniMapProp
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view]);
+  }, [view, centroid.lng, centroid.lat, geomGeoJSON]);
 
   return (
     <div className="absolute top-3 right-3 z-20 w-48 h-32 sm:w-64 sm:h-44 rounded-[14px] overflow-hidden glass shadow-lg shadow-black/20 border border-fp-border">
-      <div ref={container} className="w-full h-full" />
+      {raster ? <RasterMap center={[centroid.lng, centroid.lat]} zoom={17} tiles={(view === "satellite" ? SATELLITE_TILES : STREET_TILES)[0]} interactive={false} geometry={geomGeoJSON ?? undefined} /> : <div ref={container} className="w-full h-full" />}
 
       <div className="absolute top-2 left-2 flex gap-1">
         {(["satellite", "street"] as const).map((v) => (
