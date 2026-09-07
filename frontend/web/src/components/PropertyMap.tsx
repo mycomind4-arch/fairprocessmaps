@@ -218,6 +218,7 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
   const [parcelInfo, setParcelInfo] = useState<ParcelInfo | null>(null);
   const [loadingParcel, setLoadingParcel] = useState(false);
   const [mapLoading, setMapLoading] = useState(true);
+  const [locateError, setLocateError] = useState<string | null>(null);
   const [raster, setRaster] = useState(false);
   const [rasterPoint, setRasterPoint] = useState<[number, number] | null>(null);
   const lookupSequence = useRef(0);
@@ -244,10 +245,22 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
 
     map.addControl(new NavigationControl({ visualizePitch: true }), "top-right");
     map.addControl(new ScaleControl({ unit: "imperial" }), "bottom-left");
-    map.addControl(
-      new GeolocateControl({ positionOptions: { enableHighAccuracy: true } }),
-      "top-right"
-    );
+    const geolocate = new GeolocateControl({ positionOptions: { enableHighAccuracy: true } });
+    // Without this, a denied/unavailable location silently does nothing —
+    // the button just looks broken with no indication of why.
+    geolocate.on("error", (err: GeolocationPositionError) => {
+      const reason =
+        err.code === err.PERMISSION_DENIED
+          ? "Location access was denied. Check your browser's site permissions for this page."
+          : err.code === err.POSITION_UNAVAILABLE
+            ? "Your location could not be determined right now."
+            : err.code === err.TIMEOUT
+              ? "Location request timed out."
+              : err.message || "Could not get your location.";
+      setLocateError(reason);
+    });
+    geolocate.on("geolocate", () => setLocateError(null));
+    map.addControl(geolocate, "top-right");
 
     // Hide loading indicator once tiles start rendering
     map.on("load", () => {
@@ -465,6 +478,20 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
             <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
             <span className="text-sm text-slate-400">Loading map…</span>
           </div>
+        </div>
+      )}
+
+      {/* Geolocation error — the "find me" button fails silently otherwise */}
+      {locateError && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 max-w-sm px-3.5 py-2 rounded-lg bg-slate-900/90 border border-amber-500/40 text-xs text-amber-100 backdrop-blur-md shadow-lg flex items-center gap-2.5">
+          <span className="flex-1">{locateError}</span>
+          <button
+            onClick={() => setLocateError(null)}
+            className="text-amber-300/70 hover:text-amber-100 shrink-0"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
         </div>
       )}
 

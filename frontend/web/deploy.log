@@ -1,0 +1,39 @@
+
+ ⛅️ wrangler 4.118.0 (update available 4.129.0)
+───────────────────────────────────────────────
+OpenNext project detected, calling `opennextjs-cloudflare deploy`
+
+┌──────────────────────────────┐
+│ OpenNext — Cloudflare deploy │
+└──────────────────────────────┘
+
+Using secrets defined in .dev.vars
+Incremental cache does not need populating
+Tag cache does not need populating
+
+ ⛅️ wrangler 4.118.0
+────────────────────
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mIn a non-interactive environment, it's necessary to set a CLOUDFLARE_API_TOKEN environment variable for wrangler to work. Please go to https://developers.cloudflare.com/fundamentals/api/get-started/create-token/ for instructions on how to create an api token, and assign its value to CLOUDFLARE_API_TOKEN.[0m
+
+  
+  To continue without logging in, rerun this command with `--temporary`. Wrangler will use a temporary account and print a claim URL.
+
+
+🪵  Logs were written to "/Users/macdizzle/Library/Preferences/.wrangler/logs/wrangler-2026-09-07_02-39-04_098.log"
+ERROR Wrangler deploy command failed:
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mIn a non-interactive environment, it's necessary to set a CLOUDFLARE_API_TOKEN environment variable for wrangler to work. Please go to https://developers.cloudflare.com/fundamentals/api/get-started/create-token/ for instructions on how to create an api token, and assign its value to CLOUDFLARE_API_TOKEN.[0m
+
+  
+  To continue without logging in, rerun this command with `--temporary`. Wrangler will use a temporary account and print a claim URL.
+
+
+🪵  Logs were written to "/Users/macdizzle/Library/Preferences/.wrangler/logs/wrangler-2026-09-07_02-39-04_098.log"
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m[0m
+
+
+[32mIf you think this is a bug then please create an issue at https://github.com/cloudflare/workers-sdk/issues/new/choose[0m
+Note that there is a newer version of Wrangler available (4.129.0). Consider checking whether upgrading resolves this error.
+🪵  Logs were written to "/Users/macdizzle/Library/Preferences/.wrangler/logs/wrangler-2026-09-07_02-38-26_313.log"
