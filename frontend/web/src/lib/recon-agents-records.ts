@@ -67,248 +67,28 @@ function extractRowCells(rowHtml: string): string[] {
   return cellMatches.map(c => stripHtml(c));
 }
 
-/**
- * Parse an ASP.NET AJAX partial-postback response into its HTML content.
- * Partial postbacks return length-prefixed chunks like:
- *   len|id|content|len|id|content|...
- * If the response doesn't match this format, return it as-is (full postback).
- */
-function extractPartialPostbackHtml(responseText: string): string {
-  // Partial postback responses start with a digit followed by |
-  if (!/^\d+\|/.test(responseText)) return responseText;
-
-  let html = "";
-  let pos = 0;
-  while (pos < responseText.length) {
-    // Read length
-    const pipeIdx = responseText.indexOf("|", pos);
-    if (pipeIdx === -1) break;
-    const len = parseInt(responseText.slice(pos, pipeIdx), 10);
-    if (isNaN(len)) break;
-    pos = pipeIdx + 1;
-
-    // Read id (up to next |)
-    const idPipeIdx = responseText.indexOf("|", pos);
-    if (idPipeIdx === -1) break;
-    const id = responseText.slice(pos, idPipeIdx);
-    pos = idPipeIdx + 1;
-
-    // Read content
-    if (pos + len > responseText.length) break;
-    const content = responseText.slice(pos, pos + len);
-    pos += len;
-
-    // Accumulate HTML content from update panels
-    if (id && (id.includes("UpdatePanel") || id.includes("panel") || id === "")) {
-      html += content;
-    }
-  }
-
-  // If we extracted nothing meaningful, fall back to full response
-  return html || responseText;
-}
-
 // ── Agent 13: Building Permits (Accela) ──
+//
+// Delegates to permit-pipeline.ts (syncPermits), the same real
+// Accela-search-and-sync-to-D1 logic the dedicated /api/v1/permits/sync
+// route uses. See that module's doc for the important caveat: a
+// scrapeStatus of "parse_failed" or "unreachable" is NOT the same as "no
+// permits" and must never be reported as such.
 
 const buildingPermitsAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> => {
   const { db, projectId, apn, parcel } = ctx;
+  const address = parcel?.properties?.FULLADDR?.trim() || "";
 
   try {
-    const address = parcel?.properties?.FULLADDR?.trim() || "";
-    const streetNum = address ? address.split(" ")[0] : "";
-    // Don't strip suffix with a fragile regex — keep the full street name
-    // and let Accela match on the base name. Split number from the rest.
-    const streetName = address ? address.split(" ").slice(1).join(" ").trim() : "";
+    const { syncPermits } = await import("./permit-pipeline");
+    const syncResult = await syncPermits(projectId, apn, address, ctx.organizationId, db);
 
-    // Try Accela search via POST (WebForms with ViewState)
-    let permitsFound = 0;
-    let permitRecords: any[] = [];
-    let accelaStatus = "unreachable";
-
-    // Normalize APN for Accela (strip dashes — Accela typically uses unformatted or formatted APN)
-    const apnForAccela = apn?.replace(/-/g, "") || "";
-
-    try {
-      // Step 1: GET the search page to extract ViewState
-      const searchPageUrl = "https://aca-prod.accela.com/HUMBOLDT/Cap/CapHome.aspx?module=Building";
-      const pageResp = await fetchWithRetry(searchPageUrl, {
-        headers: { "User-Agent": "FairProcess-PropertyIntel/1.0" },
-      });
-
-      if (pageResp.ok) {
-        accelaStatus = "reachable";
-        const pageHtml = await pageResp.text();
-
-        // Extract __VIEWSTATE and __EVENTVALIDATION
-        const viewStateMatch = pageHtml.match(/__VIEWSTATE[^>]*value="([^"]*)"/);
-        const eventValMatch = pageHtml.match(/__EVENTVALIDATION[^>]*value="([^"]*)"/);
-
-        if (viewStateMatch) {
-          // Step 2: POST the search form
-          // Strategy: search by Parcel Number (APN) first — more precise than address.
-          // If APN is not available, fall back to address search.
-          const formData = new URLSearchParams();
-          formData.append("__VIEWSTATE", viewStateMatch[1]);
-          if (eventValMatch) formData.append("__EVENTVALIDATION", eventValMatch[1]);
-          formData.append("__EVENTTARGET", "");
-          formData.append("__EVENTARGUMENT", "");
-          formData.append("ScriptManager1", "UpdatePanel1|ctl00$MainContent$btnSearch");
-          formData.append("ctl00$MainContent$drpSearchType", "AddressSearch");
-          formData.append("ctl00$MainContent$txtStreetNumFrom", streetNum);
-          formData.append("ctl00$MainContent$txtStreetNumTo", streetNum);
-          formData.append("ctl00$MainContent$txtStreetName", streetName);
-          // Also search by parcel number if available
-          if (apnForAccela) {
-            formData.append("ctl00$MainContent$txtParcel", apnForAccela);
-          }
-          formData.append("ctl00$MainContent$btnSearch", "Search");
-
-          const searchResp = await fetchWithRetry(searchPageUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "User-Agent": "FairProcess-PropertyIntel/1.0",
-            },
-            body: formData.toString(),
-          });
-
-          if (searchResp.ok) {
-            const rawResponse = await searchResp.text();
-            // Handle both full HTML postback and AJAX partial-postback responses
-            const resultsHtml = extractPartialPostbackHtml(rawResponse);
-
-            // Parse results — look for table rows with data.
-            // ACA renders results in a grid with class "AltRow" or "row" (alternating).
-            // Use a more robust pattern that captures the full row including nested tables.
-            const rowPattern = /<tr[^>]*class=["'][^"']*(?:AltRow|row)[^"']*["'][^>]*>([\s\S]*?)<\/tr>/gi;
-            let match: RegExpExecArray | null;
-            while ((match = rowPattern.exec(resultsHtml)) !== null) {
-              const rowHtml = match[1];
-              const cellTexts = extractRowCells(rowHtml);
-              if (cellTexts.length >= 2) {
-                const record = {
-                  permit_number: cellTexts[0] || "",
-                  permit_type: cellTexts[1] || "Building",
-                  address: cellTexts[2] || address,
-                  status: cellTexts[3] || "Unknown",
-                };
-                // Only push if it looks like a real permit record (has a non-empty first cell)
-                if (record.permit_number) {
-                  permitRecords.push(record);
-                }
-              }
-            }
-
-            permitsFound = permitRecords.length;
-
-            // Pagination: if results have a "Next" page link, follow it
-            // ACA pagination uses __doPostBack with a page index argument.
-            // We follow up to 5 pages of results.
-            let pageCount = 0;
-            let currentPageHtml = resultsHtml;
-            let currentViewState = viewStateMatch[1];
-            let currentEventVal = eventValMatch?.[1] || "";
-
-            while (pageCount < 5) {
-              // Look for the next-page link/button in the result HTML
-              // ACA uses a pager with link buttons like:
-              // <a href="javascript:__doPostBack('ctl00$MainContent$gvResult','Page$2')">
-              const nextPageMatch = currentPageHtml.match(
-                /__doPostBack\('([^']+)',\s*'Page\$([^']+)'\)/,
-              );
-              if (!nextPageMatch) break;
-
-              const eventTarget = nextPageMatch[1];
-              const pageArg = nextPageMatch[2];
-
-              // Need fresh ViewState from the current response for the next page
-              const vsMatch = currentPageHtml.match(/__VIEWSTATE[^>]*value="([^"]*)"/);
-              const evMatch = currentPageHtml.match(/__EVENTVALIDATION[^>]*value="([^"]*)"/);
-              if (vsMatch) currentViewState = vsMatch[1];
-              if (evMatch) currentEventVal = evMatch[1];
-
-              pageCount++;
-              const pageFormData = new URLSearchParams();
-              pageFormData.append("__VIEWSTATE", currentViewState);
-              if (currentEventVal) pageFormData.append("__EVENTVALIDATION", currentEventVal);
-              pageFormData.append("__EVENTTARGET", eventTarget);
-              pageFormData.append("__EVENTARGUMENT", `Page$${pageArg}`);
-              pageFormData.append("ScriptManager1", `UpdatePanel1|${eventTarget}`);
-              pageFormData.append("ctl00$MainContent$drpSearchType", "AddressSearch");
-
-              try {
-                const pageResp2 = await fetchWithRetry(searchPageUrl, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "User-Agent": "FairProcess-PropertyIntel/1.0",
-                  },
-                  body: pageFormData.toString(),
-                });
-
-                if (!pageResp2.ok) break;
-                const pageRaw = await pageResp2.text();
-                currentPageHtml = extractPartialPostbackHtml(pageRaw);
-
-                // Parse additional rows from this page
-                const pageRowPattern = /<tr[^>]*class=["'][^"']*(?:AltRow|row)[^"']*["'][^>]*>([\s\S]*?)<\/tr>/gi;
-                let pageMatch: RegExpExecArray | null;
-                while ((pageMatch = pageRowPattern.exec(currentPageHtml)) !== null) {
-                  const rowHtml = pageMatch[1];
-                  const cellTexts = extractRowCells(rowHtml);
-                  if (cellTexts.length >= 2 && cellTexts[0]) {
-                    permitRecords.push({
-                      permit_number: cellTexts[0] || "",
-                      permit_type: cellTexts[1] || "Building",
-                      address: cellTexts[2] || address,
-                      status: cellTexts[3] || "Unknown",
-                    });
-                  }
-                }
-                permitsFound = permitRecords.length;
-              } catch {
-                break; // stop pagination on error
-              }
-            }
-          }
-        }
-      }
-    } catch (e) {
-      accelaStatus = "error";
-    }
-
-    // Also check for existing permits in D1 — FIX: bind both placeholders
-    const existingPermits = await db.prepare(
+    const allPermits = await db.prepare(
       `SELECT * FROM building_permits WHERE project_id = ? AND organization_id = ? ORDER BY issued_date DESC`
     ).bind(projectId, ctx.organizationId).all() as any;
-
-    const d1Count = existingPermits.results?.length || 0;
-
-    // If we found new permits from Accela, store them in D1
-    if (permitsFound > 0) {
-      for (const p of permitRecords) {
-        // Check if already exists — FIX: bind both placeholders + permit_number
-        const existing = await db.prepare(
-          `SELECT id FROM building_permits WHERE project_id = ? AND organization_id = ? AND permit_number = ?`
-        ).bind(projectId, ctx.organizationId, p.permit_number).first();
-
-        if (!existing) {
-          await db.prepare(
-            `INSERT INTO building_permits (id, project_id, permit_number, permit_type, permit_status, organization_id, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
-          ).bind(crypto.randomUUID(), projectId, p.permit_number, p.permit_type, p.status, ctx.organizationId).run();
-        }
-      }
-    }
-
-    const totalCount = Math.max(d1Count, permitsFound);
+    const totalCount = allPermits.results?.length || 0;
 
     if (totalCount > 0) {
-      // FIX: bind both placeholders
-      const allPermits = await db.prepare(
-        `SELECT * FROM building_permits WHERE project_id = ? AND organization_id = ? ORDER BY issued_date DESC`
-      ).bind(projectId, ctx.organizationId).all() as any;
-
       const permitList = (allPermits.results || []).map((p: any) =>
         `- ${p.permit_number || "No #"} | ${p.permit_type || "Building"} | Status: ${p.permit_status || "Unknown"} | Issued: ${p.issued_date || "N/A"} | Valuation: $${p.valuation || 0}`
       ).join("\n");
@@ -316,23 +96,29 @@ const buildingPermitsAgent: ReconAgent = async (ctx): Promise<ReconAgentResult> 
       return {
         agent: "building_permits",
         status: "success",
-        message: `${totalCount} building permit(s) on file. Accela: ${accelaStatus}.`,
+        message: `${totalCount} building permit(s) on file. ${syncResult.detail}`,
         data: {
           permit_count: totalCount,
-          accela_reachable: accelaStatus === "reachable",
-          accela_searched: permitsFound > 0,
+          scrape_status: syncResult.scrapeStatus,
+          new_from_county: syncResult.permitsCreated,
+          timeline_events_created: syncResult.timelineEventsCreated,
           permits: allPermits.results,
           summary: permitList,
         },
       };
     }
 
+    // No permits on file. Distinguish a verified empty county search from a
+    // search that could not be completed — see permit-pipeline.ts.
+    const searchCompleted = syncResult.scrapeStatus === "no_results";
     return {
       agent: "building_permits",
-      status: "no_data",
-      message: `No building permits found. Accela ${accelaStatus}. Search by address '${address}' at aca-prod.accela.com/HUMBOLDT or call Planning & Building: (707) 445-7541.`,
+      status: searchCompleted ? "no_data" : "error",
+      message: searchCompleted
+        ? `No building permits found. ${syncResult.detail}`
+        : `County permit search could not be completed (${syncResult.scrapeStatus}): ${syncResult.detail} This is NOT confirmation that no permits exist — call Planning & Building: (707) 445-7541.`,
       data: {
-        accela_reachable: accelaStatus === "reachable",
+        scrape_status: syncResult.scrapeStatus,
         accela_url: `https://aca-prod.accela.com/HUMBOLDT/Cap/CapHome.aspx?module=Building`,
         search_address: address,
         search_apn: apn,

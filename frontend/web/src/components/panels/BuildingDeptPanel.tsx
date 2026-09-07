@@ -18,6 +18,8 @@ import {
   DollarSign,
   HardHat,
   CircleDot,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 
 // ── Types ──
@@ -102,6 +104,8 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [selectedPermit, setSelectedPermit] = useState<Permit | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ text: string; tone: "success" | "info" | "error" } | null>(null);
 
   const fetchPermits = useCallback(async () => {
     setLoading(true);
@@ -122,6 +126,45 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
     fetchPermits();
   }, [fetchPermits]);
 
+  const syncFromCounty = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch("/api/v1/permits/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: projectId }),
+      });
+      const data = await res.json() as {
+        error?: string; scrape_status?: string; scrape_detail?: string;
+        permits_created?: number; timeline_events_created?: number;
+        analysis?: { findings: number; critical: number } | null;
+      };
+      if (!res.ok) {
+        setSyncResult({ text: data.error || "Sync failed", tone: "error" });
+      } else if (data.scrape_status === "found" && (data.permits_created ?? 0) > 0) {
+        setSyncResult({
+          text: `${data.permits_created} new permit(s) from the county portal, ${data.timeline_events_created ?? 0} timeline event(s) created` +
+            (data.analysis ? ` · analysis re-run (${data.analysis.findings} findings, ${data.analysis.critical} critical)` : ""),
+          tone: "success",
+        });
+        fetchPermits();
+      } else if (data.scrape_status === "found" || data.scrape_status === "no_results") {
+        setSyncResult({ text: "County portal checked — no new permits found (matches what's already on file)", tone: "info" });
+      } else {
+        // parse_failed / unreachable — this is NOT confirmation of zero permits.
+        setSyncResult({
+          text: `County permit search could not be completed (${data.scrape_status}). This does not mean no permits exist — ${data.scrape_detail || "try the county portal directly or call Planning & Building: (707) 445-7541."}`,
+          tone: "error",
+        });
+      }
+    } catch (err) {
+      setSyncResult({ text: String(err), tone: "error" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   // Stats
   const activeCount = permits.filter((p) => p.permit_status !== "finalized" && p.permit_status !== "expired" && p.permit_status !== "denied").length;
   const expiredCount = permits.filter((p) => {
@@ -141,14 +184,37 @@ export default function BuildingDeptPanel({ projectId }: { projectId: string }) 
           <p className="text-sm text-fp-text-muted mt-1">Permits, inspections, and building compliance</p>
           <div className="border-t border-fp-border mt-6" />
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Permit
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={syncFromCounty}
+            disabled={syncing}
+            title="Search Humboldt County's Accela permit portal by this property's APN/address"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-fp-border text-fp-text-muted text-sm font-medium hover:bg-fp-surface-2 hover:text-fp-text transition-colors disabled:opacity-50"
+          >
+            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {syncing ? "Searching…" : "Sync from County"}
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fp-blue text-white text-sm font-medium hover:bg-fp-blue/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Permit
+          </button>
+        </div>
       </div>
+
+      {/* Sync result banner */}
+      {syncResult && (
+        <div className={`rounded-lg border p-3 text-sm flex items-start justify-between gap-3 ${
+          syncResult.tone === "success" ? "border-fp-green/30 bg-fp-green/5 text-fp-green"
+          : syncResult.tone === "error" ? "border-fp-red/30 bg-fp-red/5 text-fp-red"
+          : "border-fp-border bg-fp-surface/40 text-fp-text-muted"
+        }`}>
+          <span>{syncResult.text}</span>
+          <button onClick={() => setSyncResult(null)} className="shrink-0 hover:opacity-70"><X className="w-4 h-4" /></button>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-4">

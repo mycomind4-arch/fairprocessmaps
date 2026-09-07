@@ -602,7 +602,12 @@ describe("Recon Agents — Building Permits (Agent 13)", () => {
     expect(initialSelect!.args).toEqual(["proj_test", "test-org"]);
   });
 
-  it("reports no_data when no permits exist in D1 and Accela is unreachable", async () => {
+  it("reports error (never no_data) when the county search can't be completed — a broken scrape must not read as 'zero permits'", async () => {
+    // The global fetch mock returns an empty HTML body, so permit-pipeline's
+    // fetchPermitsForProperty can't find __VIEWSTATE and reports
+    // scrapeStatus "parse_failed". This must surface as "error", not
+    // "no_data" — "no_data" would tell a reader the county was actually
+    // checked and confirmed zero permits, which isn't true here.
     const { db } = createTrackingMockDB({ permits: [], projects: RECON_PROJECTS });
 
     const ctx: ReconContext = {
@@ -615,8 +620,10 @@ describe("Recon Agents — Building Permits (Agent 13)", () => {
     };
 
     const result = await buildingPermitsAgent(ctx);
-    expect(result.status).toBe("no_data");
+    expect(result.status).toBe("error");
+    expect(result.data?.scrape_status).toBe("parse_failed");
     expect(result.data?.search_apn).toBe("123-456-789");
+    expect(result.message).not.toMatch(/no building permits found/i);
   });
 });
 
