@@ -60,7 +60,7 @@ export async function buildInputSnapshot(
 
   // Permits
   const permits = await db.prepare(
-    `SELECT id, permit_number, permit_type, permit_status, issued_date, expired_date, finalized_date
+    `SELECT id, permit_number, permit_type, permit_status, issued_date, expired_date, finalized_date, assigned_inspector
      FROM building_permits WHERE project_id = ? AND organization_id = ?`,
   ).bind(projectId, organizationId).all();
 
@@ -95,6 +95,32 @@ export async function buildInputSnapshot(
     };
   });
 
+  // Authorities — loaded from the authorities table (migration 027).
+  // Reference data for the Authority Mapper: which boards, departments, and
+  // official roles have jurisdiction over which case types and jurisdiction
+  // scopes (a city name, "unincorporated", or "coastal_zone").
+  const authorityRows = await db.prepare(
+    `SELECT id, entity_type, name, role_title, jurisdiction_level, jurisdiction_scope,
+            case_types, parent_authority_id, description
+     FROM authorities`,
+  ).all();
+
+  const authorities = (authorityRows.results ?? []).map((r) => {
+    const row = r as Record<string, unknown>;
+    const caseTypesRaw = row.case_types as string | null;
+    return {
+      id: row.id as string,
+      entity_type: row.entity_type as "board" | "department" | "official",
+      name: row.name as string,
+      role_title: (row.role_title as string) || null,
+      jurisdiction_level: row.jurisdiction_level as string,
+      jurisdiction_scope: row.jurisdiction_scope as string,
+      case_types: caseTypesRaw ? JSON.parse(caseTypesRaw) : [],
+      parent_authority_id: (row.parent_authority_id as string) || null,
+      description: (row.description as string) || null,
+    };
+  });
+
   return {
     case_id: p.id as string,
     organization_id: organizationId,
@@ -102,6 +128,7 @@ export async function buildInputSnapshot(
     case_type: p.case_type as string,
     jurisdiction: "Humboldt County",
     property: {
+      id: p.property_id as string,
       apn: (p.apn as string) || "",
       address: (p.address as string) || "",
       city: (p.city as string) || "",
@@ -114,6 +141,7 @@ export async function buildInputSnapshot(
     permits: (permits.results ?? []).map(r => r as Record<string, unknown> as AgentInputSnapshot["permits"][0]),
     relationships: (relationships.results ?? []).map(r => r as Record<string, unknown> as AgentInputSnapshot["relationships"][0]),
     statutes,
+    authorities,
   };
 }
 

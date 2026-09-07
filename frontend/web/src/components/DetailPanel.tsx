@@ -702,7 +702,7 @@ export default function DetailPanel({
                 <Play className="w-3.5 h-3.5 text-fp-purple" />
                 <span className="text-xs font-semibold text-fp-text-muted uppercase tracking-wider">Run Agent</span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => triggerAgentRun("timeline_anomaly")}
                   disabled={runningAgent !== null}
@@ -726,6 +726,30 @@ export default function DetailPanel({
                     <Play className="w-3 h-3" />
                   )}
                   Statute Matcher
+                </button>
+                <button
+                  onClick={() => triggerAgentRun("evidence_extractor")}
+                  disabled={runningAgent !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-fp-purple/15 text-fp-purple hover:bg-fp-purple/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {runningAgent === "evidence_extractor" ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Play className="w-3 h-3" />
+                  )}
+                  Evidence Extractor
+                </button>
+                <button
+                  onClick={() => triggerAgentRun("authority_mapper")}
+                  disabled={runningAgent !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-fp-purple/15 text-fp-purple hover:bg-fp-purple/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {runningAgent === "authority_mapper" ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Play className="w-3 h-3" />
+                  )}
+                  Authority Mapper
                 </button>
               </div>
               {/* Run result */}

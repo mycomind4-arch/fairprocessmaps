@@ -48,6 +48,60 @@ function semanticProvenance(row: Record<string, unknown>): EdgeProvenance {
   };
 }
 
+// ── Reference-entity resolution (statute / official / department / authority) ──
+//
+// These node types aren't backed by per-case tables — they're shared
+// reference data (`statutes`, `authorities`) or a synthetic id for a named
+// person extracted from free text (see authority-mapper.ts). Without this,
+// a relationship whose source or target is one of these types would be
+// silently dropped by the existence check in buildCaseGraph, because it
+// would never appear in the per-case node list built from evidence,
+// findings, permits, etc.
+
+const REFERENCE_NODE_TYPES = new Set(["statute", "official", "department", "authority"]);
+
+function deslugifyOfficialName(id: string): string {
+  const slug = id.startsWith("official.named.") ? id.slice("official.named.".length) : id;
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function resolveReferenceNode(
+  type: string,
+  id: string,
+  statuteCache: Map<string, Record<string, unknown>>,
+  authorityCache: Map<string, Record<string, unknown>>,
+): GraphNode {
+  if (type === "statute") {
+    const row = statuteCache.get(id);
+    if (row) {
+      return {
+        type: "statute", id,
+        label: (row.citation as string) || (row.title as string) || id,
+        data: { title: row.title, jurisdiction: row.jurisdiction, category: row.category, summary: row.summary },
+      };
+    }
+    return { type: "statute", id, label: id, data: {} };
+  }
+
+  // official | department | authority
+  const row = authorityCache.get(id);
+  if (row) {
+    return {
+      type: type as "official" | "department" | "authority", id,
+      label: (row.name as string) || id,
+      data: { role_title: row.role_title, jurisdiction_level: row.jurisdiction_level, jurisdiction_scope: row.jurisdiction_scope, description: row.description },
+    };
+  }
+  if (type === "official" && id.startsWith("official.named.")) {
+    return { type: "official", id, label: deslugifyOfficialName(id), data: { source: "extracted_from_case_data" } };
+  }
+  return { type: type as "official" | "department" | "authority", id, label: id, data: {} };
+}
+
 const EVENT_TYPE_LABELS: Record<string, string> = {
   "evidence.uploaded": "Evidence Uploaded",
   "evidence.processed": "Evidence Processed",
@@ -243,8 +297,33 @@ export async function buildCaseGraph(
      WHERE r.case_id = ? AND r.status != 'superseded'`,
   ).bind(projectId).all();
 
-  for (const rel of rels.results ?? []) {
-    const r = rel as Record<string, unknown>;
+  const relRows = (rels.results ?? []) as Record<string, unknown>[];
+
+  // Pre-fetch reference tables only if this case actually has relationships
+  // pointing at reference-entity types — small tables, but no reason to
+  // read them for the common case of a graph with no such relationships.
+  const statuteCache = new Map<string, Record<string, unknown>>();
+  const authorityCache = new Map<string, Record<string, unknown>>();
+  const needsReferenceLookup = relRows.some(
+    r => REFERENCE_NODE_TYPES.has(r.source_type as string) || REFERENCE_NODE_TYPES.has(r.target_type as string),
+  );
+  if (needsReferenceLookup) {
+    const statuteRows = await db.prepare(`SELECT * FROM statutes`).all();
+    for (const row of statuteRows.results ?? []) statuteCache.set((row as Record<string, unknown>).id as string, row as Record<string, unknown>);
+    const authorityRows = await db.prepare(`SELECT * FROM authorities`).all();
+    for (const row of authorityRows.results ?? []) authorityCache.set((row as Record<string, unknown>).id as string, row as Record<string, unknown>);
+  }
+
+  for (const rel of relRows) {
+    for (const [type, id] of [[rel.source_type, rel.source_id], [rel.target_type, rel.target_id]] as [string, string][]) {
+      if (REFERENCE_NODE_TYPES.has(type) && !nodes.some(n => n.id === id)) {
+        nodes.push(resolveReferenceNode(type, id, statuteCache, authorityCache));
+      }
+    }
+  }
+
+  for (const rel of relRows) {
+    const r = rel;
     const sourceExists = nodes.some(n => n.id === r.source_id);
     const targetExists = nodes.some(n => n.id === r.target_id);
     if (sourceExists && targetExists) {

@@ -1,6 +1,6 @@
 
- ⛅️ wrangler 4.118.0
-────────────────────
+ ⛅️ wrangler 4.118.0 (update available 4.129.0)
+───────────────────────────────────────────────
 Using secrets defined in .dev.vars
 Your Worker has access to the following bindings:
 Binding                                             Resource                  Mode
@@ -30,228 +30,393 @@ If the routes above don't cover what you need, fetch the full OpenAPI schema (la
   GET http://localhost:8787/cdn-cgi/local/explorer/api - OpenAPI schema
 ⎔ Starting local server...
 [wrangler:info] Ready on http://localhost:8787
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET / 200 OK (5223ms)
-[wrangler:info] GET / 200 OK (10118ms)
-[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 200 OK (179ms)
-[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 200 OK (180ms)
-[wrangler:info] GET /_next/static/css/04e180cebff69827.css 200 OK (189ms)
-[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 200 OK (177ms)
-[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 200 OK (186ms)
-[wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 200 OK (199ms)
-[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 200 OK (96ms)
-[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 200 OK (118ms)
-[wrangler:info] GET /_next/static/chunks/app/page-a5d267ad40e91f23.js 200 OK (127ms)
-[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 200 OK (100ms)
-[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 200 OK (276ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET /api/v1/auth/me 401 Unauthorized (1264ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET /api/v1/auth/me 401 Unauthorized (215ms)
-[wrangler:info] GET /images/hero-fairprocess.png 200 OK (218ms)
-[wrangler:info] GET /favicon.ico 404 Not Found (2180ms)
-[wrangler:info] GET / 200 OK (1215ms)
-[wrangler:info] GET /_next/static/css/04e180cebff69827.css 200 OK (12ms)
-[wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 200 OK (11ms)
-[wrangler:info] GET /_next/static/chunks/app/page-a5d267ad40e91f23.js 200 OK (52ms)
-[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 200 OK (231ms)
-[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 200 OK (237ms)
-[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 200 OK (257ms)
-[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 200 OK (267ms)
-[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 200 OK (256ms)
-[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 200 OK (217ms)
-[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 200 OK (752ms)
-[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 200 OK (479ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET /favicon.ico 404 Not Found (73ms)
-[wrangler:info] GET /api/v1/auth/me 401 Unauthorized (76ms)
-[wrangler:info] GET /api/v1/auth/me 401 Unauthorized (76ms)
-[wrangler:info] GET /images/hero-fairprocess.png 200 OK (8ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET / 304 Not Modified (84ms)
-[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 304 Not Modified (32ms)
-[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 304 Not Modified (32ms)
-[wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 304 Not Modified (341ms)
-[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 304 Not Modified (331ms)
-[wrangler:info] GET /_next/static/css/04e180cebff69827.css 304 Not Modified (359ms)
-[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 304 Not Modified (554ms)
-[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 304 Not Modified (619ms)
-[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 304 Not Modified (625ms)
-[wrangler:info] GET /_next/static/chunks/app/page-a5d267ad40e91f23.js 304 Not Modified (358ms)
-[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 304 Not Modified (476ms)
-[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 304 Not Modified (489ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET /favicon.ico 404 Not Found (80ms)
-[wrangler:info] GET /api/v1/auth/me 401 Unauthorized (194ms)
-[wrangler:info] GET /api/v1/auth/me 401 Unauthorized (155ms)
-[wrangler:info] GET /images/hero-fairprocess.png 304 Not Modified (106ms)
-[wrangler:info] POST /api/v1/auth/login 200 OK (522ms)
 [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /dashboard. Please move it to viewport export instead.[0m
 
   Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
 
 
-[wrangler:info] GET /dashboard 200 OK (146ms)
-[wrangler:info] GET /_next/static/chunks/app/dashboard/error-19dbd2f544de3c85.js 200 OK (35ms)
-[wrangler:info] GET /_next/static/chunks/app/dashboard/page-167419525a721067.js 200 OK (36ms)
+[wrangler:info] GET /dashboard 200 OK (5058ms)
+[wrangler:info] GET /dashboard 200 OK (12276ms)
+[wrangler:info] GET /dashboard 200 OK (2195ms)
+[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 304 Not Modified (48ms)
+[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 304 Not Modified (58ms)
+[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 304 Not Modified (57ms)
+[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 304 Not Modified (107ms)
+[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 304 Not Modified (49ms)
+[wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 304 Not Modified (137ms)
+[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 304 Not Modified (138ms)
+[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 304 Not Modified (112ms)
+[wrangler:info] GET /_next/static/chunks/app/dashboard/error-19dbd2f544de3c85.js 304 Not Modified (106ms)
+[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 304 Not Modified (107ms)
+[wrangler:info] GET /_next/static/css/04e180cebff69827.css 304 Not Modified (109ms)
+[wrangler:info] GET /_next/static/chunks/app/dashboard/page-167419525a721067.js 304 Not Modified (210ms)
 [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
 
   Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
 
 
-[wrangler:info] GET /api/v1/cases 200 OK (400ms)
-[wrangler:info] GET /api/v1/agent-proposals 404 Not Found (469ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /project/[id]. Please move it to viewport export instead.[0m
+[wrangler:info] GET /favicon.ico 404 Not Found (157ms)
+[wrangler:info] GET /api/v1/auth/me 200 OK (507ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
 
   Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
 
 
-[wrangler:info] GET /project/96a8149d-05d8-405a-8e09-1c7803f0df84 200 OK (75ms)
-[wrangler:info] GET /_next/static/chunks/app/project/%5Bid%5D/page-21ac68ef63688ab4.js 200 OK (106ms)
-[wrangler:info] GET /_next/static/chunks/2592-4f48f9c03e66efef.js 200 OK (11ms)
-[wrangler:info] GET /_next/static/chunks/app/project/%5Bid%5D/error-e2d378722f136575.js 200 OK (254ms)
-[wrangler:info] GET /_next/static/chunks/ca4dcb09-ee78d8b46dc788e0.js 200 OK (253ms)
-[wrangler:info] GET /_next/static/chunks/9142-a64c27b11aa02d24.js 200 OK (246ms)
-[wrangler:info] GET /_next/static/chunks/7308-cac839f611135065.js 200 OK (240ms)
-[wrangler:info] GET /_next/static/chunks/e919c1aa-f7d632cf041dacd7.js 200 OK (261ms)
-[wrangler:info] GET /_next/static/css/1de76be520b4de19.css 200 OK (8ms)
-[wrangler:info] GET /api/v1/cases/96a8149d-05d8-405a-8e09-1c7803f0df84 200 OK (115ms)
-[wrangler:info] GET /api/v1/cases/96a8149d-05d8-405a-8e09-1c7803f0df84/deadlines 200 OK (584ms)
-[wrangler:info] GET /api/v1/enforcement 200 OK (2180ms)
-[wrangler:info] GET /api/v1/intelligence/data 200 OK (2197ms)
-[wrangler:info] GET /api/v1/permits 200 OK (2187ms)
-[wrangler:info] GET /api/v1/findings 200 OK (2384ms)
-[wrangler:info] GET /api/v1/properties 200 OK (2539ms)
-[wrangler:info] GET /api/v1/overview 200 OK (2611ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /project/[id]. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET /api/v1/cases/96a8149d-05d8-405a-8e09-1c7803f0df84 200 OK (790ms)
-[wrangler:info] GET /project/96a8149d-05d8-405a-8e09-1c7803f0df84 200 OK (1703ms)
+[wrangler:info] GET /api/v1/auth/me 200 OK (993ms)
+[wrangler:info] GET /api/v1/cases 200 OK (491ms)
+[wrangler:info] GET /api/v1/agent-proposals 404 Not Found (554ms)
 [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /. Please move it to viewport export instead.[0m
 
   Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
 
 
-[wrangler:info] GET / 304 Not Modified (83ms)
-[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 304 Not Modified (96ms)
-[wrangler:info] GET /_next/static/css/04e180cebff69827.css 304 Not Modified (154ms)
-[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 304 Not Modified (269ms)
-[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 304 Not Modified (273ms)
-[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 304 Not Modified (275ms)
-[wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 304 Not Modified (283ms)
-[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 304 Not Modified (292ms)
-[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 304 Not Modified (213ms)
-[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 304 Not Modified (392ms)
-[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 304 Not Modified (175ms)
-[wrangler:info] GET /_next/static/chunks/app/page-a5d267ad40e91f23.js 304 Not Modified (189ms)
-[wrangler:info] GET /api/v1/auth/me 200 OK (294ms)
-[wrangler:info] GET /api/v1/auth/me 200 OK (301ms)
-[wrangler:info] GET /images/hero-fairprocess.png 304 Not Modified (36ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /dashboard. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET /dashboard 200 OK (400ms)
-[wrangler:info] GET /_next/static/chunks/app/dashboard/error-19dbd2f544de3c85.js 304 Not Modified (45ms)
-[wrangler:info] GET /_next/static/chunks/app/dashboard/page-167419525a721067.js 304 Not Modified (46ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET /api/v1/cases 200 OK (311ms)
-[wrangler:info] GET /api/v1/agent-proposals 404 Not Found (342ms)
-[wrangler:info] GET /api/v1/permits 200 OK (132ms)
-[wrangler:info] GET /api/v1/findings 200 OK (116ms)
-[wrangler:info] GET /api/v1/evidence 200 OK (172ms)
-[wrangler:info] GET /api/v1/timeline 200 OK (596ms)
-[wrangler:info] GET /api/v1/findings 200 OK (1256ms)
-[wrangler:info] GET /api/v1/cases 200 OK (332ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET /api/v1/agent-proposals 404 Not Found (506ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /map. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET /map 200 OK (851ms)
-[wrangler:info] GET /_next/static/chunks/fd19e63a-ecfa7552e6ee736d.js 200 OK (287ms)
-[wrangler:info] GET /_next/static/chunks/app/map/page-daabe7c073493b25.js 200 OK (288ms)
-[wrangler:info] GET /_next/static/chunks/55f71636-b6b27a9203f8ba7a.js 200 OK (329ms)
-[wrangler:info] GET /_next/static/css/f5e1bc0981d2d54f.css 200 OK (322ms)
-[wrangler:info] GET /_next/static/chunks/8552.b1ac690f8e04ce3b.js 200 OK (8ms)
-[wrangler:info] GET /_next/static/css/fe8854a83e049bc2.css 200 OK (24ms)
-[wrangler:info] GET /api/v1/properties 400 Bad Request (113ms)
-[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /map. Please move it to viewport export instead.[0m
-
-  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
-
-
-[wrangler:info] GET /map 200 OK (120ms)
+[wrangler:info] GET / 304 Not Modified (261ms)
+[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 304 Not Modified (178ms)
+[wrangler:info] GET /_next/static/css/04e180cebff69827.css 304 Not Modified (178ms)
+[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 304 Not Modified (181ms)
 [wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 304 Not Modified (21ms)
-[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 304 Not Modified (31ms)
-[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 304 Not Modified (97ms)
-[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 304 Not Modified (102ms)
-[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 304 Not Modified (83ms)
-[wrangler:info] GET /_next/static/chunks/55f71636-b6b27a9203f8ba7a.js 304 Not Modified (77ms)
-[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 304 Not Modified (93ms)
-[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 304 Not Modified (103ms)
-[wrangler:info] GET /_next/static/chunks/fd19e63a-ecfa7552e6ee736d.js 304 Not Modified (157ms)
-[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 304 Not Modified (116ms)
-[wrangler:info] GET /_next/static/css/04e180cebff69827.css 304 Not Modified (97ms)
-[wrangler:info] GET /_next/static/css/f5e1bc0981d2d54f.css 304 Not Modified (100ms)
-[wrangler:info] GET /_next/static/chunks/9142-a64c27b11aa02d24.js 304 Not Modified (189ms)
-[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 304 Not Modified (151ms)
-[wrangler:info] GET /_next/static/chunks/app/map/page-daabe7c073493b25.js 304 Not Modified (190ms)
+[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 304 Not Modified (30ms)
+[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 304 Not Modified (29ms)
+[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 304 Not Modified (48ms)
+[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 304 Not Modified (16ms)
+[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 304 Not Modified (12ms)
+[wrangler:info] GET /_next/static/chunks/app/page-a5d267ad40e91f23.js 304 Not Modified (8ms)
+[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 304 Not Modified (16ms)
 [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
 
   Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
 
 
-[wrangler:info] GET /favicon.ico 404 Not Found (117ms)
-[wrangler:info] GET /api/v1/auth/me 200 OK (129ms)
-[wrangler:info] GET /_next/static/css/fe8854a83e049bc2.css 304 Not Modified (124ms)
-[wrangler:info] GET /_next/static/css/1de76be520b4de19.css 304 Not Modified (114ms)
-[wrangler:info] GET /_next/static/chunks/ca4dcb09-ee78d8b46dc788e0.js 304 Not Modified (190ms)
-[wrangler:info] GET /_next/static/chunks/e919c1aa-f7d632cf041dacd7.js 304 Not Modified (201ms)
-[wrangler:info] GET /_next/static/chunks/8552.b1ac690f8e04ce3b.js 304 Not Modified (186ms)
-[wrangler:info] GET /api/v1/auth/me 200 OK (329ms)
-[wrangler:info] GET /api/v1/properties 400 Bad Request (129ms)
+[wrangler:info] GET /api/v1/auth/me 401 Unauthorized (516ms)
+[wrangler:info] GET /favicon.ico 404 Not Found (549ms)
+[wrangler:info] GET /api/v1/auth/me 401 Unauthorized (46ms)
+[wrangler:info] GET /images/hero-fairprocess.png 304 Not Modified (16ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /project/[id]. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] POST /api/v1/auth/login 200 OK (2263ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /dashboard. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /project/case-bird-ave-001 200 OK (3827ms)
+[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 304 Not Modified (65ms)
+[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 304 Not Modified (68ms)
+[wrangler:info] GET /_next/static/css/1de76be520b4de19.css 200 OK (407ms)
+[wrangler:info] GET /_next/static/css/04e180cebff69827.css 304 Not Modified (409ms)
+[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 304 Not Modified (482ms)
+[wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 304 Not Modified (499ms)
+[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 304 Not Modified (534ms)
+[wrangler:info] GET /_next/static/chunks/app/project/%5Bid%5D/error-e2d378722f136575.js 200 OK (366ms)
+[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 304 Not Modified (480ms)
+[wrangler:info] GET /_next/static/chunks/ca4dcb09-ee78d8b46dc788e0.js 200 OK (365ms)
+[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 304 Not Modified (431ms)
+[wrangler:info] GET /_next/static/chunks/9142-a64c27b11aa02d24.js 200 OK (83ms)
+[wrangler:info] GET /_next/static/chunks/7308-cac839f611135065.js 200 OK (77ms)
+[wrangler:info] GET /_next/static/chunks/2592-4f48f9c03e66efef.js 200 OK (837ms)
+[wrangler:info] GET /_next/static/chunks/e919c1aa-f7d632cf041dacd7.js 200 OK (1019ms)
+[wrangler:info] GET /_next/static/chunks/app/project/%5Bid%5D/page-21ac68ef63688ab4.js 200 OK (767ms)
+[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 304 Not Modified (888ms)
+[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 304 Not Modified (1655ms)
+[wrangler:info] GET /dashboard 200 OK (3735ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /favicon.ico 404 Not Found (91ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /api/v1/auth/me 200 OK (745ms)
+[wrangler:info] GET /api/v1/cases/case-bird-ave-001 404 Not Found (873ms)
+[wrangler:info] GET /api/v1/auth/me 200 OK (316ms)
+[wrangler:info] GET /favicon.ico 404 Not Found (1157ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /project/[id]. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /project/case-bird-ave-001 200 OK (73ms)
+[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 304 Not Modified (57ms)
+[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 304 Not Modified (47ms)
+[wrangler:info] GET /_next/static/css/1de76be520b4de19.css 304 Not Modified (81ms)
+[wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 304 Not Modified (82ms)
+[wrangler:info] GET /_next/static/css/04e180cebff69827.css 304 Not Modified (101ms)
+[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 304 Not Modified (212ms)
+[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 304 Not Modified (187ms)
+[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 304 Not Modified (182ms)
+[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 304 Not Modified (184ms)
+[wrangler:info] GET /_next/static/chunks/app/project/%5Bid%5D/error-e2d378722f136575.js 304 Not Modified (51ms)
+[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 304 Not Modified (193ms)
+[wrangler:info] GET /_next/static/chunks/9142-a64c27b11aa02d24.js 304 Not Modified (37ms)
+[wrangler:info] GET /_next/static/chunks/7308-cac839f611135065.js 304 Not Modified (42ms)
+[wrangler:info] GET /_next/static/chunks/ca4dcb09-ee78d8b46dc788e0.js 304 Not Modified (46ms)
+[wrangler:info] GET /_next/static/chunks/e919c1aa-f7d632cf041dacd7.js 304 Not Modified (46ms)
+[wrangler:info] GET /_next/static/chunks/2592-4f48f9c03e66efef.js 304 Not Modified (61ms)
+[wrangler:info] GET /_next/static/chunks/app/project/%5Bid%5D/page-21ac68ef63688ab4.js 304 Not Modified (62ms)
+[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 304 Not Modified (28ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /api/v1/auth/me 200 OK (426ms)
+[wrangler:info] GET /api/v1/cases/case-bird-ave-001 404 Not Found (728ms)
+[wrangler:info] GET /api/v1/auth/me 200 OK (409ms)
+[wrangler:info] GET /api/v1/auth/me 200 OK (372ms)
+[wrangler:info] GET /api/v1/auth/me 200 OK (440ms)
+[wrangler:info] GET /favicon.ico 404 Not Found (1903ms)
+[wrangler:info] GET /favicon.ico 404 Not Found (979ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /dashboard. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /images/hero-fairprocess.png 304 Not Modified (107ms)
+[wrangler:info] GET /dashboard 200 OK (153ms)
+[wrangler:info] GET /_next/static/chunks/app/dashboard/error-19dbd2f544de3c85.js 200 OK (54ms)
+[wrangler:info] GET /_next/static/chunks/app/dashboard/page-167419525a721067.js 200 OK (73ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /api/v1/cases 200 OK (965ms)
+[wrangler:info] GET /api/v1/agent-proposals 404 Not Found (996ms)
+[wrangler:info] GET /favicon.ico 404 Not Found (1020ms)
+[wrangler:info] GET /api/v1/cases 401 Unauthorized (29ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /project/[id]. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /project/case-bird-ave-001 200 OK (57ms)
+[wrangler:info] GET /_next/static/css/04e180cebff69827.css 304 Not Modified (129ms)
+[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 304 Not Modified (145ms)
+[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 304 Not Modified (150ms)
+[wrangler:info] GET /_next/static/css/1de76be520b4de19.css 304 Not Modified (43ms)
+[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 304 Not Modified (79ms)
+[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 304 Not Modified (43ms)
+[wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 304 Not Modified (94ms)
+[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 304 Not Modified (91ms)
+[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 304 Not Modified (76ms)
+[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 304 Not Modified (125ms)
+[wrangler:info] GET /_next/static/chunks/ca4dcb09-ee78d8b46dc788e0.js 304 Not Modified (14ms)
+[wrangler:info] GET /_next/static/chunks/app/project/%5Bid%5D/error-e2d378722f136575.js 304 Not Modified (36ms)
+[wrangler:info] GET /_next/static/chunks/e919c1aa-f7d632cf041dacd7.js 304 Not Modified (17ms)
+[wrangler:info] GET /_next/static/chunks/7308-cac839f611135065.js 304 Not Modified (38ms)
+[wrangler:info] GET /_next/static/chunks/9142-a64c27b11aa02d24.js 304 Not Modified (44ms)
+[wrangler:info] GET /_next/static/chunks/app/project/%5Bid%5D/page-21ac68ef63688ab4.js 304 Not Modified (27ms)
+[wrangler:info] GET /_next/static/chunks/2592-4f48f9c03e66efef.js 304 Not Modified (37ms)
+[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 304 Not Modified (73ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /favicon.ico 404 Not Found (67ms)
+[wrangler:info] GET /api/v1/auth/me 200 OK (115ms)
+[wrangler:info] GET /api/v1/cases/case-bird-ave-001 404 Not Found (281ms)
+[wrangler:info] GET /api/v1/auth/me 200 OK (255ms)
 [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /map. Please move it to viewport export instead.[0m
 
   Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
 
 
-[wrangler:info] GET /map 304 Not Modified (444ms)
+[wrangler:info] GET /map 200 OK (557ms)
+[wrangler:info] GET /_next/static/css/04e180cebff69827.css 304 Not Modified (44ms)
+[wrangler:info] GET /_next/static/css/f5e1bc0981d2d54f.css 200 OK (158ms)
+[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 304 Not Modified (249ms)
+[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 304 Not Modified (241ms)
+[wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 304 Not Modified (51ms)
+[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 304 Not Modified (26ms)
+[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 304 Not Modified (32ms)
+[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 304 Not Modified (36ms)
+[wrangler:info] GET /_next/static/chunks/55f71636-b6b27a9203f8ba7a.js 200 OK (17ms)
+[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 304 Not Modified (40ms)
+[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 304 Not Modified (44ms)
+[wrangler:info] GET /_next/static/chunks/fd19e63a-ecfa7552e6ee736d.js 200 OK (101ms)
+[wrangler:info] GET /_next/static/chunks/9142-a64c27b11aa02d24.js 304 Not Modified (104ms)
+[wrangler:info] GET /_next/static/chunks/app/map/page-daabe7c073493b25.js 200 OK (15ms)
+[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 304 Not Modified (10ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /favicon.ico 404 Not Found (81ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /api/v1/auth/me 200 OK (211ms)
+[wrangler:info] GET /_next/static/chunks/8552.b1ac690f8e04ce3b.js 200 OK (304ms)
+[wrangler:info] GET /_next/static/chunks/e919c1aa-f7d632cf041dacd7.js 304 Not Modified (308ms)
+[wrangler:info] GET /_next/static/chunks/ca4dcb09-ee78d8b46dc788e0.js 304 Not Modified (328ms)
+[wrangler:info] GET /api/v1/auth/me 200 OK (296ms)
+[wrangler:info] GET /_next/static/css/fe8854a83e049bc2.css 200 OK (172ms)
+[wrangler:info] GET /_next/static/css/1de76be520b4de19.css 304 Not Modified (23ms)
+[wrangler:info] GET /favicon.ico 404 Not Found (626ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /map. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /map 304 Not Modified (72ms)
+[wrangler:info] GET /api/v1/properties 400 Bad Request (227ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /project/[id]. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /project/case-bird-ave-001 200 OK (74ms)
+[wrangler:info] GET /_next/static/css/04e180cebff69827.css 304 Not Modified (30ms)
+[wrangler:info] GET /_next/static/media/bb3ef058b751a6ad-s.p.woff2 304 Not Modified (44ms)
+[wrangler:info] GET /_next/static/media/e4af272ccee01ff0-s.p.woff2 304 Not Modified (78ms)
+[wrangler:info] GET /_next/static/chunks/webpack-a939fa452c6e2ce9.js 304 Not Modified (51ms)
+[wrangler:info] GET /_next/static/css/1de76be520b4de19.css 304 Not Modified (89ms)
+[wrangler:info] GET /_next/static/chunks/4bd1b696-f785427dddbba9fb.js 304 Not Modified (59ms)
+[wrangler:info] GET /_next/static/chunks/1255-31f47ebe9b12c7e5.js 304 Not Modified (56ms)
+[wrangler:info] GET /_next/static/chunks/main-app-18a8bab9d8102486.js 304 Not Modified (55ms)
+[wrangler:info] GET /_next/static/chunks/2078-928c68ba7c25d3de.js 304 Not Modified (14ms)
+[wrangler:info] GET /_next/static/chunks/app/layout-b4092c8c9cfe537f.js 304 Not Modified (25ms)
+[wrangler:info] GET /_next/static/chunks/app/project/%5Bid%5D/error-e2d378722f136575.js 304 Not Modified (9ms)
+[wrangler:info] GET /_next/static/chunks/e919c1aa-f7d632cf041dacd7.js 304 Not Modified (26ms)
+[wrangler:info] GET /_next/static/chunks/9142-a64c27b11aa02d24.js 304 Not Modified (26ms)
+[wrangler:info] GET /_next/static/chunks/ca4dcb09-ee78d8b46dc788e0.js 304 Not Modified (33ms)
+[wrangler:info] GET /_next/static/chunks/7308-cac839f611135065.js 304 Not Modified (17ms)
+[wrangler:info] GET /_next/static/chunks/2592-4f48f9c03e66efef.js 304 Not Modified (10ms)
+[wrangler:info] GET /_next/static/chunks/app/project/%5Bid%5D/page-21ac68ef63688ab4.js 304 Not Modified (73ms)
+[wrangler:info] GET /_next/static/chunks/app/global-error-6e33f5fd9d6fc468.js 304 Not Modified (17ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1m ⚠ Unsupported metadata viewport is configured in metadata export in /_not-found. Please move it to viewport export instead.[0m
+
+  Read more: [4mhttps://nextjs.org/docs/app/api-reference/functions/generate-viewport[0m
+
+
+[wrangler:info] GET /api/v1/auth/me 200 OK (206ms)
+[wrangler:info] GET /api/v1/cases/case-bird-ave-001 404 Not Found (240ms)
+[wrangler:info] GET /api/v1/auth/me 200 OK (109ms)
+[wrangler:info] GET /favicon.ico 404 Not Found (344ms)
+[wrangler:info] GET /api/v1/cases/case-bird-ave-001 404 Not Found (357ms)
+[wrangler:info] GET /api/v1/cases/case-bird-ave-001 401 Unauthorized (49ms)
+[wrangler:info] GET /api/v1/cases/case-bird-ave-001 401 Unauthorized (17ms)
+⎔ Reloading local server...
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mBuild failed with 5 errors:[0m
+
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./next-env.mjs"[0m
+  
+      .open-next/cloudflare/init.js:4:29:
+  [37m      4 │ import * as nextEnvVars from [32m"./next-env.mjs"[37m;
+          ╵                              [32m~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./open-next.config.mjs"[0m
+  
+      .open-next/middleware/handler.mjs:3721:30:
+  [37m      3721 │ ...fig = await import([32m"./open-next.config.mjs"[37m).then((m) => m.de...
+             ╵                       [32m~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./.build/durable-objects/queue.js"[0m
+  
+      .open-next/worker.js:10:31:
+  [37m      10 │ export { DOQueueHandler } from [32m"./.build/durable-objects/queue.js"[37m;
+           ╵                                [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./.build/durable-objects/sharded-tag-cache.js"[0m
+  
+      .open-next/worker.js:12:34:
+  [37m      12 │ ...edTagCache } from [32m"./.build/durable-objects/sharded-tag-cache.js"[37m;
+           ╵                      [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./.build/durable-objects/bucket-cache-purge.js"[0m
+  
+      .open-next/worker.js:14:33:
+  [37m      14 │ ...achePurge } from [32m"./.build/durable-objects/bucket-cache-purge.js"[37m;
+           ╵                     [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mBuild failed with 8 errors:[0m
+
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./cloudflare/images.js"[0m
+  
+      .open-next/worker.js:2:61:
+  [37m      2 │ ...giImageRequest, handleImageRequest } from [32m"./cloudflare/images.js"[37m;
+          ╵                                              [32m~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./cloudflare/init.js"[0m
+  
+      .open-next/worker.js:4:48:
+  [37m      4 │ ...rt { runWithCloudflareRequestContext } from [32m"./cloudflare/init.js"[37m;
+          ╵                                                [32m~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./cloudflare/skew-protection.js"[0m
+  
+      .open-next/worker.js:6:47:
+  [37m      6 │ ...GetSkewProtectionResponse } from [32m"./cloudflare/skew-protection.js"[37m;
+          ╵                                     [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./middleware/handler.mjs"[0m
+  
+      .open-next/worker.js:8:45:
+  [37m      8 │ ...t { handler as middlewareHandler } from [32m"./middleware/handler.mjs"[37m;
+          ╵                                            [32m~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./.build/durable-objects/queue.js"[0m
+  
+      .open-next/worker.js:10:31:
+  [37m      10 │ export { DOQueueHandler } from [32m"./.build/durable-objects/queue.js"[37m;
+           ╵                                [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./.build/durable-objects/sharded-tag-cache.js"[0m
+  
+      .open-next/worker.js:12:34:
+  [37m      12 │ ...edTagCache } from [32m"./.build/durable-objects/sharded-tag-cache.js"[37m;
+           ╵                      [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./.build/durable-objects/bucket-cache-purge.js"[0m
+  
+      .open-next/worker.js:14:33:
+  [37m      14 │ ...achePurge } from [32m"./.build/durable-objects/bucket-cache-purge.js"[37m;
+           ╵                     [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "./server-functions/default/handler.mjs"[0m
+  
+      .open-next/worker.js:39:45:
+  [37m      39 │ ...andler } = await import([32m"./server-functions/default/handler.mjs"[37m);
+           ╵                            [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mBuild failed with 1 error:[0m
+
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "/Users/macdizzle/dev/fairprocessmaps/frontend/web/.open-next/worker.js"[0m
+  
+      .wrangler/tmp/bundle-1Mrgz5/middleware-insertion-facade.js:1:43:
+  [37m      1 │ ...PORTS from [32m"/Users/macdizzle/dev/fairprocessmaps/frontend/web/.o[37m...
+          ╵               [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+  
+  
+
+
+⎔ Local server updated and ready
+🪵  Logs were written to "/Users/macdizzle/Library/Preferences/.wrangler/logs/wrangler-2026-09-07_03-24-58_459.log"

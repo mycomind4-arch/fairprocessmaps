@@ -44,7 +44,7 @@ async function testInsufficientNotice() {
     case_name: "Test Case 1",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [],
     findings: [],
@@ -60,7 +60,7 @@ async function testInsufficientNotice() {
     }],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);
@@ -109,7 +109,7 @@ async function testMissingNotice() {
     case_name: "Test Case 2",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [],
     findings: [],
@@ -125,7 +125,7 @@ async function testMissingNotice() {
     }],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);
@@ -167,7 +167,7 @@ async function testCompliantTimeline() {
     case_name: "Test Case 3",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [],
     findings: [],
@@ -183,7 +183,7 @@ async function testCompliantTimeline() {
     }],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);
@@ -221,7 +221,7 @@ async function testTimelineGap() {
     case_name: "Test Case 4",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [
       { id: "ev_1", event_date: "2026-01-15", event_type: "ce.notice_served", description: "Notice served", evidence_id: null },
       { id: "ev_2", event_date: "2026-06-20", event_type: "ce.hearing_scheduled", description: "Hearing scheduled", evidence_id: null },
@@ -231,7 +231,7 @@ async function testTimelineGap() {
     ce_cases: [],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);
@@ -260,7 +260,7 @@ async function testHearingBeforeService() {
     case_name: "Test Case 5",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [],
     findings: [],
@@ -276,7 +276,7 @@ async function testHearingBeforeService() {
     }],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);
@@ -303,7 +303,7 @@ async function testEmptyCase() {
     case_name: "Test Case 6",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [
       { id: "ev_1", event_date: "2026-01-01", event_type: "case.opened", description: "Case opened", evidence_id: null },
     ],
@@ -312,7 +312,7 @@ async function testEmptyCase() {
     ce_cases: [],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await TIMELINE_ANOMALY_AGENT.execute(input);

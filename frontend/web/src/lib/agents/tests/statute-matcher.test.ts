@@ -43,7 +43,7 @@ async function testMissingNoticeMatch() {
     case_name: "Test Case 1",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [{ id: "evi_001", title: "Notice of Violation", doc_type: "notice", status: "active", source: "county_portal" }],
     findings: [{
@@ -58,7 +58,7 @@ async function testMissingNoticeMatch() {
     ce_cases: [],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);
@@ -112,7 +112,7 @@ async function testNuisanceMatch() {
     case_name: "Test Case 2",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [],
     findings: [{
@@ -127,7 +127,7 @@ async function testNuisanceMatch() {
     ce_cases: [],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);
@@ -157,7 +157,7 @@ async function testAmbiguousMatch() {
     case_name: "Test Case 3",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [],
     findings: [{
@@ -172,7 +172,7 @@ async function testAmbiguousMatch() {
     ce_cases: [],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);
@@ -204,7 +204,7 @@ async function testClosedFindingSkipped() {
     case_name: "Test Case 4",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [],
     findings: [{
@@ -219,7 +219,7 @@ async function testClosedFindingSkipped() {
     ce_cases: [],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);
@@ -241,7 +241,7 @@ async function testMultipleFindings() {
     case_name: "Test Case 5",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [],
     findings: [
@@ -267,7 +267,7 @@ async function testMultipleFindings() {
     ce_cases: [],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);
@@ -299,14 +299,14 @@ async function testEmptyCase() {
     case_name: "Test Case 6",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [],
     findings: [],
     ce_cases: [],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
   };
 
   const result = await STATUTE_MATCHER_AGENT.execute(input);

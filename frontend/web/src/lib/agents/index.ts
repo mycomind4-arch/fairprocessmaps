@@ -4,6 +4,7 @@ export type {
   ObservationType, Severity, CheckStatus, InfoType, Importance,
   AgentFeedback,
   AgentInputSnapshot, AgentProposalDraft, AgentResult, Agent,
+  StatuteRef, AuthorityRef, AuthorityEntityType,
 } from "./types";
 
 export {
@@ -31,3 +32,7 @@ export {
 export {
   EVIDENCE_EXTRACTOR_AGENT,
 } from "./evidence-extractor";
+
+export {
+  AUTHORITY_MAPPER_AGENT,
+} from "./authority-mapper";
