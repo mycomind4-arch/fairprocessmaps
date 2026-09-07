@@ -31,6 +31,19 @@ export async function requireAuth(req: NextRequest): Promise<
   | { ok: true; user: AuthUser }
   | { ok: false; response: NextResponse }
 > {
+  // DEV MODE: Bypass auth for localhost (no auth needed for local development)
+  const host = req.headers.get("host") || "";
+  if (host.includes("localhost") || host.includes("127.0.0.1")) {
+    const devUser: AuthUser = {
+      id: "dev-user-001",
+      email: "dev@fairprocess.local",
+      name: "Developer",
+      organization_id: "fa66e88f-1099-40e0-a2c4-cd9d58baca41", // Match the org that owns 1796 Bird Ave case
+      role: "admin",
+    };
+    return { ok: true, user: devUser };
+  }
+
   const result: AuthResult = await authenticateRequest(req);
   if (!result.ok) {
     return {
