@@ -153,6 +153,20 @@ export interface StatuteRef {
   notice_period_days: number | null;
 }
 
+export type AuthorityEntityType = "board" | "department" | "official";
+
+export interface AuthorityRef {
+  id: string;
+  entity_type: AuthorityEntityType;
+  name: string;
+  role_title: string | null;
+  jurisdiction_level: string;
+  jurisdiction_scope: string;
+  case_types: string[];
+  parent_authority_id: string | null;
+  description: string | null;
+}
+
 export interface AgentInputSnapshot {
   case_id: string;
   organization_id: string;
@@ -160,6 +174,7 @@ export interface AgentInputSnapshot {
   case_type: string;
   jurisdiction: string;
   property: {
+    id: string;
     apn: string;
     address: string;
     city: string;
@@ -206,6 +221,7 @@ export interface AgentInputSnapshot {
     issued_date: string | null;
     expired_date: string | null;
     finalized_date: string | null;
+    assigned_inspector: string | null;
   }>;
   relationships: Array<{
     id: string;
@@ -218,6 +234,7 @@ export interface AgentInputSnapshot {
     confidence: number | null;
   }>;
   statutes: StatuteRef[];
+  authorities: AuthorityRef[];
 }
 
 // ── Agent Result ───────────────────────────────────────────────────────────

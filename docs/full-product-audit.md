@@ -307,8 +307,8 @@ Migration 014 seeds `statutes` table. But `STATUTE_MATCHER_AGENT` uses `EMBEDDED
 |-------|------|----------|-----|---------|
 | Timeline Anomaly Detector | Rule engine | ✅ | ❌ | Good — 6 rules, neutral language |
 | Statute Matcher | Rule engine | ✅ | ❌ | Good — scoring, dedup |
-| Evidence Extractor | Registered | ❌ | Planned | Not implemented |
-| Authority Mapper | Registered | ❌ | Planned | Not implemented |
+| Evidence Extractor | Rule engine | ✅ | ❌ | Good — evidence↔finding/timeline linking, gap detection |
+| Authority Mapper | Rule engine | ✅ | ❌ | Good — jurisdiction + decision-maker chain, contract-verified |
 | Recon Agents (12+) | Data fetchers | ✅ | ❌ | Good — parallel, resilient |
 | Analysis Agents | Rule engine | ✅ | ❌ | Partial — fact extraction |
 | Brief Generator | Template engine | ✅ | Optional | Good — evidence-backed |

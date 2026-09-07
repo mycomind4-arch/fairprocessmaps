@@ -43,14 +43,14 @@ function baseSnapshot(overrides: Partial<AgentInputSnapshot> = {}): AgentInputSn
     case_name: "Test Case",
     case_type: "code_enforcement",
     jurisdiction: "Humboldt County",
-    property: { apn: "", address: "", city: "", zoning: "" },
+    property: { id: "test_property", apn: "", address: "", city: "", zoning: "" },
     timeline: [],
     evidence: [],
     findings: [],
     ce_cases: [],
     permits: [],
     relationships: [],
-    statutes: [],
+    statutes: [], authorities: [],
     ...overrides,
   };
 }
