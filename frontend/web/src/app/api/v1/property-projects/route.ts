@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { requireAuth, requireAuthz } from "@/lib/security/middleware";
+import { requireAuth, requireAuthz, resolveProjectOrg, verifyOrgAccess } from "@/lib/security/middleware";
 import { humanActor, emitTimelineEvent, emitAuditEvent } from "@/lib/security/events";
 import { runIntelligence, runAnalysis } from "@/lib/auto-triggers";
+import { VALID_PROJECT_STATUSES, isValidProjectStatus } from "@/lib/security/admin-validation";
 
 export const runtime = "nodejs";
 
@@ -140,6 +141,76 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       { error: String(err), stack: (err as Error)?.stack },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+}
+
+// PATCH — update project status (org-scoped). Currently only status is
+// writable here. "archived" is the reversible replacement for what used to
+// be a fake "Delete Project" button in AdminPanel.tsx that only cleared
+// localStorage — this app's own conventions (evidence withdrawal instead of
+// deletion, superseded findings instead of deletion) don't have a place for
+// an actual destructive project delete, so this route doesn't offer one.
+export async function PATCH(req: NextRequest) {
+  try {
+    const auth = await requireAuth(req);
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
+
+    const projectId = req.nextUrl.searchParams.get("id");
+    if (!projectId) {
+      return NextResponse.json(
+        { error: "id is required" },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const body = (await req.json()) as { status?: string };
+    if (!isValidProjectStatus(body.status)) {
+      return NextResponse.json(
+        { error: `status must be one of: ${VALID_PROJECT_STATUSES.join(", ")}` },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const authz = requireAuthz(user, "case.update");
+    if (!authz.ok) return authz.response;
+
+    const { env } = getCloudflareContext();
+    const db = env.DB;
+
+    const projectOrg = await resolveProjectOrg(db, projectId);
+    if (!verifyOrgAccess(user, projectOrg)) {
+      return NextResponse.json(
+        { error: "Project not found" },
+        { status: 404, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const closedAt = body.status === "closed" || body.status === "archived" ? "datetime('now')" : "NULL";
+    await db
+      .prepare(`UPDATE projects SET status = ?, closed_at = ${closedAt}, updated_at = datetime('now') WHERE id = ?`)
+      .bind(body.status, projectId)
+      .run();
+
+    const actor = humanActor(user);
+    await emitAuditEvent({
+      db,
+      actor,
+      action: "case.update",
+      resourceType: "project",
+      resourceId: projectId,
+      detail: `Status changed to '${body.status}' by ${user.name}`,
+    });
+
+    return NextResponse.json(
+      { status: "ok" },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (err) {
+    return NextResponse.json(
+      { error: String(err) },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }

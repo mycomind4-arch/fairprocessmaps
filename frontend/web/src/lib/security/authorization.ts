@@ -21,6 +21,7 @@ const PERMISSIONS: Record<Role, Set<Action>> = {
     "analysis.run",
     "admin.debug", "policy.compile",
     "agent.read", "agent.run", "agent.review",
+    "org.manage", "audit.read",
   ]),
   investigator: new Set<Action>([
     "case.read", "case.update", "property.read",
