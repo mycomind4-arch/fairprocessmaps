@@ -53,7 +53,17 @@ export type Action =
   | "policy.compile"
   | "agent.run"
   | "agent.review"
-  | "agent.read";
+  | "agent.read"
+  // Inviting/listing/role-changing/deactivating members of the caller's own
+  // organization, and viewing/updating that organization's own identity
+  // (name). Does NOT include creating new organizations — this app has no
+  // multi-tenant onboarding flow, and adding one is a bigger product
+  // decision than an admin action.
+  | "org.manage"
+  // Reading the organization's own audit log. Separate from org.manage so
+  // a future read-only compliance role doesn't need member-management
+  // rights just to see the trail.
+  | "audit.read";
 
 export interface Resource {
   organization_id?: string;

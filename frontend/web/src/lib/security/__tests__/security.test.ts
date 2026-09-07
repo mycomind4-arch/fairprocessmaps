@@ -76,6 +76,15 @@ describe("Authorization — Role Permissions", () => {
     expect(authorize(ORG_A_ADMIN, "admin.debug").allowed).toBe(true);
     expect(authorize(ORG_A_ATTORNEY, "admin.debug").allowed).toBe(false);
   });
+
+  it("only admin can manage organization members or read the audit log", () => {
+    expect(authorize(ORG_A_ADMIN, "org.manage").allowed).toBe(true);
+    expect(authorize(ORG_A_ADMIN, "audit.read").allowed).toBe(true);
+    for (const role of ["investigator", "attorney", "advocate", "reviewer", "viewer", "manager", "analyst"] as const) {
+      expect(authorize(makeUser(role), "org.manage").allowed).toBe(false);
+      expect(authorize(makeUser(role), "audit.read").allowed).toBe(false);
+    }
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
