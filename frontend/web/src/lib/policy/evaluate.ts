@@ -13,6 +13,7 @@
 import type {
   PolicyPack,
   PolicyRule,
+  RecorderSearchRecord,
   RuleEvaluation,
   RuleStatus,
 } from "./types";
@@ -37,6 +38,8 @@ export interface EvidenceItem {
 export interface EvaluationInput {
   timeline: TimelineEvent[];
   evidence: EvidenceItem[];
+  /** Recorder-index searches a human has actually performed for this case. */
+  recorderSearches?: RecorderSearchRecord[];
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -335,15 +338,67 @@ function evaluateRequiredDisclosure(
 // engine. Until a recorder search is wired, report honestly rather than
 // silently returning nothing.
 
-function evaluateRecordPresence(rule: PolicyRule, pack: PolicyPack): RuleEvaluation[] {
+function evaluateRecordPresence(
+  rule: PolicyRule,
+  pack: PolicyPack,
+  input: EvaluationInput,
+): RuleEvaluation[] {
+  if (!rule.instrumentKind) {
+    return [
+      build(
+        rule,
+        pack,
+        "InsufficientEvidence",
+        "This checkpoint has no instrument kind configured in its policy pack.",
+        null,
+        "Review the policy pack definition for this rule.",
+      ),
+    ];
+  }
+
+  const search = (input.recorderSearches ?? []).find(
+    (s) => s.instrumentKind === rule.instrumentKind,
+  );
+
+  if (!search) {
+    return [
+      build(
+        rule,
+        pack,
+        "InsufficientEvidence",
+        `No recorder-index search for a "${rule.instrumentKind.replace(/_/g, " ")}" has been logged for this case.`,
+        null,
+        "Search the County Recorder index for this parcel and log the result — whether or not the instrument is found. A logged negative search is itself a finding, not a gap.",
+      ),
+    ];
+  }
+
+  if (search.found) {
+    return [
+      build(
+        rule,
+        pack,
+        "Satisfied",
+        `A "${rule.instrumentKind.replace(/_/g, " ")}" was located in the County Recorder index` +
+          (search.instrumentNumber ? ` as instrument ${search.instrumentNumber}` : "") +
+          (search.recordedDate ? `, recorded ${search.recordedDate}` : "") +
+          `. Search performed by ${search.searchedBy} on ${search.searchedAt}.`,
+        null,
+      ),
+    ];
+  }
+
   return [
     build(
       rule,
       pack,
-      "InsufficientEvidence",
-      "Recorder index search is not yet connected, so this checkpoint cannot be evaluated.",
+      "NotLocated",
+      `A "${rule.instrumentKind.replace(/_/g, " ")}" was searched for in the County Recorder index and not found. ` +
+        `Search performed by ${search.searchedBy} on ${search.searchedAt}` +
+        (search.sourceNote ? ` (${search.sourceNote})` : "") +
+        `. This is a record of an actual search of the public index, not an inference — the absence is independently reproducible by anyone who repeats the search.`,
       null,
-      "Search the County Recorder index for this parcel and add results to the case file.",
+      "If this instrument is legally required, its absence from the public index is itself worth raising with counsel — request written confirmation from the Recorder's office that no such instrument is on file.",
     ),
   ];
 }
@@ -372,7 +427,7 @@ export function evaluatePack(pack: PolicyPack, input: EvaluationInput): RuleEval
         results.push(...evaluateRequiredDisclosure(rule, pack, input));
         break;
       case "record_presence":
-        results.push(...evaluateRecordPresence(rule, pack));
+        results.push(...evaluateRecordPresence(rule, pack, input));
         break;
     }
   }

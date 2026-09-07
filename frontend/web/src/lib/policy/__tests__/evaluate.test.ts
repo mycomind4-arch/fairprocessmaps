@@ -350,6 +350,84 @@ describe("neutrality of emitted language", () => {
 
 // ── Whole-pack behavior ─────────────────────────────────────────────────────
 
+describe("record_presence", () => {
+  // Build a minimal one-rule pack rather than depending on any real pack
+  // shipping a record_presence rule today.
+  const recordPack = {
+    ...pack,
+    rules: [
+      {
+        id: "lien_recorded",
+        kind: "record_presence" as const,
+        name: "Administrative Penalty Lien Recorded",
+        description: "Checks whether the lien was recorded at the County Recorder.",
+        severity: "warning" as const,
+        citation: "Humboldt County Code § 352-23",
+        sourceUrl: "https://humboldt.county.codes/Code/352-23",
+        authority: "Humboldt County Recorder",
+        instrumentKind: "administrative_civil_penalty_lien",
+      },
+    ],
+  };
+
+  it("reports InsufficientEvidence when no search has been logged", () => {
+    const results = evaluatePack(recordPack, input([]));
+    expect(results[0].status).toBe("InsufficientEvidence");
+    expect(results[0].recommendedNextAction).toMatch(/search the county recorder index/i);
+  });
+
+  it("reports Satisfied when a search found the instrument", () => {
+    const results = evaluatePack(recordPack, {
+      timeline: [],
+      evidence: [],
+      recorderSearches: [
+        {
+          instrumentKind: "administrative_civil_penalty_lien",
+          found: true,
+          instrumentNumber: "2025-01234",
+          recordedDate: "2025-07-01",
+          searchedBy: "counsel@example.com",
+          searchedAt: "2026-09-06",
+        },
+      ],
+    });
+    expect(results[0].status).toBe("Satisfied");
+    expect(results[0].detail).toContain("2025-01234");
+    expect(results[0].detail).toContain("2025-07-01");
+  });
+
+  it("reports NotLocated when a search was performed and found nothing", () => {
+    const results = evaluatePack(recordPack, {
+      timeline: [],
+      evidence: [],
+      recorderSearches: [
+        {
+          instrumentKind: "administrative_civil_penalty_lien",
+          found: false,
+          searchedBy: "counsel@example.com",
+          searchedAt: "2026-09-06",
+          sourceNote: "searched online index by APN and owner name",
+        },
+      ],
+    });
+    expect(results[0].status).toBe("NotLocated");
+    expect(results[0].detail).toContain("counsel@example.com");
+    // A negative search result must read as a reproducible fact, not a guess.
+    expect(results[0].detail).toMatch(/independently reproducible/i);
+  });
+
+  it("ignores a search logged for a different instrument kind", () => {
+    const results = evaluatePack(recordPack, {
+      timeline: [],
+      evidence: [],
+      recorderSearches: [
+        { instrumentKind: "notice_of_pendency", found: true, searchedBy: "x", searchedAt: "2026-09-06" },
+      ],
+    });
+    expect(results[0].status).toBe("InsufficientEvidence");
+  });
+});
+
 describe("evaluatePack", () => {
   it("produces no actionable findings for an empty case file", () => {
     const results = evaluatePack(pack, input([]));

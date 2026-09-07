@@ -71,7 +71,8 @@ export interface ArcGap {
     | "no_hearing_before_penalty"
     | "compressed_interval"
     | "undated_document"
-    | "out_of_order";
+    | "out_of_order"
+    | "apn_mismatch";
   severity: "high" | "medium" | "low";
   description: string;
   /** Documents this observation concerns. */
@@ -108,7 +109,48 @@ function daysBetween(a: string, b: string): number {
   );
 }
 
-export function buildCase(docs: ReadDocument[]): BuiltCase {
+/**
+ * Normalize an APN for comparison. Counties format parcel numbers inconsistently
+ * (dashes, spaces, trailing "-000") — comparing raw strings would flag every
+ * legitimate document as a mismatch. This strips everything but digits, so
+ * "508-141-038-000" and "508 141 038" both reduce to "508141038" and compare
+ * as equal on their shared prefix rather than failing on formatting alone.
+ */
+export function normalizeApn(apn: string): string {
+  return apn.replace(/\D/g, "").replace(/0+$/, "");
+}
+
+/**
+ * A wrong parcel number on a document is not a formatting nitpick — it can
+ * mean the document was misfiled into this case entirely, which would poison
+ * every downstream deadline and finding computed from it. This check exists
+ * because that exact failure mode is easy to introduce silently: a person
+ * photographing a stack of papers can include one page from a different
+ * matter without noticing, and nothing else in the pipeline would catch it.
+ */
+function checkApnMismatch(doc: ReadDocument, caseApn: string | null): ArcGap | null {
+  if (!caseApn) return null;
+  const docApn = doc.reading.apn.value;
+  if (!docApn || doc.reading.apn.legibility === "illegible") return null;
+
+  const caseNorm = normalizeApn(caseApn);
+  const docNorm = normalizeApn(docApn);
+  if (!caseNorm || !docNorm || caseNorm === docNorm) return null;
+  // Also accept a prefix match either direction, since counties truncate or
+  // append trailing zeros inconsistently across a parcel's own documents.
+  if (caseNorm.startsWith(docNorm) || docNorm.startsWith(caseNorm)) return null;
+
+  return {
+    kind: "apn_mismatch",
+    severity: "high",
+    description: `This document shows Assessor's Parcel Number ${docApn}, which does not match this case's parcel number ${caseApn}.`,
+    evidenceIds: [doc.evidenceId],
+    suggestedNextStep:
+      "Confirm this document actually belongs to this case before relying on any date or finding drawn from it. It may have been filed under the wrong property by mistake.",
+  };
+}
+
+export function buildCase(docs: ReadDocument[], caseApn: string | null = null): BuiltCase {
   const events: ProposedEvent[] = [];
   const gaps: ArcGap[] = [];
   const confirmations: BuiltCase["confirmations"] = [];
@@ -125,6 +167,9 @@ export function buildCase(docs: ReadDocument[]): BuiltCase {
         fields: doc.needsConfirmation,
       });
     }
+
+    const apnGap = checkApnMismatch(doc, caseApn);
+    if (apnGap) gaps.push(apnGap);
 
     if (!dateField.value) {
       // An undated document cannot be placed on the timeline, and a document

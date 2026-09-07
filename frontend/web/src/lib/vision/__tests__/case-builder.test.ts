@@ -197,6 +197,56 @@ describe("neutrality", () => {
   });
 });
 
+describe("APN mismatch", () => {
+  it("flags a document whose APN does not match the case", () => {
+    const d = doc("e1", "notice_of_violation", "2026-04-02");
+    const built = buildCase([d], "205-131-012");
+    // Same APN as the doc's default (205-131-012) -- no mismatch.
+    expect(built.gaps.find((g) => g.kind === "apn_mismatch")).toBeUndefined();
+  });
+
+  it("flags a genuinely different parcel number", () => {
+    const d = doc("e1", "notice_of_violation", "2026-04-02");
+    d.reading.apn = field("508-141-038-000");
+    const built = buildCase([d], "205-131-012");
+    const gap = built.gaps.find((g) => g.kind === "apn_mismatch");
+    expect(gap).toBeTruthy();
+    expect(gap!.severity).toBe("high");
+    expect(gap!.description).toContain("508-141-038-000");
+    expect(gap!.description).toContain("205-131-012");
+    expect(gap!.suggestedNextStep).toMatch(/confirm this document/i);
+  });
+
+  it("tolerates formatting differences (dashes, trailing zeros)", () => {
+    const d = doc("e1", "notice_of_violation", "2026-04-02");
+    d.reading.apn = field("205 131 012");
+    const built = buildCase([d], "205-131-012-000");
+    expect(built.gaps.find((g) => g.kind === "apn_mismatch")).toBeUndefined();
+  });
+
+  it("does not flag when the case has no APN on record", () => {
+    const d = doc("e1", "notice_of_violation", "2026-04-02");
+    d.reading.apn = field("508-141-038-000");
+    const built = buildCase([d], null);
+    expect(built.gaps.find((g) => g.kind === "apn_mismatch")).toBeUndefined();
+  });
+
+  it("does not flag an illegible APN reading", () => {
+    const d = doc("e1", "notice_of_violation", "2026-04-02");
+    d.reading.apn = { value: "508-141-038", asPrinted: "508-141-038", page: 1, legibility: "illegible" };
+    const built = buildCase([d], "205-131-012");
+    expect(built.gaps.find((g) => g.kind === "apn_mismatch")).toBeUndefined();
+  });
+
+  it("never asserts the document is wrong, only that it needs confirming", () => {
+    const d = doc("e1", "notice_of_violation", "2026-04-02");
+    d.reading.apn = field("508-141-038-000");
+    const built = buildCase([d], "205-131-012");
+    const gap = built.gaps.find((g) => g.kind === "apn_mismatch")!;
+    expect(gap.description.toLowerCase()).not.toMatch(/wrong|invalid|fraudulent/);
+  });
+});
+
 describe("empty and degenerate input", () => {
   it("handles an empty stack without inventing anything", () => {
     const built = buildCase([]);
