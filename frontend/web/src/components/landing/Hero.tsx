@@ -5,7 +5,7 @@ export function Hero() {
   return (
     <section className="relative isolate overflow-hidden">
       <img
-        src={heroImage}
+        src={heroImage.src}
         alt="Aerial view of a forested Humboldt County coastline at sunset"
         width={1920}
         height={1080}
@@ -28,7 +28,7 @@ export function Hero() {
         </p>
         <div className="mt-9 flex flex-wrap gap-3">
           <a
-            href="#"
+            href="/map"
             className="inline-flex items-center gap-2.5 rounded-md bg-forest-foreground px-6 py-3.5 text-sm font-medium text-forest transition-opacity hover:opacity-90"
           >
             <MapPin className="h-4 w-4" />
@@ -36,7 +36,7 @@ export function Hero() {
             <ArrowRight className="h-4 w-4" />
           </a>
           <a
-            href="#"
+            href="/map"
             className="inline-flex items-center rounded-md border border-forest-foreground/50 px-6 py-3.5 text-sm font-medium text-forest-foreground transition-colors hover:bg-forest-foreground/10"
           >
             Search Your Property
