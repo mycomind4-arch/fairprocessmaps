@@ -33,7 +33,7 @@ const CASES = [
 
 export function UseCases() {
   return (
-    <section className="border-y border-border bg-sand">
+    <section id="use-cases" className="border-y border-border bg-sand">
       <div className="mx-auto max-w-[1400px] px-6 py-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -45,7 +45,7 @@ export function UseCases() {
             </h2>
           </div>
           <a
-            href="#"
+            href="#use-cases"
             className="inline-flex items-center gap-2 border-b border-foreground/40 pb-0.5 text-[13px] font-medium text-foreground transition-colors hover:text-forest"
           >
             View All Use Cases
@@ -60,7 +60,7 @@ export function UseCases() {
               className="overflow-hidden rounded-md border border-border bg-card"
             >
               <img
-                src={item.image}
+                src={item.image.src}
                 alt={item.alt}
                 width={800}
                 height={520}
@@ -73,7 +73,7 @@ export function UseCases() {
                   {item.body}
                 </p>
                 <a
-                  href="#"
+                  href="/map"
                   className="mt-5 inline-flex items-center gap-2 border-b border-foreground/40 pb-0.5 text-[12.5px] font-medium text-foreground transition-colors hover:text-forest"
                 >
                   Learn More
