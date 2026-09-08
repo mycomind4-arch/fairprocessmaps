@@ -138,12 +138,10 @@ export function LandingMap() {
     });
 
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    map.getCanvas().style.cursor = "crosshair";
     map.on("load", () => setLoading(false));
     map.on("click", (event) => {
       void identifyParcel(event.lngLat.lng, event.lngLat.lat);
-    });
-    map.on("mouseenter", () => {
-      map.getCanvas().style.cursor = "crosshair";
     });
 
     mapRef.current = map;
