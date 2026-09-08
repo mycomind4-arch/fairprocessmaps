@@ -3,9 +3,9 @@ import ctaImage from "@/assets/cta-forest.jpg";
 
 export function ClosingCta() {
   return (
-    <section className="relative isolate overflow-hidden">
+    <section id="about" className="relative isolate overflow-hidden">
       <img
-        src={ctaImage}
+        src={ctaImage.src}
         alt="Misty river winding through a redwood forest at dawn"
         width={1920}
         height={900}
@@ -26,7 +26,7 @@ export function ClosingCta() {
         </p>
         <div className="mt-9 flex flex-wrap gap-3">
           <a
-            href="#"
+            href="/map"
             className="inline-flex items-center gap-2.5 rounded-md bg-forest-foreground px-6 py-3.5 text-sm font-medium text-forest transition-opacity hover:opacity-90"
           >
             <MapPin className="h-4 w-4" />
@@ -34,7 +34,7 @@ export function ClosingCta() {
             <ArrowRight className="h-4 w-4" />
           </a>
           <a
-            href="#"
+            href="#use-cases"
             className="inline-flex items-center rounded-md border border-forest-foreground/50 px-6 py-3.5 text-sm font-medium text-forest-foreground transition-colors hover:bg-forest-foreground/10"
           >
             Learn More
