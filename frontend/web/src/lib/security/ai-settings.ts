@@ -2,11 +2,13 @@
  * AI credential resolution and provenance.
  *
  * Credential precedence is deliberately narrow and predictable:
- *   1. the authenticated user's own encrypted Anthropic key/model
- *   2. the organization's encrypted Anthropic key/model
- *   3. the platform Worker bindings
+ *   1. the authenticated user's own encrypted Anthropic key
+ *   2. the organization's encrypted Anthropic key
+ *   3. the platform Worker binding
  *
- * Plaintext keys never leave this server module and are never written to D1.
+ * Model preference follows user -> organization -> platform independently of
+ * which credential supplies billing. Plaintext keys never leave this server
+ * module and are never written to D1.
  */
 
 import { decryptApiKey, type AiSettingsCryptoEnv } from "./ai-settings-crypto";
@@ -85,9 +87,14 @@ export async function resolveEffectiveClaudeContext<T extends object>(
     loadAiSettings(db, organizationId),
   ]);
 
+  const model =
+    userSettings?.model ??
+    orgSettings?.model ??
+    (env as ClaudeBindingEnv).ANTHROPIC_MODEL ??
+    null;
+
   const userKey = await decryptOverride(env, userSettings);
   if (userKey) {
-    const model = userSettings?.model ?? (env as ClaudeBindingEnv).ANTHROPIC_MODEL ?? null;
     return {
       env: { ...env, ANTHROPIC_API_KEY: userKey, ANTHROPIC_MODEL: model ?? undefined },
       provider: "anthropic",
@@ -98,7 +105,6 @@ export async function resolveEffectiveClaudeContext<T extends object>(
 
   const orgKey = await decryptOverride(env, orgSettings);
   if (orgKey) {
-    const model = orgSettings?.model ?? (env as ClaudeBindingEnv).ANTHROPIC_MODEL ?? null;
     return {
       env: { ...env, ANTHROPIC_API_KEY: orgKey, ANTHROPIC_MODEL: model ?? undefined },
       provider: "anthropic",
@@ -107,7 +113,6 @@ export async function resolveEffectiveClaudeContext<T extends object>(
     };
   }
 
-  const model = (env as ClaudeBindingEnv).ANTHROPIC_MODEL ?? orgSettings?.model ?? null;
   return {
     env: {
       ...env,
