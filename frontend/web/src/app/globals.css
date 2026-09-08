@@ -66,6 +66,22 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
+/* Keep the public homepage visually faithful to the Lovable source without
+   changing the typography of the authenticated FairProcessMaps workspace. */
+.lovable-landing {
+  font-family: var(--font-landing-sans), "Libre Franklin", ui-sans-serif, system-ui, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.lovable-landing .font-serif {
+  font-family: var(--font-serif), "Playfair Display", ui-serif, Georgia, serif;
+}
+
+.lovable-landing .font-script {
+  font-family: var(--font-script), "Caveat", cursive;
+}
+
 *, *::before, *::after {
   scrollbar-width: thin;
   scrollbar-color: #d6dae1 transparent;
