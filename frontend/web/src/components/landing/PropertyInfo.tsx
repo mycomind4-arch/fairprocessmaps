@@ -1,5 +1,22 @@
+"use client";
+
+import dynamic from "next/dynamic";
 import { ArrowRight } from "lucide-react";
-import { LandingMap } from "@/components/landing/LandingMap";
+
+const LandingMap = dynamic(
+  () => import("@/components/landing/LandingMap").then((mod) => mod.LandingMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[420px] w-full items-center justify-center bg-forest/80 md:h-[520px]">
+        <div className="flex items-center gap-3 rounded-md bg-card/95 px-4 py-3 text-[13px] text-foreground shadow-lg">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-forest/25 border-t-forest" />
+          Loading live map…
+        </div>
+      </div>
+    ),
+  },
+);
 
 export function PropertyInfo() {
   return (
