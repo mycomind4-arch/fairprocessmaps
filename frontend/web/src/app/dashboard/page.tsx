@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { ArrowRight, AlertTriangle, CheckCircle2, ChevronRight, FileText, FileArchive, Loader2, LogOut, Plus, RefreshCw, Search, ShieldAlert } from "lucide-react";
+import { ArrowRight, AlertTriangle, ChevronRight, FileText, FileArchive, KeyRound, Loader2, LogOut, Plus, RefreshCw, Search, ShieldAlert } from "lucide-react";
 import { CardSkeleton } from "@/components/ui/states";
 
 interface CaseListItem {
@@ -114,8 +114,9 @@ export default function Dashboard() {
             <div className="text-[10px] text-fp-text-dim uppercase tracking-[0.12em]">Case workspace</div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {user && <span className="hidden sm:block text-xs text-fp-text-muted">{user.email}</span>}
+        <div className="flex items-center gap-2">
+          {user && <span className="hidden sm:block text-xs text-fp-text-muted mr-1">{user.email}</span>}
+          <button onClick={() => router.push("/settings/ai")} className="p-2 rounded-lg text-fp-text-muted hover:text-fp-blue hover:bg-fp-surface-2" title="Your Anthropic key and AI usage"><KeyRound className="w-4 h-4" /></button>
           <button onClick={() => signOut()} className="p-2 rounded-lg text-fp-text-muted hover:text-fp-text hover:bg-fp-surface-2" title="Sign out"><LogOut className="w-4 h-4" /></button>
         </div>
       </header>
@@ -128,43 +129,19 @@ export default function Dashboard() {
             <p className="text-sm text-fp-text-muted mt-2 max-w-xl">Build a defensible record from evidence through response and proof.</p>
           </div>
           <div className="flex items-center gap-3">
-            <input
-              ref={importInputRef}
-              type="file"
-              accept=".zip,application/zip"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file) handleImportFile(file);
-              }}
-            />
-            <button
-              onClick={() => importInputRef.current?.click()}
-              disabled={importing}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-fp-border text-fp-text text-sm font-semibold hover:bg-fp-surface-2 transition-colors disabled:opacity-50"
-              title="Reopen a case file (.fpcase.zip) exported from Case Settings"
-            >
-              {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />}
-              {importing ? "Reopening…" : "Import case file"}
+            <input ref={importInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) handleImportFile(file); }} />
+            <button onClick={() => importInputRef.current?.click()} disabled={importing} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-fp-border text-fp-text text-sm font-semibold hover:bg-fp-surface-2 transition-colors disabled:opacity-50" title="Reopen a case file (.fpcase.zip) exported from Case Settings">
+              {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />}{importing ? "Reopening…" : "Import case file"}
             </button>
-            <button onClick={() => router.push("/map")} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-semibold hover:bg-blue-700 transition-colors">
-              <Plus className="w-4 h-4" /> New case <ArrowRight className="w-4 h-4" />
-            </button>
+            <button onClick={() => router.push("/map")} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-fp-blue text-white text-sm font-semibold hover:bg-blue-700 transition-colors"><Plus className="w-4 h-4" /> New case <ArrowRight className="w-4 h-4" /></button>
           </div>
         </div>
 
         {importError && <div className="mb-6 flex items-center justify-between gap-4 p-3 rounded-lg bg-red-50 border border-red-100 text-sm"><div className="flex items-center gap-2 text-red-700"><AlertTriangle className="w-4 h-4" />{importError}</div><button onClick={() => setImportError(null)} className="text-xs font-semibold text-red-700">Dismiss</button></div>}
-
         {fetchError && <div className="mb-6 flex items-center justify-between gap-4 p-3 rounded-lg bg-red-50 border border-red-100 text-sm"><div className="flex items-center gap-2 text-red-700"><AlertTriangle className="w-4 h-4" />{fetchError}</div><button onClick={loadData} className="text-xs font-semibold text-red-700 flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5" /> Retry</button></div>}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-fp-border border border-fp-border rounded-xl overflow-hidden mb-8">
-          {[{ label: "Active cases", value: activeCases }, { label: "Critical findings", value: criticalAlerts }, { label: "Evidence records", value: totalEvidence }, { label: "Timeline events", value: totalTimelineEvents }].map((stat) => (
-            <div key={stat.label} className="bg-white px-5 py-4">
-              <div className="text-2xl font-semibold tabular-nums">{stat.value}</div>
-              <div className="text-xs text-fp-text-dim mt-1">{stat.label}</div>
-            </div>
-          ))}
+          {[{ label: "Active cases", value: activeCases }, { label: "Critical findings", value: criticalAlerts }, { label: "Evidence records", value: totalEvidence }, { label: "Timeline events", value: totalTimelineEvents }].map((stat) => <div key={stat.label} className="bg-white px-5 py-4"><div className="text-2xl font-semibold tabular-nums">{stat.value}</div><div className="text-xs text-fp-text-dim mt-1">{stat.label}</div></div>)}
         </div>
 
         {pendingReviews.length > 0 && <section className="mb-8">
@@ -177,11 +154,7 @@ export default function Dashboard() {
         <section>
           <div className="flex items-end justify-between mb-3"><div><div className="fp-eyebrow">Case files</div><h2 className="text-lg font-semibold mt-1">All cases</h2></div><span className="text-xs text-fp-text-dim">{totalCases} total</span></div>
           {fetching ? <div className="py-12 flex items-center justify-center text-sm text-fp-text-muted"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading cases…</div> : cases.length === 0 ? <div className="bg-white border border-dashed border-fp-border rounded-xl py-16 text-center"><Search className="w-7 h-7 text-fp-text-dim mx-auto mb-3" /><p className="text-sm font-medium">No cases yet</p><p className="text-xs text-fp-text-muted mt-1">Start with a property search and create your first case.</p></div> : <div className="bg-white border border-fp-border rounded-xl overflow-hidden divide-y divide-fp-border">
-            {cases.map((item) => <button key={item.id} onClick={() => router.push(`/project/${item.legacyProjectId ?? item.id}`)} className="w-full text-left flex items-center gap-4 px-4 sm:px-5 py-4 hover:bg-fp-surface-2 transition-colors group">
-              <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="text-sm font-semibold truncate group-hover:text-fp-blue">{item.name}</span><span className="hidden sm:inline text-[10px] uppercase tracking-wide text-fp-text-dim">{item.case_type.replace(/_/g, " ")}</span></div><div className="flex items-center gap-3 text-xs text-fp-text-muted mt-1"><span className="font-mono">{item.property.apn}</span><span className="truncate">{item.property.address || "No address"}</span><span className="hidden md:inline">{item.property.city}</span></div></div>
-              <div className="hidden sm:flex items-center gap-3 shrink-0">{item.criticalFindingsCount > 0 && <span className="px-2 py-1 rounded-md bg-red-50 text-red-700 border border-red-100 text-[10px] font-semibold">{item.criticalFindingsCount} critical</span>}<span className={`px-2 py-1 rounded-md text-[10px] font-semibold border ${item.status === "open" ? "bg-amber-50 text-amber-800 border-amber-100" : "bg-green-50 text-green-800 border-green-100"}`}>{item.status}</span>{item.due_process_score != null && <span className="text-sm font-semibold tabular-nums">{item.due_process_score}</span>}</div>
-              <ChevronRight className="w-4 h-4 text-fp-text-dim group-hover:text-fp-blue shrink-0" />
-            </button>)}
+            {cases.map((item) => <button key={item.id} onClick={() => router.push(`/project/${item.legacyProjectId ?? item.id}`)} className="w-full text-left flex items-center gap-4 px-4 sm:px-5 py-4 hover:bg-fp-surface-2 transition-colors group"><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="text-sm font-semibold truncate group-hover:text-fp-blue">{item.name}</span><span className="hidden sm:inline text-[10px] uppercase tracking-wide text-fp-text-dim">{item.case_type.replace(/_/g, " ")}</span></div><div className="flex items-center gap-3 text-xs text-fp-text-muted mt-1"><span className="font-mono">{item.property.apn}</span><span className="truncate">{item.property.address || "No address"}</span><span className="hidden md:inline">{item.property.city}</span></div></div><div className="hidden sm:flex items-center gap-3 shrink-0">{item.criticalFindingsCount > 0 && <span className="px-2 py-1 rounded-md bg-red-50 text-red-700 border border-red-100 text-[10px] font-semibold">{item.criticalFindingsCount} critical</span>}<span className={`px-2 py-1 rounded-md text-[10px] font-semibold border ${item.status === "open" ? "bg-amber-50 text-amber-800 border-amber-100" : "bg-green-50 text-green-800 border-green-100"}`}>{item.status}</span>{item.due_process_score != null && <span className="text-sm font-semibold tabular-nums">{item.due_process_score}</span>}</div><ChevronRight className="w-4 h-4 text-fp-text-dim group-hover:text-fp-blue shrink-0" /></button>)}
           </div>}
         </section>
       </main>

@@ -1,9 +1,13 @@
-import { resolveEffectiveClaudeEnv } from "@/lib/security/ai-settings";
+import {
+  collectPopulatedPaths,
+  recordAiUsage,
+  resolveEffectiveClaudeContext,
+} from "@/lib/security/ai-settings";
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { requireAuth } from "@/lib/security/middleware";
 import { authorize } from "@/lib/security/authorization";
-import { synthesizeCaseReview, type ClaudeBindingEnv } from "@/lib/claude";
+import { synthesizeCaseReview } from "@/lib/claude";
 
 export const runtime = "nodejs";
 
@@ -19,8 +23,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id: caseId } = await params;
     const auth = await requireAuth(req);
     if (!auth.ok) return auth.response;
+    const user = auth.user;
 
-    const authz = authorize(auth.user, "analysis.run");
+    const authz = authorize(user, "analysis.run");
     if (!authz.allowed) {
       return NextResponse.json({ error: { code: "FORBIDDEN", message: authz.reason ?? "Forbidden" } }, { status: 403 });
     }
@@ -34,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
          FROM cases
         WHERE id = ? AND organization_id = ?
         LIMIT 1`,
-    ).bind(caseId, auth.user.organization_id).first<Record<string, unknown>>();
+    ).bind(caseId, user.organization_id).first<Record<string, unknown>>();
 
     if (!caseRecord) {
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "Case not found" } }, { status: 404 });
@@ -47,20 +52,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
            FROM evidence e JOIN case_projects cp ON cp.project_id = e.project_id
           WHERE cp.case_id = ? AND e.organization_id = ?
           ORDER BY e.created_at ASC LIMIT 100`,
-      ).bind(caseId, auth.user.organization_id).all(),
+      ).bind(caseId, user.organization_id).all(),
       db.prepare(
         `SELECT t.id, t.event_date, t.event_type, t.description, t.evidence_id, t.created_at
            FROM timeline_events t JOIN case_projects cp ON cp.project_id = t.project_id
           WHERE cp.case_id = ? AND t.organization_id = ?
           ORDER BY COALESCE(t.event_date, t.created_at) ASC LIMIT 300`,
-      ).bind(caseId, auth.user.organization_id).all(),
+      ).bind(caseId, user.organization_id).all(),
       db.prepare(
         `SELECT f.id, f.rule, f.rule_name, f.severity, f.status, f.detail,
                 f.evidence_id, f.missing_info, f.created_at
            FROM due_process_findings f JOIN case_projects cp ON cp.project_id = f.project_id
           WHERE cp.case_id = ? AND f.organization_id = ?
           ORDER BY f.created_at ASC LIMIT 200`,
-      ).bind(caseId, auth.user.organization_id).all(),
+      ).bind(caseId, user.organization_id).all(),
     ]);
 
     const evidence = (evidenceResult.results ?? []).map((row: any) => ({
@@ -69,17 +74,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ai_summary: typeof row.ai_summary === "string" ? row.ai_summary.slice(0, 4000) : null,
     }));
 
-    const review = await synthesizeCaseReview(await resolveEffectiveClaudeEnv(env, env.DB, user.organization_id), {
+    const aiContext = await resolveEffectiveClaudeContext(env, db, user.organization_id, user.id);
+    const review = await synthesizeCaseReview(aiContext.env, {
       caseRecord,
       evidence,
       timeline: timelineResult.results ?? [],
       findings: findingsResult.results ?? [],
     });
 
+    // Usage history records only paths such as "summary" or "recommendations[0].reason".
+    // It never duplicates the generated values or the credential itself.
+    await recordAiUsage({
+      db,
+      organizationId: user.organization_id,
+      userId: user.id,
+      context: aiContext,
+      operation: "Case AI review",
+      resourceType: "case",
+      resourceId: caseId,
+      populatedPaths: collectPopulatedPaths(review),
+    });
+
     return NextResponse.json({
       ok: true,
       case_id: caseId,
       review,
+      ai_credential_scope: aiContext.credentialScope,
       trust_boundary: "Claude synthesis is a review proposal. Source records and deterministic findings remain authoritative.",
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
