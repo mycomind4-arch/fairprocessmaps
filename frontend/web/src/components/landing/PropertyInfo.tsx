@@ -41,7 +41,7 @@ export function PropertyInfo() {
             into clarity, so you can make informed decisions.
           </p>
           <a
-            href="#"
+            href="/map"
             className="mt-8 inline-flex items-center gap-2.5 rounded-md bg-forest px-6 py-3.5 text-sm font-medium text-forest-foreground transition-opacity hover:opacity-90"
           >
             Explore the Interactive Map
@@ -68,7 +68,7 @@ export function PropertyInfo() {
         <div className="relative overflow-hidden rounded-md border border-forest/30 bg-forest p-2 shadow-lg">
           <div className="relative overflow-hidden rounded-sm">
             <img
-              src={mapAerial}
+              src={mapAerial.src}
               alt="Satellite map of a coastal community with property parcels"
               width={1200}
               height={1000}
@@ -102,7 +102,7 @@ export function PropertyInfo() {
 
             <div className="absolute bottom-4 right-4 hidden w-[260px] rounded-md bg-card p-3 shadow-xl md:block">
               <img
-                src={propertyThumb}
+                src={propertyThumb.src}
                 alt="Forested river valley seen from 1234 Redwood Dr"
                 width={800}
                 height={560}
@@ -122,7 +122,7 @@ export function PropertyInfo() {
                 ))}
               </dl>
               <a
-                href="#"
+                href="/map"
                 className="mt-4 flex items-center justify-center gap-2 rounded-md bg-forest px-4 py-3 text-[12.5px] font-medium text-forest-foreground transition-opacity hover:opacity-90"
               >
                 View Full Property Report
