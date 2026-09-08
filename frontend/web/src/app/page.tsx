@@ -20,7 +20,7 @@ export default function LandingPage() {
   }, [user, loading, router]);
 
   return (
-    <div className="min-h-screen bg-background font-sans">
+    <div className="lovable-landing min-h-screen bg-background">
       <Header />
       <main>
         <Hero />
