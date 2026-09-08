@@ -182,10 +182,16 @@ export function LandingMap() {
         ["Action", "Click any parcel"],
       ];
 
+  const isDefaultCenter =
+    mapCenter[0] === HUMBOLDT_CENTER[0] && mapCenter[1] === HUMBOLDT_CENTER[1];
+  const ownerSourcesHref = parcel
+    ? `/property-sources?apn=${encodeURIComponent(parcel.apn)}&address=${encodeURIComponent(parcel.address)}`
+    : null;
+
   return (
     <div className="relative h-[360px] w-full overflow-hidden md:h-[440px]">
       {raster ? (
-        <RasterMap center={mapCenter} zoom={mapCenter === HUMBOLDT_CENTER ? HUMBOLDT_ZOOM : 16} tiles={SATELLITE_TILES[0]} parcels onClick={(point) => void identifyParcel(point[0], point[1])} />
+        <RasterMap center={mapCenter} zoom={isDefaultCenter ? HUMBOLDT_ZOOM : 16} tiles={SATELLITE_TILES[0]} parcels onClick={(point) => void identifyParcel(point[0], point[1])} />
       ) : (
         <div ref={container} className="h-full w-full" />
       )}
@@ -222,8 +228,8 @@ export function LandingMap() {
       )}
 
       <div className="absolute bottom-4 right-4 z-10 hidden w-[250px] rounded-md bg-card/95 p-3 shadow-xl backdrop-blur-sm md:block">
-        <img src={propertyThumb.src} alt="Humboldt County forest and river landscape" width={800} height={560} loading="lazy" className="h-[72px] w-full rounded-sm object-cover" />
-        <div className="mt-3 flex items-start gap-2">
+        <img src={propertyThumb.src} alt="Humboldt County forest and river landscape" width={800} height={560} loading="lazy" className="h-[60px] w-full rounded-sm object-cover" />
+        <div className="mt-2 flex items-start gap-2">
           <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-forest" />
           <div className="min-w-0">
             <h3 className="truncate text-[14px] font-semibold text-foreground">{parcelLoading ? "Looking up parcel…" : parcel?.address || (parcel ? `Parcel ${parcel.apn}` : "Explore a parcel")}</h3>
@@ -235,7 +241,12 @@ export function LandingMap() {
             <div key={label} className="flex items-baseline justify-between gap-3"><dt className="text-[10px] text-muted-foreground">{label}</dt><dd className="max-w-[140px] truncate text-right text-[10px] font-medium text-foreground">{value}</dd></div>
           ))}
         </dl>
-        <a href="/map" className="mt-3 flex items-center justify-center gap-2 rounded-md bg-forest px-4 py-2.5 text-[12px] font-medium text-forest-foreground transition-opacity hover:opacity-90">Open Full Interactive Map <ArrowRight className="h-3.5 w-3.5" /></a>
+        <a href="/map" className="mt-2 flex items-center justify-center gap-2 rounded-md bg-forest px-4 py-2 text-[11.5px] font-medium text-forest-foreground transition-opacity hover:opacity-90">Open Full Interactive Map <ArrowRight className="h-3.5 w-3.5" /></a>
+        {ownerSourcesHref && (
+          <a href={ownerSourcesHref} className="mt-2 flex items-center justify-center gap-1 text-[11px] font-semibold text-forest underline-offset-2 hover:underline">
+            Check free owner & property sources <ArrowRight className="h-3 w-3" />
+          </a>
+        )}
       </div>
 
       <div className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-md bg-forest/85 px-3 py-2 text-[11px] font-medium text-forest-foreground shadow-md backdrop-blur-sm">
