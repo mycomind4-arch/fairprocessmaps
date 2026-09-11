@@ -130,7 +130,15 @@ export function findStatute(ref: string): StatuteRule | undefined {
 }
 
 /**
- * Calculate business days between two dates (excluding weekends).
+ * Calculate business days between two dates (excluding weekends), inclusive
+ * of both endpoints.
+ *
+ * `startDate`/`endDate` are plain "YYYY-MM-DD" dates with no timezone, which
+ * `new Date(...)` parses as UTC midnight. This must walk and read days in
+ * UTC too (getUTCDay/setUTCDate, not getDay/setDate) — otherwise, on any
+ * server whose local timezone is behind UTC (most of the US), every parsed
+ * date reads back as the previous local day, silently shifting weekday
+ * classification and undercounting business days by up to one.
  */
 export function businessDaysBetween(startDate: string, endDate: string): number {
   const start = new Date(startDate);
@@ -139,9 +147,9 @@ export function businessDaysBetween(startDate: string, endDate: string): number 
   let count = 0;
   const cur = new Date(start);
   while (cur <= end) {
-    const day = cur.getDay();
+    const day = cur.getUTCDay();
     if (day !== 0 && day !== 6) count++;
-    cur.setDate(cur.getDate() + 1);
+    cur.setUTCDate(cur.getUTCDate() + 1);
   }
   return count;
 }

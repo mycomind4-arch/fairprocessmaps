@@ -248,13 +248,17 @@ export default function PropertyMap({ onSelectProperty, selectedProperty, onOpen
     const geolocate = new GeolocateControl({ positionOptions: { enableHighAccuracy: true } });
     // Without this, a denied/unavailable location silently does nothing —
     // the button just looks broken with no indication of why.
-    geolocate.on("error", (err: GeolocationPositionError) => {
+    geolocate.on("error", (err) => {
+      // err.code follows the standard GeolocationPositionError codes
+      // (1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT), but
+      // maplibre's GeolocateErrorEvent only types `code`/`message`, not the
+      // named constants, so compare against the raw numbers.
       const reason =
-        err.code === err.PERMISSION_DENIED
+        err.code === 1
           ? "Location access was denied. Check your browser's site permissions for this page."
-          : err.code === err.POSITION_UNAVAILABLE
+          : err.code === 2
             ? "Your location could not be determined right now."
-            : err.code === err.TIMEOUT
+            : err.code === 3
               ? "Location request timed out."
               : err.message || "Could not get your location.";
       setLocateError(reason);

@@ -116,7 +116,7 @@ export default function PublicRecordsRequestPanel({ projectId }: { projectId: st
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ workflowId: "public-records-request" }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Could not start the request");
+      if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Could not start the request");
       const created = await res.json() as { id: string };
       await advance({ recordsSought, caseReference }, created.id);
     } catch (err) {
@@ -139,7 +139,7 @@ export default function PublicRecordsRequestPanel({ projectId }: { projectId: st
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ stageInput }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Request failed");
+      if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Request failed");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
@@ -159,7 +159,7 @@ export default function PublicRecordsRequestPanel({ projectId }: { projectId: st
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ stageId: "send", documentText: draftBody, attestation }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Request failed");
+      if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Request failed");
       await advance();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");

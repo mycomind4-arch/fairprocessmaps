@@ -5,7 +5,7 @@ import { authorizeStage, confirmRecordsRequestSentStage, logRecordsRequestSentSt
 
 describe("records request workflow", () => {
   it("reviews the request draft, waits for a human, and logs only confirmed dates", async () => {
-    const context = { runId: "r", caseId: "c", organizationId: "o", priorResults: [], input: {} };
+    const context = { runId: "r", caseId: "c", organizationId: "o", actor: "casey@example.com", priorResults: [], input: {} };
     const deps = {
       loadAuthorization: async () => null,
       currentContentHash: async () => "reviewed-hash",
