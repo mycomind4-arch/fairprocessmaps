@@ -6,8 +6,9 @@ test("landing page loads with header and hero content", async ({ page }) => {
   // Header logo/wordmark should be visible
   await expect(page.locator("header").getByText("FairProcessMaps", { exact: true })).toBeVisible();
 
-  // Hero heading should be present
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Build the record");
+  // Hero heading should be present. This tracks components/landing/Hero.tsx's
+  // actual copy — update alongside it if the hero copy changes again.
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Levels the Ground");
 });
 
 test("sign in button opens the login modal", async ({ page }) => {
