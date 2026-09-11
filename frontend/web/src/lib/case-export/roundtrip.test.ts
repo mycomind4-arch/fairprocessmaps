@@ -57,7 +57,7 @@ async function exportedRequest() {
 it("round-trips evidence into a new org and supersedes old authorizations", async () => {
   const response = await importCase(await exportedRequest());
   expect(response.status).toBe(200);
-  const result = await response.json();
+  const result = (await response.json()) as { projectId: string };
   expect(result.projectId).not.toBe("case-source");
   expect(state.env.DB.batch).toHaveBeenCalledOnce();
   const evidence = writes.find((s) => /INSERT INTO evidence\b/.test(s.sql))!;

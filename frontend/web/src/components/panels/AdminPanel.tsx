@@ -321,7 +321,7 @@ export default function AdminPanel({ projectId }: { projectId: string }) {
     setExportingCaseFile(true);
     try {
       const res = await fetch(`/api/v1/cases/${projectId}/export`);
-      if (!res.ok) throw new Error((await res.json()).error ?? "Export failed");
+      if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Export failed");
       const url = URL.createObjectURL(await res.blob());
       const link = document.createElement("a");
       link.href = url;
