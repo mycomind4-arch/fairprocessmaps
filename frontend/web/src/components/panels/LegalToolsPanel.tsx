@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Shield, Mail, FileSignature } from "lucide-react";
+import { FileText, Shield, Mail, FileSignature, BookOpen } from "lucide-react";
 import { BriefGeneratorPanel } from "./BriefGeneratorPanel";
 import DefenseBuilderPanel from "./DefenseBuilderPanel";
 import CommunicationsPanel from "./CommunicationsPanel";
 import ResponseDraftPanel from "./ResponseDraftPanel";
+import LegalLibraryPanel from "./LegalLibraryPanel";
 
-type LegalTab = "briefs" | "defense" | "response" | "communications";
+type LegalTab = "briefs" | "defense" | "library" | "response" | "communications";
 
 const TABS: { id: LegalTab; label: string; icon: typeof FileText; description: string }[] = [
   { id: "briefs", label: "Briefs", icon: FileText, description: "Generate case work product" },
   { id: "defense", label: "Defense", icon: Shield, description: "Select and refine arguments" },
+  { id: "library", label: "Library", icon: BookOpen, description: "Statutes and legal reference" },
   { id: "response", label: "Response", icon: FileSignature, description: "Review and finalize" },
   { id: "communications", label: "Mail & Proof", icon: Mail, description: "Send and track" },
 ];
@@ -29,7 +31,7 @@ export default function LegalToolsPanel({ projectId }: { projectId: string }) {
       </div>
 
       <div className="bg-white border border-fp-border rounded-xl overflow-hidden">
-        <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-fp-border" role="tablist">
+        <div className="grid grid-cols-2 sm:grid-cols-5 border-b border-fp-border" role="tablist">
           {TABS.map((item) => {
             const Icon = item.icon;
             const active = tab === item.id;
@@ -44,6 +46,7 @@ export default function LegalToolsPanel({ projectId }: { projectId: string }) {
         <div className="p-4 sm:p-6">
           {tab === "briefs" && <BriefGeneratorPanel projectId={projectId} />}
           {tab === "defense" && <DefenseBuilderPanel projectId={projectId} />}
+          {tab === "library" && <LegalLibraryPanel />}
           {tab === "response" && <ResponseDraftPanel caseId={projectId} />}
           {tab === "communications" && <CommunicationsPanel caseId={projectId} />}
         </div>

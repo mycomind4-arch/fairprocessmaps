@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 
 const PropertyMap = dynamic(() => import("@/components/PropertyMap"), { ssr: false });
@@ -66,12 +66,30 @@ function ProjectRecon({ projectId, force, onComplete, onClose }: {
   );
 }
 
+const VALID_SECTIONS: ProjectSection[] = [
+  "intake", "intelligence", "authority", "timeline", "vault", "analysis",
+  "legal", "graph", "connectors", "respond", "policy", "admin", "assistant",
+  "ai-settings", "workflows", "records-request",
+];
+
 export default function ProjectDashboard() {
+  return (
+    <Suspense fallback={null}>
+      <ProjectDashboardInner />
+    </Suspense>
+  );
+}
+
+function ProjectDashboardInner() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [section, setSection] = useState<ProjectSection>("intelligence");
+  const initialSection = searchParams.get("section") as ProjectSection | null;
+  const [section, setSection] = useState<ProjectSection>(
+    initialSection && VALID_SECTIONS.includes(initialSection) ? initialSection : "intelligence"
+  );
   const [mapExpanded, setMapExpanded] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [recon, setRecon] = useState<ReconStatus | null>(null);
