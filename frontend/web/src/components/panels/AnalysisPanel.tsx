@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ScaleIcon, Bot, Activity, Clock, Sparkles } from "lucide-react";
-import LegalAnalysisPanel from "./LegalAnalysisPanel";
+import DiscrepanciesPanel from "./DiscrepanciesPanel";
 import AIReviewPanel from "./AIReviewPanel";
 import ClaudeReviewPanel from "./ClaudeReviewPanel";
 import { EventReconstructionPanel } from "./EventReconstruction";
@@ -35,7 +35,7 @@ export default function AnalysisPanel({ projectId }: { projectId: string }) {
         })}
       </div>
 
-      {tab === "findings" && <LegalAnalysisPanel projectId={projectId} />}
+      {tab === "findings" && <DiscrepanciesPanel projectId={projectId} />}
       {tab === "ai-review" && <AIReviewPanel projectId={projectId} />}
       {tab === "claude" && <ClaudeReviewPanel caseId={projectId} />}
       {tab === "reconstruction" && <EventReconstructionPanel projectId={projectId} />}

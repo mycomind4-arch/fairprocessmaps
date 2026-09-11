@@ -170,12 +170,13 @@ export const STATUTE_MATCHER_AGENT: Agent = {
   },
 };
 
-// ── Embedded Statutes ──────────────────────────────────────────────────────
+// ── Embedded Statutes (fallback only) ───────────────────────────────────────
 //
-// This mirrors the seed data in migration 014_statute_library.sql.
-// In a future iteration, the runner should load these from the DB
-// and pass them in the input snapshot. For now, they're embedded
-// so the agent can run without a DB query.
+// The runner loads real statutes from the `statutes` table (see runner.ts,
+// "H1 fix") and passes them in the input snapshot — that's the live path.
+// This array mirrors the seed data in migration 014_statute_library.sql and
+// is used only as a fallback when a snapshot has no statutes attached, e.g.
+// unit tests that construct AgentInputSnapshot by hand.
 
 const EMBEDDED_STATUTES: StatuteRef[] = [
   {

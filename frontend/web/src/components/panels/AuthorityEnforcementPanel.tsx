@@ -5,12 +5,11 @@ import { Building2, ShieldAlert, Network, FileText, Landmark, User, Briefcase, H
 import BuildingDeptPanel from "./BuildingDeptPanel";
 import CodeEnforcementPanel from "./CodeEnforcementPanel";
 
-type SubTab = "agencies" | "chain" | "enforcement-actions" | "legal-authority";
+type SubTab = "agencies" | "chain" | "legal-authority";
 
 const SUB_TABS: { id: SubTab; label: string; icon: typeof Building2 }[] = [
-  { id: "agencies", label: "Agencies & Departments", icon: Building2 },
+  { id: "agencies", label: "Enforcement Actions", icon: ShieldAlert },
   { id: "chain", label: "Chain of Authority", icon: Network },
-  { id: "enforcement-actions", label: "Enforcement Actions", icon: ShieldAlert },
   { id: "legal-authority", label: "Legal Authority", icon: FileText },
 ];
 
@@ -84,12 +83,6 @@ export default function AuthorityEnforcementPanel({ projectId }: { projectId: st
         )}
 
         {subTab === "chain" && <ChainOfAuthority projectId={projectId} />}
-
-        {subTab === "enforcement-actions" && (
-          <div className="space-y-4">
-            <CodeEnforcementPanel projectId={projectId} />
-          </div>
-        )}
 
         {subTab === "legal-authority" && <LegalAuthority projectId={projectId} />}
       </div>

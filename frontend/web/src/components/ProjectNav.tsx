@@ -4,7 +4,6 @@ import {
   Cog,
   KeyRound,
   Sparkles,
-  Send,
   Search,
   Building2,
   FolderArchive,
@@ -15,7 +14,6 @@ import {
   Network,
   Gavel,
   FileSignature,
-  Mail,
 } from "lucide-react";
 
 export type ProjectSection =
@@ -65,8 +63,6 @@ const NAV_GROUPS: NavGroup[] = [
     title: "BUILD THE DEFENSE",
     items: [
       { id: "assistant", label: "Case Assistant", icon: Sparkles },
-      { id: "records-request", label: "Records Request", icon: Mail },
-      { id: "respond", label: "Respond to Notice", icon: Send },
       { id: "legal", label: "Defense & Response", icon: Gavel },
       { id: "graph", label: "Case Graph", icon: Network },
     ],
