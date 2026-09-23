@@ -14,12 +14,14 @@ import {
   Network,
   Gavel,
   FileSignature,
+  UserRoundCog,
 } from "lucide-react";
 
 export type ProjectSection =
   | "intake"
   | "intelligence"
   | "authority"
+  | "status-capacity"
   | "timeline"
   | "vault"
   | "analysis"
@@ -54,6 +56,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "workflows", label: "Workflows", icon: Cog },
       { id: "intelligence", label: "Property & Records", icon: Search },
       { id: "authority", label: "Authorities", icon: Building2 },
+      { id: "status-capacity", label: "Status & Capacity", icon: UserRoundCog },
       { id: "vault", label: "Evidence", icon: FolderArchive },
       { id: "timeline", label: "Timeline", icon: Calendar },
       { id: "analysis", label: "Analysis", icon: ScaleIcon, badgeKey: "findings" },
