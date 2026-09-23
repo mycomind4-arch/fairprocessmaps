@@ -25,6 +25,7 @@ import CaseAssistantPanel from "@/components/panels/CaseAssistantPanel";
 import DeadlineBar from "@/components/DeadlineBar";
 import CaseIntakePanel from "@/components/panels/CaseIntakePanel";
 import AuthorityEnforcementPanel from "@/components/panels/AuthorityEnforcementPanel";
+import StatusCapacityPanel from "@/components/panels/StatusCapacityPanel";
 import { useReconStream, TopProgressBar, AgentPopup } from "@/components/ReconProgressModal";
 import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, RefreshCw, X, Menu } from "lucide-react";
 
@@ -67,7 +68,7 @@ function ProjectRecon({ projectId, force, onComplete, onClose }: {
 }
 
 const VALID_SECTIONS: ProjectSection[] = [
-  "intake", "intelligence", "authority", "timeline", "vault", "analysis",
+  "intake", "intelligence", "authority", "status-capacity", "timeline", "vault", "analysis",
   "legal", "graph", "connectors", "respond", "policy", "admin", "assistant",
   "ai-settings", "workflows", "records-request",
 ];
@@ -260,6 +261,7 @@ function ProjectDashboardInner() {
           {section === "intake" && <CaseIntakePanel projectId={id} onNavigate={setSection} />}
           {section === "intelligence" && <PropertyIntelligence projectId={id} propertyId={project?.property_id ?? ""} onNavigate={setSection} />}
           {section === "authority" && <AuthorityEnforcementPanel projectId={id} />}
+          {section === "status-capacity" && <StatusCapacityPanel projectId={id} />}
           {section === "timeline" && <TimelinePanel projectId={id} />}
           {section === "vault" && <EvidenceVaultPanel projectId={id} onNavigate={setSection} />}
           {section === "analysis" && <AnalysisPanel projectId={id} />}
